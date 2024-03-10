@@ -13,7 +13,7 @@
 
 #include "../interface/interface_impl.hh"
 #include "../interface/interface_skel.hh"
-#include "../../util.hh"
+#include "../util.hh"
 #include "../src/corba/corba.hh"
 #include "kaffeeklatsch.hh"
 

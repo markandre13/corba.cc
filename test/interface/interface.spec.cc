@@ -1,7 +1,7 @@
 #include "interface.hh"
 
-#include "../../fake.hh"
-#include "../../util.hh"
+#include "../fake.hh"
+#include "../util.hh"
 #include "interface_skel.hh"
 #include "interface_stub.hh"
 #include "kaffeeklatsch.hh"
