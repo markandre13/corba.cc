@@ -1,0 +1,13 @@
+src/backend
+test/tests
+.vscode
+.DS_Store
+Info.plist
+mediapipe
+mediapipe_graphs
+mediapipe_models
+*.o
+*.o.tmp
+*.bak
+*~
+DEADJOE

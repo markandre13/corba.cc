@@ -1,0 +1,9 @@
+[submodule "upstream/async.cc"]
+	path = upstream/async.cc
+	url = git@github.com:markandre13/async.cc.git
+[submodule "upstream/corba.js"]
+	path = upstream/corba.js
+	url = git@github.com:markandre13/corba.js.git
+[submodule "upstream/kaffeeklatsch"]
+	path = upstream/kaffeeklatsch
+	url = git@github.com:markandre13/kaffeeklatsch.git

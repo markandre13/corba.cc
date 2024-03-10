@@ -1,0 +1,11 @@
+---
+Language: Cpp
+BasedOnStyle: Google
+IndentWidth: 4
+IndentAccessModifiers: true
+IndentCaseBlocks: false
+IndentCaseLabels: true
+ColumnLimit: 160
+BeforeLambdaBody: false
+AllowShortLambdasOnASingleLine: Empty
+...
