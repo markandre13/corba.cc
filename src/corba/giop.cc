@@ -329,17 +329,17 @@ void GIOPDecoder::readServiceContext() {
                     // std::cout << "ServiceContext CodeSets" << std::endl;
                     break;
                 case ServiceId::BI_DIR_IIOP: {  
-                    cout << "ServiceContext BI_DIR_IIOP" << endl;
+                    // cout << "ServiceContext BI_DIR_IIOP" << endl;
                     auto count = readUlong();
                     for(auto i = 0; i<count; ++i) {
                         auto host = readStringView();
                         auto port = readUshort();
-                        cout << "    " << host << ":" << port << endl;
+                        // cout << "    " << host << ":" << port << endl;
                         connection->addPeer(host, port);
                     }
                 } break;
                 case ServiceId::SecurityAttributeService:
-                    cout << "ServiceContext SecurityAttributeService" << endl;
+                    cout << "ServiceContext SecurityAttributeService not implemented yet" << endl;
                     break;
                 default:
                     cout << "ServiceContext " << static_cast<unsigned>(serviceId) << endl;

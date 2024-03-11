@@ -59,7 +59,7 @@ int create_listen_socket(const char *hostname, uint16_t port) {
 
     int sfd = -1;
     for (struct addrinfo *rp = addrinfo; rp; rp = rp->ai_next) {
-        std::cerr << "CREATE SOCKET" << std::endl;
+        // std::cerr << "CREATE SOCKET" << std::endl;
         sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
         if (sfd == -1) {
             std::cerr << "FAILED TO CREATE SOCKET: " << strerror(errno) << std::endl;
@@ -72,7 +72,7 @@ int create_listen_socket(const char *hostname, uint16_t port) {
             continue;
         }
         if (bind(sfd, rp->ai_addr, rp->ai_addrlen) == 0) {
-            std::cerr << "SUCCEEDED TO BIND SOCKET" << std::endl;
+            // std::cerr << "SUCCEEDED TO BIND SOCKET" << std::endl;
             break;
         }
         std::cerr << "FAILED TO BIND SOCKET:" << strerror(errno) << std::endl;
@@ -90,7 +90,7 @@ int create_listen_socket(const char *hostname, uint16_t port) {
         close(sfd);
         return -1;
     }
-    std::cerr << "created listen socket " << sfd << std::endl;
+    // std::cerr << "created listen socket " << sfd << std::endl;
     return sfd;
 }
 

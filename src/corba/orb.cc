@@ -152,14 +152,16 @@ async<shared_ptr<Object>> ORB::stringToObject(const std::string &iorString) {
 }
 
 async<detail::Connection *> ORB::getConnection(string host, uint16_t port) {
-    println("ORB::getConnection(\"{}\", {}) <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<", host, port);
+    // println("ORB::getConnection(\"{}\", {}) <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<", host, port);
 
     if (host == "::1" || host == "127.0.0.1") {
         host = "localhost";
     }
     for (auto conn : connections) {
         if (conn->remoteAddress() == host && conn->remotePort() == port) {
-            println("ORB : Found active connection");
+            if (debug) {
+                println("ORB : Found active connection");
+            }
             co_return conn;
         }
     }
