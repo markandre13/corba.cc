@@ -8,6 +8,8 @@ using namespace std;
 
 namespace CORBA {
 
+void CDREncoder::writeEndian() { writeOctet(endian::native == endian::big ? 0 : 1); }
+
 void CDREncoder::writeBoolean(bool value) {
     reserve(offset + 1);
     auto ptr = reinterpret_cast<uint8_t *>(_data.data() + offset);
@@ -103,7 +105,14 @@ void CDREncoder::writeString(const char *value, size_t nbytes) {
     ++offset;
 }
 
-void CDREncoder::writeEndian() { writeOctet(endian::native == endian::big ? 0 : 1); }
+void CDREncoder::writeSequence(const std::span<float> & value) {
+    align4();
+    auto nbytes = 4 * value.size();
+    reserve(offset + nbytes);
+    auto ptr = reinterpret_cast<float *>(_data.data() + offset);
+    memcpy(ptr, value.data(), nbytes);
+    offset += nbytes;
+}
 
 void CDREncoder::reserveSize() {
     align4();

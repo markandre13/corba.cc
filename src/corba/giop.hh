@@ -181,6 +181,8 @@ class GIOPEncoder : public GIOPBase {
         inline void writeBlob(const CORBA::blob &value) { buffer.writeBlob((const char*)value.data(), value.size()); }
         inline void writeBlob(const CORBA::blob_view &value) { buffer.writeBlob((const char*)value.data(), value.size()); }
 
+        inline void writeSequence(const std::span<float> & value) { buffer.writeSequence(value); }
+
         inline void writeEndian() { buffer.writeEndian(); }
 
         inline void reserveSize() { buffer.reserveSize(); }
@@ -244,6 +246,11 @@ class GIOPDecoder : public GIOPBase {
         inline CORBA::blob_view readBlobView() { return buffer.readBlobView(); }
         inline std::string_view readStringView() { return buffer.readStringView(); }
         inline std::string_view readStringView(size_t length) { return buffer.readStringView(length); }
+
+        inline std::span<float> readSequenceSpanFloat() { 
+            throw std::runtime_error("GIOPDecoder::readSequenceSpanFloat() is not implemented yet");
+         }
+        // inline std::vector<float> readSequenceVectorFloat() { return {}; }
         // sequence
         // value
         // object

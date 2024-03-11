@@ -5,6 +5,7 @@
 #include <format>
 #include <string>
 #include <vector>
+#include <span>
 
 #include "blob.hh"
 
@@ -28,22 +29,28 @@ class CDREncoder {
         }
         inline void reserve() { reserve(offset); }
 
+        void writeEndian();
         void writeBoolean(bool);
         void writeOctet(uint8_t);
+
         void writeUshort(uint16_t);
         void writeUlong(uint32_t);
         void writeUlonglong(uint64_t);
         void writeShort(int16_t);
         void writeLong(int32_t);
         void writeLonglong(int64_t);
+
         void writeFloat(float);
         void writeDouble(double);
+
         void writeBlob(const char *buffer, size_t nbytes);
         void writeString(const char *buffer);
         void writeString(const char *buffer, size_t nbytes);
         inline void writeString(const std::string &value) { writeString(value.data(), value.size()); }
         inline void writeString(const std::string_view &value) { writeString(value.data(), value.size()); }
-        void writeEndian();
+
+        void writeSequence(const std::span<float> & value);
+
 
         void reserveSize();
         void fillInSize();
