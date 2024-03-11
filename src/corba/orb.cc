@@ -266,7 +266,7 @@ void ORB::onewayCall(Stub *stub, const char *operation, std::function<void(GIOPE
     auto requestId = stub->connection->requestId;
     stub->connection->requestId += 2;
     GIOPEncoder encoder(stub->connection);
-    auto responseExpected = true;
+    auto responseExpected = false;
     encoder.encodeRequest(stub->objectKey, operation, requestId, responseExpected);
     encode(encoder);
     encoder.setGIOPHeader(MessageType::REQUEST);

@@ -106,7 +106,8 @@ void CDREncoder::writeString(const char *value, size_t nbytes) {
 }
 
 void CDREncoder::writeSequence(const std::span<float> & value) {
-    align4();
+    writeUlong(value.size());
+    // align4(); already aligned at 4
     auto nbytes = 4 * value.size();
     reserve(offset + nbytes);
     auto ptr = reinterpret_cast<float *>(_data.data() + offset);
