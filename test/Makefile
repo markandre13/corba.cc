@@ -48,7 +48,7 @@ OBJ = $(SRC:.cc=.o)
 all: $(APP)
 
 depend:
-	makedepend -I. -Y $(SRC)
+	makedepend -I../src -Y $(SRC)
 
 run:
 	DYLD_LIBRARY_PATH=$(MEDIAPIPE_CPP_DIR)/library ./$(APP) --reporter=info --report-timing --only=foo
@@ -80,49 +80,62 @@ makehuman.hh: makehuman.idl
 
 # DO NOT DELETE
 
-net/ws.spec.o: ../src/corba/net/ws.hh ../src/corba/protocol.hh
-net/ws.spec.o: ../src/corba/blob.hh ../src/corba/coroutine.hh
-net/ws.spec.o: ../upstream/async.cc/src/async.hh interface/interface_impl.hh
-net/ws.spec.o: interface/interface_skel.hh interface/interface.hh
-net/ws.spec.o: interface/interface_skel.hh util.hh ../src/corba/hexdump.hh
-net/ws.spec.o: ../src/corba/coroutine.hh ../src/corba/corba.hh
-net/ws.spec.o: ../src/corba/orb.hh ../src/corba/giop.hh ../src/corba/cdr.hh
-net/ws.spec.o: ../src/corba/skeleton.hh ../src/corba/object.hh
-net/ws.spec.o: ../src/corba/stub.hh ../src/corba/ior.hh
-net/ws.spec.o: ../src/corba/exception.hh
-../src/corba/net/ws.o: ../src/corba/net/ws.hh ../src/corba/protocol.hh
-../src/corba/net/ws.o: ../src/corba/blob.hh ../src/corba/coroutine.hh
-../src/corba/net/ws.o: ../upstream/async.cc/src/async.hh ../src/corba/orb.hh
-../src/corba/net/ws.o: ../src/corba/giop.hh ../src/corba/cdr.hh
-../src/corba/net/ws.o: ../src/corba/net/ws/createAcceptKey.hh
-../src/corba/net/ws.o: ../src/corba/net/ws/socket.hh
-../src/corba/net/ws.o: ../../../upstream/wslay/lib/wslay_event.h
-../src/corba/net/ws.o: ../../../upstream/wslay/lib/wslay_queue.h
-interface/interface.spec.o: interface/interface.hh fake.hh util.hh
-interface/interface.spec.o: ../src/corba/hexdump.hh ../src/corba/blob.hh
-interface/interface.spec.o: ../src/corba/coroutine.hh
-interface/interface.spec.o: ../upstream/async.cc/src/async.hh
-interface/interface.spec.o: interface/interface_skel.hh
-interface/interface.spec.o: interface/interface_stub.hh
-interface/interface.o: interface/interface.hh interface/interface_skel.hh
-interface/interface.o: interface/interface_stub.hh
 cdr_decoder.spec.o: ../src/corba/cdr.hh ../src/corba/blob.hh
 cdr_encoder.spec.o: ../src/corba/cdr.hh ../src/corba/blob.hh
 giop.spec.o: ../src/corba/giop.hh ../src/corba/cdr.hh ../src/corba/blob.hh
 giop.spec.o: util.hh ../src/corba/hexdump.hh ../src/corba/coroutine.hh
 giop.spec.o: ../upstream/async.cc/src/async.hh
-corba.spec.o: fake.hh ../src/corba/corba.hh ../src/corba/orb.hh
-corba.spec.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
-corba.spec.o: ../src/corba/giop.hh ../src/corba/cdr.hh ../src/corba/blob.hh
+corba.spec.o: fake.hh ../src/corba/blob.hh ../src/corba/protocol.hh
+corba.spec.o: ../src/corba/blob.hh ../src/corba/coroutine.hh
+corba.spec.o: ../upstream/async.cc/src/async.hh ../src/corba/corba.hh
+corba.spec.o: ../src/corba/orb.hh ../src/corba/giop.hh ../src/corba/cdr.hh
 corba.spec.o: ../src/corba/skeleton.hh ../src/corba/object.hh
 corba.spec.o: ../src/corba/stub.hh ../src/corba/ior.hh
 corba.spec.o: ../src/corba/exception.hh ../src/corba/orb.hh
 corba.spec.o: ../src/corba/protocol.hh ../src/corba/url.hh util.hh
 corba.spec.o: ../src/corba/hexdump.hh ../src/corba/coroutine.hh
 blob.spec.o: ../src/corba/blob.hh
+interface/interface.spec.o: fake.hh ../src/corba/blob.hh
+interface/interface.spec.o: ../src/corba/protocol.hh ../src/corba/blob.hh
+interface/interface.spec.o: ../src/corba/coroutine.hh
+interface/interface.spec.o: ../upstream/async.cc/src/async.hh util.hh
+interface/interface.spec.o: ../src/corba/hexdump.hh ../src/corba/coroutine.hh
+interface/interface.spec.o: interface/interface_impl.hh
+interface/interface.spec.o: interface/interface_skel.hh ../src/corba/corba.hh
+interface/interface.spec.o: ../src/corba/orb.hh ../src/corba/giop.hh
+interface/interface.spec.o: ../src/corba/cdr.hh ../src/corba/skeleton.hh
+interface/interface.spec.o: ../src/corba/object.hh ../src/corba/stub.hh
+interface/interface.spec.o: ../src/corba/ior.hh ../src/corba/exception.hh
+interface/interface.spec.o: ../src/corba/orb.hh ../src/corba/giop.hh
+interface/interface.spec.o: ../src/corba/coroutine.hh interface/interface.hh
+interface/interface.o: ../src/corba/corba.hh ../src/corba/orb.hh
+interface/interface.o: ../src/corba/coroutine.hh
+interface/interface.o: ../upstream/async.cc/src/async.hh ../src/corba/giop.hh
+interface/interface.o: ../src/corba/cdr.hh ../src/corba/blob.hh
+interface/interface.o: ../src/corba/skeleton.hh ../src/corba/object.hh
+interface/interface.o: ../src/corba/stub.hh ../src/corba/ior.hh
+interface/interface.o: ../src/corba/exception.hh ../src/corba/orb.hh
+interface/interface.o: ../src/corba/giop.hh ../src/corba/coroutine.hh
+interface/interface.o: interface/interface.hh interface/interface_skel.hh
+interface/interface.o: interface/interface_stub.hh
+net/ws.spec.o: ../src/corba/net/ws.hh ../src/corba/protocol.hh
+net/ws.spec.o: ../src/corba/blob.hh ../src/corba/coroutine.hh
+net/ws.spec.o: ../upstream/async.cc/src/async.hh interface/interface_impl.hh
+net/ws.spec.o: interface/interface_skel.hh ../src/corba/corba.hh
+net/ws.spec.o: ../src/corba/orb.hh ../src/corba/giop.hh ../src/corba/cdr.hh
+net/ws.spec.o: ../src/corba/skeleton.hh ../src/corba/object.hh
+net/ws.spec.o: ../src/corba/stub.hh ../src/corba/ior.hh
+net/ws.spec.o: ../src/corba/exception.hh ../src/corba/orb.hh
+net/ws.spec.o: ../src/corba/giop.hh ../src/corba/coroutine.hh
+net/ws.spec.o: interface/interface.hh interface/interface_skel.hh util.hh
+net/ws.spec.o: ../src/corba/hexdump.hh ../src/corba/coroutine.hh
+net/ws.spec.o: ../src/corba/corba.hh
 util.o: util.hh ../src/corba/hexdump.hh ../src/corba/blob.hh
 util.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
-fake.o: fake.hh
+fake.o: fake.hh ../src/corba/blob.hh ../src/corba/protocol.hh
+fake.o: ../src/corba/blob.hh ../src/corba/coroutine.hh
+fake.o: ../upstream/async.cc/src/async.hh ../src/corba/orb.hh
+fake.o: ../src/corba/giop.hh ../src/corba/cdr.hh
 ../src/corba/orb.o: ../src/corba/orb.hh ../src/corba/coroutine.hh
 ../src/corba/orb.o: ../upstream/async.cc/src/async.hh ../src/corba/giop.hh
 ../src/corba/orb.o: ../src/corba/cdr.hh ../src/corba/blob.hh

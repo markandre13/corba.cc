@@ -110,6 +110,9 @@ class CDRDecoder {
         std::string_view readStringView();
         std::string_view readStringView(size_t length);
 
+        std::span<float> readSequenceSpanFloat();
+        std::vector<float> readSequenceVectorFloat();
+
         // sequence
         // value
         // object

@@ -247,12 +247,8 @@ class GIOPDecoder : public GIOPBase {
         inline std::string_view readStringView() { return buffer.readStringView(); }
         inline std::string_view readStringView(size_t length) { return buffer.readStringView(length); }
 
-        inline std::span<float> readSequenceSpanFloat() { 
-            throw std::runtime_error("GIOPDecoder::readSequenceSpanFloat() is not implemented yet");
-        }
-        inline std::vector<float> readSequenceVectorFloat() { 
-            throw std::runtime_error("GIOPDecoder::readSequenceVectorFloat() is not implemented yet");
-        }
+        inline std::span<float> readSequenceSpanFloat() { return buffer.readSequenceSpanFloat(); }
+        inline std::vector<float> readSequenceVectorFloat() {return buffer.readSequenceVectorFloat(); }
 
         // sequence
         // value

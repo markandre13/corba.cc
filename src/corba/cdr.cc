@@ -273,4 +273,16 @@ std::string_view CDRDecoder::readStringView(size_t len) {
     return std::string_view(buffer, len - 1);
 }
 
+std::span<float> CDRDecoder::readSequenceSpanFloat() {
+    auto size = readUlong();
+    // auto ptr = reinterpret_cast<const float*>(_data + m_offset);
+    auto ptr = (float*)(_data + m_offset);
+    m_offset += size * 4z;
+    return std::span<float>(ptr, size);
+}
+std::vector<float> CDRDecoder::readSequenceVectorFloat() {
+    auto span = readSequenceSpanFloat();
+    return vector<float>(span.begin(), span.end());
+}
+
 }  // namespace CORBA
