@@ -19,6 +19,7 @@ interface Interface {
 
     string callString(in string value);
     sequence<octet> callBlob(in sequence<octet> value);
+    sequence<float> callSeqFloat(in sequence<float> value);
 
     void setPeer(in Peer peer);
     string callPeer(in string value);

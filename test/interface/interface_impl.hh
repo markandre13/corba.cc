@@ -20,6 +20,7 @@ class Interface_impl : public Interface_skel {
 
         CORBA::async<std::string> callString(const std::string_view &value) override { co_return std::string(value); }
         CORBA::async<CORBA::blob> callBlob(const CORBA::blob_view &value) override { co_return CORBA::blob(value); }
+        CORBA::async<std::vector<float>> callSeqFloat(const std::span<float> & value) override { co_return std::vector(value.begin(), value.end()); }
 
         std::shared_ptr<Peer> peer;
         CORBA::async<void> setPeer(std::shared_ptr<Peer> aPeer) override {

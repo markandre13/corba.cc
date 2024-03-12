@@ -21,17 +21,20 @@ LDFLAGS=-L/usr/local/opt/llvm/lib/c++ \
 WSLAG_FLAGS=-I/usr/local/include
 LIB=-lev -lwslay -lnettle
 
-SRC =  net/ws.spec.cc ../src/corba/net/ws.cc \
+APP_SRC=cdr_decoder.spec.cc cdr_encoder.spec.cc giop.spec.cc corba.spec.cc blob.spec.cc \
 	  interface/interface.spec.cc interface/interface.cc \
-	  cdr_decoder.spec.cc cdr_encoder.spec.cc giop.spec.cc corba.spec.cc blob.spec.cc \
-	  main.cc util.cc fake.cc \
-	  ../upstream/kaffeeklatsch/src/kaffeeklatsch.cc \
-	  ../src/corba/orb.cc \
-	  ../src/corba/ior.cc ../src/corba/skeleton.cc ../src/corba/stub.cc \
-	  ../src/corba/giop.cc ../src/corba/cdr.cc \
-	  ../src/corba/url.cc ../src/corba/hexdump.cc \
-	  ../src/corba/net/ws/socket.cc ../src/corba/net/ws/createAcceptKey.cc
+	  net/ws.spec.cc \
+	  main.cc util.cc fake.cc
+IDL_GEN=interface/interface.cc interface/interface.hh interface/interface_skel.hh interface/interface_stub.hh
 
+CORBA_PATH=../src
+CORBA_SRC=orb.cc ior.cc skeleton.cc stub.cc giop.cc cdr.cc url.cc hexdump.cc \
+        net/ws.cc net/ws/socket.cc net/ws/createAcceptKey.cc
+
+SRC = $(APP_SRC) \
+	  $(patsubst %.cc,$(CORBA_PATH)/corba/%.cc,$(CORBA_SRC)) \
+	  ../upstream/kaffeeklatsch/src/kaffeeklatsch.cc
+	  
 WSLAY=../upstream/wslay/lib/wslay_event.c \
   ../upstream/wslay/lib/wslay_frame.c \
   ../upstream/wslay/lib/wslay_net.c \
@@ -54,7 +57,7 @@ valgrind:
 	/usr/local/Cellar/valgrind/HEAD-93191c1/bin/valgrind --track-origins=yes ./$(APP)
 
 clean:
-	rm -f $(OBJ)
+	rm -f $(OBJ) $(IDL_GEN)
 
 $(APP): $(OBJ)
 	@echo "linking..."
@@ -69,8 +72,8 @@ $(APP): $(OBJ)
 	@echo compiling $*.c ...
 	$(CC) $(MEM) -g -O2 -DHAVE_CONFIG_H -I../upstream/wslay/lib/ -I../upstream/wslay/lib/includes -c -o $*.o $*.c
 
-corba/interface/interface.hh: corba/interface/interface.idl
-	bun ../upstream/corba.js/src/idl/idl.ts --cc-all corba/interface/interface.idl
+$(IDL_GEN): interface/interface.idl
+	bun ../upstream/corba.js/src/idl/idl.ts --cc-all interface/interface.idl
 
 makehuman.hh: makehuman.idl
 	bun ../upstream/corba.js/src/idl/idl.ts --cc-all makehuman.idl
@@ -120,7 +123,6 @@ blob.spec.o: ../src/corba/blob.hh
 util.o: util.hh ../src/corba/hexdump.hh ../src/corba/blob.hh
 util.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
 fake.o: fake.hh
-../upstream/kaffeeklatsch/src/kaffeeklatsch.o: ../upstream/kaffeeklatsch/src/kaffeeklatsch.hh
 ../src/corba/orb.o: ../src/corba/orb.hh ../src/corba/coroutine.hh
 ../src/corba/orb.o: ../upstream/async.cc/src/async.hh ../src/corba/giop.hh
 ../src/corba/orb.o: ../src/corba/cdr.hh ../src/corba/blob.hh
@@ -156,4 +158,13 @@ fake.o: fake.hh
 ../src/corba/url.o: ../src/corba/skeleton.hh ../src/corba/object.hh
 ../src/corba/url.o: ../src/corba/stub.hh ../src/corba/ior.hh
 ../src/corba/url.o: ../src/corba/exception.hh
+../src/corba/net/ws.o: ../src/corba/net/ws.hh ../src/corba/protocol.hh
+../src/corba/net/ws.o: ../src/corba/blob.hh ../src/corba/coroutine.hh
+../src/corba/net/ws.o: ../upstream/async.cc/src/async.hh ../src/corba/orb.hh
+../src/corba/net/ws.o: ../src/corba/giop.hh ../src/corba/cdr.hh
+../src/corba/net/ws.o: ../src/corba/net/ws/createAcceptKey.hh
+../src/corba/net/ws.o: ../src/corba/net/ws/socket.hh
+../src/corba/net/ws.o: ../../../upstream/wslay/lib/wslay_event.h
+../src/corba/net/ws.o: ../../../upstream/wslay/lib/wslay_queue.h
 ../src/corba/net/ws/createAcceptKey.o: ../src/corba/net/ws/createAcceptKey.hh
+../upstream/kaffeeklatsch/src/kaffeeklatsch.o: ../upstream/kaffeeklatsch/src/kaffeeklatsch.hh
