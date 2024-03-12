@@ -34,6 +34,16 @@ enum class ReplyStatus {
     NEEDS_ADDRESSING_MODE = 5
 };
 
+enum class LocateStatusType {
+    UNKNOWN_OBJECT = 0,
+    OBJECT_HERE = 1,
+    OBJECT_FORWARD = 2,
+    // GIOP >= 1.2
+    OBJECT_FORWARD_PERM = 3,
+    LOC_SYSTEM_EXCEPTION = 4,
+    LOC_NEEDS_ADDRESSING_MODE = 5
+};
+
 enum class ServiceId {
     TransactionService = 0,
     CodeSets = 1,
@@ -146,7 +156,7 @@ class GIOPBase {
     public:
         GIOPBase(detail::Connection *connection = nullptr) : connection(connection) {}
         unsigned majorVersion = 1;
-        unsigned minorVersion = 2;
+        unsigned minorVersion = 2; // OMNIORB CALLS WITH V1.0 AND WANTS A 1.0 REPLY
 
         const unsigned ENDIAN_LITTLE = 0;
         const unsigned ENDIAN_BIG = 1;
@@ -193,11 +203,14 @@ class GIOPEncoder : public GIOPBase {
         void writeEncapsulation(ComponentId type, std::function<void()> closure);
         void writeEncapsulation(ProfileId type, std::function<void()> closure);
         void writeEncapsulation(ServiceId type, std::function<void()> closure);
+
         void skipGIOPHeader();
         void skipReplyHeader();
         void setGIOPHeader(MessageType type);
         void setReplyHeader(uint32_t requestId, CORBA::ReplyStatus replyStatus);
         void encodeRequest(const CORBA::blob &objectKey, const std::string &operation, uint32_t requestId, bool responseExpected);
+        void encodeLocateReply(uint32_t requestId, LocateStatusType status);
+
         void writeServiceContext();
 };
 

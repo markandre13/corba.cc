@@ -104,8 +104,8 @@ class NamingContextExtStub : public Stub {
                 });
         }
 };
-
-std::string_view _rid("omg.org/CosNaming/NamingContextExt");
+// FIXME: OmniORB want's "IDL:omg.org/CosNaming/NamingContext:1.0", but also "IDL:omg.org/CosNaming/NamingContextExt:1.0" possible
+std::string_view _rid("IDL:omg.org/CosNaming/NamingContext:1.0");
 std::string_view NamingContextExtImpl::repository_id() const { return _rid; }
 std::string_view NamingContextExtStub::repository_id() const { return _rid; }
 
@@ -295,25 +295,29 @@ void ORB::bind(const std::string &id, std::shared_ptr<CORBA::Skeleton> const obj
 }
 
 void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t size) {
-    if (debug) {
-        println("ORB::socketRcvd()");
-        hexdump(buffer, size);
-    }
+    // if (debug) {
+    //     println("ORB::socketRcvd()");
+    //     hexdump(buffer, size);
+    // }
     CDRDecoder data((const char *)buffer, size);
     GIOPDecoder decoder(data);
     decoder.connection = connection;
     auto type = decoder.scanGIOPHeader();
     switch (type) {
+
         case MessageType::REQUEST: {
             // TODO: move this into a method
             auto request = decoder.scanRequestHeader();
             if (debug) {
-                cout << "REQUEST(requestId=" << request->requestId << ", objectKey='" << request->objectKey << "', " << request->operation << ")" << endl;
+                cout << "REQUEST(requestId=" << request->requestId << ", objectKey=" << request->objectKey << ", \"" << request->operation << "\")" << endl;
             }
             auto servant = servants.find(request->objectKey);  // FIXME: avoid string copy
             if (servant == servants.end()) {
+                println("NO SERVANT FOUND");
                 if (request->responseExpected) {
                     CORBA::GIOPEncoder encoder(connection);
+                    encoder.majorVersion = decoder.majorVersion;
+                    encoder.minorVersion = decoder.minorVersion;
                     encoder.skipReplyHeader();
 
                     encoder.writeString("IDL:omg.org/CORBA/OBJECT_NOT_EXIST:1.0");
@@ -323,22 +327,30 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
                     auto length = encoder.buffer.offset;
                     encoder.setGIOPHeader(MessageType::REPLY);
                     encoder.setReplyHeader(request->requestId, ReplyStatus::SYSTEM_EXCEPTION);
-
                     connection->send((void *)encoder.buffer.data(), length);
                 }
                 return;
             }
+            // NOTE: i can kill the server, client keeps running (will propably reconnect on demand)
 
             if (request->operation == "_is_a") {
-                auto repositoryId = decoder.readString();
+                println("OPERATION _is_a()");
+                auto repositoryId = decoder.readStringView();
                 CORBA::GIOPEncoder encoder(connection);
+                encoder.majorVersion = decoder.majorVersion;
+                encoder.minorVersion = decoder.minorVersion;
                 encoder.skipReplyHeader();
 
+                auto result = (repositoryId.compare(servant->second->repository_id()) == 0);
+                println("    want \"{}\",\n    have \"{}\" -> {}", repositoryId, servant->second->repository_id(), result);
                 encoder.writeBoolean(repositoryId == servant->second->repository_id());
 
                 auto length = encoder.buffer.offset;
                 encoder.setGIOPHeader(MessageType::REPLY);
                 encoder.setReplyHeader(request->requestId, ReplyStatus::NO_EXCEPTION);
+
+                // hexdump(encoder.buffer.data(), length);
+
                 connection->send((void *)encoder.buffer.data(), length);
 
                 return;
@@ -346,6 +358,8 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
 
             try {
                 auto encoder = make_shared<CORBA::GIOPEncoder>(connection);
+                encoder->majorVersion = decoder.majorVersion;
+                encoder->minorVersion = decoder.minorVersion;
                 encoder->skipReplyHeader();
                 bool responseExpected = request->responseExpected;
                 uint32_t requestId = request->requestId;
@@ -362,6 +376,7 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
                                 encoder->setGIOPHeader(MessageType::REPLY);
                                 encoder->setReplyHeader(requestId, ReplyStatus::NO_EXCEPTION);
                                 // println("ORB::socketRcvd(): send REPLY via connection->send(...)");
+                                // hexdump(encoder->buffer.data(), length);
                                 connection->send((void *)encoder->buffer.data(), length);
                             }
                         },
@@ -416,6 +431,7 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
                 cerr << "ORB::socketRcvd: EXCEPTION: " << e.what() << endl;
             }
         } break;
+
         case MessageType::REPLY: {
             auto _data = decoder.scanReplyHeader();
             if (debug) {
@@ -427,6 +443,28 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
                 println("ORB::socketRcvd(): unexpected reply to requestId {}", _data->requestId);
             }
             break;
+        } break;
+
+        case MessageType::LOCATE_REQUEST: {
+            auto _data = decoder.scanLocateRequest(); // actuall
+            auto servant = servants.find(_data->objectKey);
+            GIOPEncoder encoder(connection);
+            encoder.majorVersion = decoder.majorVersion;
+            encoder.minorVersion = decoder.minorVersion;
+
+            encoder.encodeLocateReply(
+                _data->requestId,
+                servant != servants.end() ?
+                    LocateStatusType::OBJECT_HERE :
+                    LocateStatusType::UNKNOWN_OBJECT
+            );
+            encoder.setGIOPHeader(MessageType::LOCATE_REPLY);
+            connection->send((void *)encoder.buffer.data(), encoder.buffer.offset);
+            delete _data;
+        } break;
+
+        case MessageType::MESSAGE_ERROR: {
+            println("ORB::socketRcvd(): RECEIVED MESSAGE ERROR");
         } break;
         default:
             cout << "ORB::socketRcvd(): GOT YET UNIMPLEMENTED REQUEST OF TYPE " << static_cast<unsigned>(type) << endl;

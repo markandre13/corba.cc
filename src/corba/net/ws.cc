@@ -123,7 +123,6 @@ async<detail::Connection *> WsProtocol::connect(const CORBA::ORB *orb, const std
     // println("WsProtocol::connect(orb, \"{}\", {})", hostname, port);
 
     int fd = connect_to(hostname.c_str(), port);
-    int val = 1;
     if (set_non_block(fd) == -1 || set_no_delay(fd) == -1) {
         // println("failed to setup");
         ::close(fd);

@@ -4,6 +4,7 @@
 #include <format>
 #include <iostream>
 #include <stdexcept>
+#include <utility>
 
 #include "blob.hh"
 #include "corba.hh"
@@ -83,21 +84,21 @@ void GIOPEncoder::writeReference(const Object* object) {
 }
 
 void GIOPEncoder::writeEncapsulation(ComponentId type, std::function<void()> closure) {
-    writeUlong(static_cast<uint32_t>(type));
+    writeUlong(std::to_underlying(type));
     reserveSize();
     writeEndian();
     closure();
     fillInSize();
 }
 void GIOPEncoder::writeEncapsulation(ProfileId type, std::function<void()> closure) {
-    writeUlong(static_cast<uint32_t>(type));
+    writeUlong(std::to_underlying(type));
     reserveSize();
     writeEndian();
     closure();
     fillInSize();
 }
 void GIOPEncoder::writeEncapsulation(ServiceId type, std::function<void()> closure) {
-    writeUlong(static_cast<uint32_t>(type));
+    writeUlong(std::to_underlying(type));
     reserveSize();
     writeEndian();
     closure();
@@ -131,7 +132,7 @@ void GIOPEncoder::setReplyHeader(uint32_t requestId, ReplyStatus replyStatus) {
         writeUlong(0);  // skipReplyHeader needs a fixed size service context
     }
     writeUlong(requestId);
-    writeUlong(static_cast<uint32_t>(replyStatus));
+    writeUlong(std::to_underlying(replyStatus));
     if (majorVersion == 1 && minorVersion >= 2) {
         // this.serviceContext();
         writeUlong(0);  // skipReplyHeader needs a fixed size service context
@@ -155,7 +156,7 @@ void GIOPEncoder::encodeRequest(const CORBA::blob& objectKey, const std::string&
     if (majorVersion == 1 && minorVersion <= 1) {
         this->writeBlob(objectKey);
     } else {
-        writeUshort(static_cast<uint16_t>(AddressingDisposition::KEY_ADDR));
+        writeUshort(std::to_underlying(AddressingDisposition::KEY_ADDR));
         this->writeBlob(objectKey);
     }
 
@@ -166,6 +167,12 @@ void GIOPEncoder::encodeRequest(const CORBA::blob& objectKey, const std::string&
         writeServiceContext();
         buffer.align8();  // alignAndReserve(8);
     }
+}
+
+void GIOPEncoder::encodeLocateReply(uint32_t requestId, LocateStatusType status) {
+    skipGIOPHeader();
+    writeUlong(requestId);
+    writeUlong(std::to_underlying(status));
 }
 
 void GIOPEncoder::writeServiceContext() {
@@ -342,7 +349,7 @@ void GIOPDecoder::readServiceContext() {
                     cout << "ServiceContext SecurityAttributeService not implemented yet" << endl;
                     break;
                 default:
-                    cout << "ServiceContext " << static_cast<unsigned>(serviceId) << endl;
+                    cout << "ServiceContext " << std::to_underlying(serviceId) << endl;
             }
         });
     }
@@ -513,7 +520,7 @@ shared_ptr<IOR> GIOPDecoder::readReference(size_t length) {
                     // }
                 } break;
                 default: {
-                    // auto id = static_cast<unsigned>(profileId);
+                    // auto id = std::to_underlying(profileId);
                     // cerr << format("IOR: Unhandled profile id={} {:x}", id, id) << endl;
                 }
             }
