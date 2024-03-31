@@ -192,6 +192,25 @@ class GIOPEncoder : public GIOPBase {
         inline void writeBlob(const CORBA::blob_view &value) { buffer.writeBlob((const char*)value.data(), value.size()); }
 
         inline void writeSequence(const std::span<float> & value) { buffer.writeSequence(value); }
+        // inline void writeSequence(const std::vector<std::string_view> & value) {
+        //     buffer.writeUlong(value.size());
+        //     for(auto &item: value) {
+        //        writeString(item);
+        //     }
+        // }
+        // inline void writeSequence(const std::vector<std::string_view> & value, std::function<void(const std::string_view &)> writeElement) {
+        //     buffer.writeUlong(value.size());
+        //     for(auto &item: value) {
+        //        writeElement(item);
+        //     }
+        // }
+        template <class T>
+        void writeSequence(const std::vector<T> & value, std::function<void(const T &)> writeElement) {
+            buffer.writeUlong(value.size());
+            for(auto &item: value) {
+               writeElement(item);
+            }
+        }
 
         inline void writeEndian() { buffer.writeEndian(); }
 
@@ -262,6 +281,27 @@ class GIOPDecoder : public GIOPBase {
 
         inline std::span<float> readSequenceSpanFloat() { return buffer.readSequenceSpanFloat(); }
         inline std::vector<float> readSequenceVectorFloat() {return buffer.readSequenceVectorFloat(); }
+
+        // will become template function
+        // inline std::vector<std::string_view> readSequenceVector(std::function<std::string_view()> readElement) {
+        //     auto size = readUlong();
+        //     std::vector<std::string_view> out;
+        //     out.resize(size);
+        //     for(auto &p: out) {
+        //         p = readElement();
+        //     }
+        //     return out;
+        // }
+        template<class T>
+        inline std::vector<T> readSequenceVector(std::function<T()> readElement) {
+            auto size = readUlong();
+            std::vector<T> out;
+            // out.resize(size);
+            // for(auto &p: out) { p = readElement(); }
+            out.reserve(size);
+            for(uint32_t i=0; i<size; ++i) { out.emplace_back(readElement()); }
+            return out;
+        }
 
         // sequence
         // value

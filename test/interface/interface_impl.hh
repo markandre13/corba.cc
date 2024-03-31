@@ -21,6 +21,13 @@ class Interface_impl : public Interface_skel {
         CORBA::async<std::string> callString(const std::string_view &value) override { co_return std::string(value); }
         CORBA::async<CORBA::blob> callBlob(const CORBA::blob_view &value) override { co_return CORBA::blob(value); }
         CORBA::async<std::vector<float>> callSeqFloat(const std::span<float> & value) override { co_return std::vector(value.begin(), value.end()); }
+        CORBA::async<void> callSeqString(const std::vector<std::string_view> & value) override { 
+            std::println("INTERFACE IMPL: RECEIVED {} STRINGS", value.size());
+            for(auto &item: value) {
+                std::println("  \"{}\"", item);
+            }
+            co_return;
+        };
 
         std::shared_ptr<Peer> peer;
         CORBA::async<void> setPeer(std::shared_ptr<Peer> aPeer) override {
@@ -28,10 +35,7 @@ class Interface_impl : public Interface_skel {
             co_return;
         }
         CORBA::async<std::string> callPeer(const std::string_view &value) override {
-            // println("INTERFACE IMPL: RECEIVED callPeer(\"{}\"): call peer", value);
             auto s = co_await peer->callString(std::string(value) + " to the");
-            // value is not valid anymore
-            // println("INTERFACE IMPL: RECEIVED callPeer(...): peer returned \"{}\", return value \"{}.\"", s, s);
             co_return s + ".";
         }
         // next steps:
