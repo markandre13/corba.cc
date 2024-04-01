@@ -20,13 +20,20 @@ class Interface_impl : public Interface_skel {
 
         CORBA::async<std::string> callString(const std::string_view &value) override { co_return std::string(value); }
         CORBA::async<CORBA::blob> callBlob(const CORBA::blob_view &value) override { co_return CORBA::blob(value); }
+        // receiving sequence<float> can directly map to the received packet with std::span<float>.
+        // returning sequence<float> is not ideal as the idl does not known if it's is temporary, hence it can not be std::span.
+        // i should have a look at the original c++ corba mapping, protobuf and cap'n proto.
+        // it might not be that terrible since oop should follow the 'tell, don't ask rule'
         CORBA::async<std::vector<float>> callSeqFloat(const std::span<float> & value) override { co_return std::vector(value.begin(), value.end()); }
-        CORBA::async<void> callSeqString(const std::vector<std::string_view> & value) override { 
-            std::println("INTERFACE IMPL: RECEIVED {} STRINGS", value.size());
-            for(auto &item: value) {
-                std::println("  \"{}\"", item);
+        // receiving sequence<string> adds more overhead since the memory layout differs from the c++ one
+        // returning sequence<string> needs to create a full copy, which corba then has to copy again.
+        CORBA::async<std::vector<std::string>> callSeqString(const std::vector<std::string_view> & in) override { 
+            std::vector<std::string> out;
+            out.reserve(in.size());
+            for(auto &p: in) {
+                out.emplace_back(p);
             }
-            co_return;
+            co_return out;
         };
 
         std::shared_ptr<Peer> peer;

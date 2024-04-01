@@ -27,12 +27,12 @@ kaffeeklatsch_spec([] {
     describe("net", [] {
         describe("websocket", [] {
             it("open socket and get host", [] {
-                int fd = socket(PF_INET, SOCK_STREAM, 0);
+                // int fd = socket(PF_INET, SOCK_STREAM, 0);
 
-                sockaddr_in name;
-                name.sin_family = AF_INET;
-                name.sin_addr.s_addr = htonl(INADDR_ANY);
-                name.sin_port = htons(2809);
+                // sockaddr_in name;
+                // name.sin_family = AF_INET;
+                // name.sin_addr.s_addr = htonl(INADDR_ANY);
+                // name.sin_port = htons(2809);
 
                 // auto r = bind(fd, (sockaddr *)&name, (socklen_t)sizeof(name));
 
