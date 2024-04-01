@@ -4,6 +4,7 @@ interface Peer {
 
 interface Interface {
     boolean callBoolean(in boolean value);
+
     octet callOctet(in octet value);
 
     unsigned short callUShort(in unsigned short value);
@@ -11,17 +12,20 @@ interface Interface {
     unsigned long long callUnsignedLongLong(in unsigned long long value);
 
     short callShort(in short value);
-    unsigned long callLong(in long value);
-    unsigned long long callLongLong(in long long value);
+    long callLong(in long value);
+    long long callLongLong(in long long value);
 
     float callFloat(in float value);
     double callDouble(in double value);
 
     string callString(in string value);
+
     sequence<octet> callBlob(in sequence<octet> value);
+    // TODO: sequence of integer types
     sequence<float> callSeqFloat(in sequence<float> value);
+    sequence<double> callSeqDouble(in sequence<double> value);
     sequence<string> callSeqString(in sequence<string> value);
 
     void setPeer(in Peer peer);
     string callPeer(in string value);
-}; 
+};

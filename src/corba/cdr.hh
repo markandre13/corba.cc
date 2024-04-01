@@ -50,7 +50,7 @@ class CDREncoder {
         inline void writeString(const std::string_view &value) { writeString(value.data(), value.size()); }
 
         void writeSequence(const std::span<float> & value);
-
+        void writeSequence(const std::span<double> & value);
 
         void reserveSize();
         void fillInSize();
@@ -60,7 +60,6 @@ class CDREncoder {
 
         void align2() {
             if (offset & 0x01) {
-                offset |= 0x01;
                 ++offset;
             }
         }
@@ -112,6 +111,8 @@ class CDRDecoder {
 
         std::span<float> readSequenceSpanFloat();
         std::vector<float> readSequenceVectorFloat();
+        std::span<double> readSequenceSpanDouble();
+        std::vector<double> readSequenceVectorDouble();
 
         // sequence
         // value

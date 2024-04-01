@@ -2,6 +2,6 @@ all:
 	git submodule init
 	git submodule update
 
-update:
+pull:
 	git pull --rebase
 	git submodule update --remote --rebase --recursive

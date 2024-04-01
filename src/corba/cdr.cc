@@ -115,6 +115,16 @@ void CDREncoder::writeSequence(const std::span<float> & value) {
     offset += nbytes;
 }
 
+void CDREncoder::writeSequence(const std::span<double> & value) {
+    writeUlong(value.size());
+    // align4(); already aligned at 4
+    auto nbytes = 8 * value.size();
+    reserve(offset + nbytes);
+    auto ptr = reinterpret_cast<double *>(_data.data() + offset);
+    memcpy(ptr, value.data(), nbytes);
+    offset += nbytes;
+}
+
 void CDREncoder::reserveSize() {
     align4();
     offset += 4;
@@ -283,6 +293,18 @@ std::span<float> CDRDecoder::readSequenceSpanFloat() {
 std::vector<float> CDRDecoder::readSequenceVectorFloat() {
     auto span = readSequenceSpanFloat();
     return vector<float>(span.begin(), span.end());
+}
+
+std::span<double> CDRDecoder::readSequenceSpanDouble() {
+    auto size = readUlong();
+    // auto ptr = reinterpret_cast<const float*>(_data + m_offset);
+    auto ptr = (double*)(_data + m_offset);
+    m_offset += size * 8z;
+    return std::span<double>(ptr, size);
+}
+std::vector<double> CDRDecoder::readSequenceVectorDouble() {
+    auto span = readSequenceSpanDouble();
+    return vector<double>(span.begin(), span.end());
 }
 
 }  // namespace CORBA

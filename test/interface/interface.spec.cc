@@ -60,8 +60,13 @@ kaffeeklatsch_spec([] {
 
                 expect(co_await backend->callString("hello")).to.equal("hello");
                 expect(co_await backend->callBlob(blob_view("hello"))).to.equal(blob("hello"));
+
                 float floatArray[] = {3.1415, 2.7182 };
                 expect(co_await backend->callSeqFloat(floatArray)).to.equal(vector<float>(floatArray, floatArray+2));
+
+                double doubleArray[] = {3.1415l, 2.7182l };
+                expect(co_await backend->callSeqDouble(doubleArray)).to.equal(vector<double>(doubleArray, doubleArray+2));
+
                 expect(co_await backend->callSeqString({"alice", "bob"})).to.equal({"alice", "bob"});
 
                 auto frontend = make_shared<Peer_impl>(clientORB);
