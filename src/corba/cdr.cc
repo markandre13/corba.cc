@@ -117,7 +117,7 @@ void CDREncoder::writeSequence(const std::span<float> & value) {
 
 void CDREncoder::writeSequence(const std::span<double> & value) {
     writeUlong(value.size());
-    // align4(); already aligned at 4
+    align8();
     auto nbytes = 8 * value.size();
     reserve(offset + nbytes);
     auto ptr = reinterpret_cast<double *>(_data.data() + offset);
@@ -285,7 +285,6 @@ std::string_view CDRDecoder::readStringView(size_t len) {
 
 std::span<float> CDRDecoder::readSequenceSpanFloat() {
     auto size = readUlong();
-    // auto ptr = reinterpret_cast<const float*>(_data + m_offset);
     auto ptr = (float*)(_data + m_offset);
     m_offset += size * 4z;
     return std::span<float>(ptr, size);
@@ -297,7 +296,7 @@ std::vector<float> CDRDecoder::readSequenceVectorFloat() {
 
 std::span<double> CDRDecoder::readSequenceSpanDouble() {
     auto size = readUlong();
-    // auto ptr = reinterpret_cast<const float*>(_data + m_offset);
+    align8();
     auto ptr = (double*)(_data + m_offset);
     m_offset += size * 8z;
     return std::span<double>(ptr, size);

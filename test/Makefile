@@ -101,14 +101,35 @@ interface/interface.spec.o: ../src/corba/coroutine.hh
 interface/interface.spec.o: ../upstream/async.cc/src/async.hh util.hh
 interface/interface.spec.o: ../src/corba/hexdump.hh ../src/corba/coroutine.hh
 interface/interface.spec.o: interface/interface_impl.hh
+interface/interface.spec.o: interface/interface_skel.hh ../src/corba/corba.hh
+interface/interface.spec.o: ../src/corba/orb.hh ../src/corba/giop.hh
+interface/interface.spec.o: ../src/corba/cdr.hh ../src/corba/skeleton.hh
+interface/interface.spec.o: ../src/corba/object.hh ../src/corba/stub.hh
+interface/interface.spec.o: ../src/corba/ior.hh ../src/corba/exception.hh
+interface/interface.spec.o: ../src/corba/orb.hh ../src/corba/giop.hh
+interface/interface.spec.o: ../src/corba/coroutine.hh interface/interface.hh
+interface/interface.o: ../src/corba/corba.hh ../src/corba/orb.hh
+interface/interface.o: ../src/corba/coroutine.hh
+interface/interface.o: ../upstream/async.cc/src/async.hh ../src/corba/giop.hh
+interface/interface.o: ../src/corba/cdr.hh ../src/corba/blob.hh
+interface/interface.o: ../src/corba/skeleton.hh ../src/corba/object.hh
+interface/interface.o: ../src/corba/stub.hh ../src/corba/ior.hh
+interface/interface.o: ../src/corba/exception.hh ../src/corba/orb.hh
+interface/interface.o: ../src/corba/giop.hh ../src/corba/coroutine.hh
+interface/interface.o: interface/interface.hh interface/interface_skel.hh
+interface/interface.o: interface/interface_stub.hh
 net/ws.spec.o: ../src/corba/net/ws.hh ../src/corba/protocol.hh
 net/ws.spec.o: ../src/corba/blob.hh ../src/corba/coroutine.hh
 net/ws.spec.o: ../upstream/async.cc/src/async.hh interface/interface_impl.hh
-net/ws.spec.o: util.hh ../src/corba/hexdump.hh ../src/corba/coroutine.hh
-net/ws.spec.o: ../src/corba/corba.hh ../src/corba/orb.hh ../src/corba/giop.hh
-net/ws.spec.o: ../src/corba/cdr.hh ../src/corba/skeleton.hh
-net/ws.spec.o: ../src/corba/object.hh ../src/corba/stub.hh
-net/ws.spec.o: ../src/corba/ior.hh ../src/corba/exception.hh
+net/ws.spec.o: interface/interface_skel.hh ../src/corba/corba.hh
+net/ws.spec.o: ../src/corba/orb.hh ../src/corba/giop.hh ../src/corba/cdr.hh
+net/ws.spec.o: ../src/corba/skeleton.hh ../src/corba/object.hh
+net/ws.spec.o: ../src/corba/stub.hh ../src/corba/ior.hh
+net/ws.spec.o: ../src/corba/exception.hh ../src/corba/orb.hh
+net/ws.spec.o: ../src/corba/giop.hh ../src/corba/coroutine.hh
+net/ws.spec.o: interface/interface.hh interface/interface_skel.hh util.hh
+net/ws.spec.o: ../src/corba/hexdump.hh ../src/corba/coroutine.hh
+net/ws.spec.o: ../src/corba/corba.hh
 util.o: util.hh ../src/corba/hexdump.hh ../src/corba/blob.hh
 util.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
 fake.o: fake.hh ../src/corba/blob.hh ../src/corba/protocol.hh
