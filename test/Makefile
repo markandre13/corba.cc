@@ -22,6 +22,7 @@ WSLAG_FLAGS=-I/usr/local/include
 LIB=-lev -lwslay -lnettle
 
 APP_SRC=cdr_decoder.spec.cc cdr_encoder.spec.cc giop.spec.cc corba.spec.cc blob.spec.cc \
+	  lifecycle.spec.cc \
 	  interface/interface.spec.cc interface/interface.cc \
 	  net/ws.spec.cc net/tcp.spec.cc \
 	  main.cc util.cc fake.cc

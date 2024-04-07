@@ -15,6 +15,7 @@ class Stub : public virtual Object {
         friend class ORB;
         std::shared_ptr<CORBA::ORB> orb;
         blob objectKey;                  // objectKey used on the remote end of the connection
+    public:
         detail::Connection *connection;  // connection to where the remote object lives
 
     public:

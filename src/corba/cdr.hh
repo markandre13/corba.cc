@@ -120,11 +120,12 @@ class CDRDecoder {
         // reference
 
         bool operator==(const CDRDecoder &rhs) const;
-        const char *data() const { return _data; }
-        void skip(size_t size) { m_offset += size; }
-        void setLittleEndian(bool little) { _endian = little ? std::endian::little : std::endian::big; }
-        void setOffset(size_t offset) { this->m_offset = offset; }
-        size_t getOffset() const { return m_offset; }
+        inline const char *data() const { return _data; }
+        inline size_t size() const { return length; }
+        inline void skip(size_t size) { m_offset += size; }
+        inline void setLittleEndian(bool little) { _endian = little ? std::endian::little : std::endian::big; }
+        inline void setOffset(size_t offset) { this->m_offset = offset; }
+        inline size_t getOffset() const { return m_offset; }
         void align2() {
             if (m_offset & 0x01) {
                 m_offset |= 0x01;

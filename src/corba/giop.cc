@@ -224,6 +224,9 @@ void GIOPEncoder::writeServiceContext() {
 ////////////////////////////////////////////
 
 MessageType GIOPDecoder::scanGIOPHeader() {
+    if (buffer.size() < 16) {
+        throw std::runtime_error(std::format("Packet too small, need at least 16 octets for GIOP Header, got {}", buffer.size()));
+    }
     auto header = reinterpret_cast<const GIOPHeader*>(buffer.data());
     if (memcmp(header->id, "GIOP", 4) != 0) {
         throw std::runtime_error("Missing GIOP Header");

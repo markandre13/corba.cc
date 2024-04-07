@@ -45,8 +45,9 @@ class Connection {
         // stubs may contain OID received via this connection
         // TODO: WeakMap? refcount tests
         // objectId to stub?
+    public:
         std::map<blob, Stub *> stubsById;
-
+    private:
         /**
          * counter to create new outgoing request ids
          */

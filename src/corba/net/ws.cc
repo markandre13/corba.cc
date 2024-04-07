@@ -1,9 +1,5 @@
 #include "ws.hh"
 
-#include "../orb.hh"
-#include "ws/createAcceptKey.hh"
-#include "ws/socket.hh"
-
 #include <arpa/inet.h>
 #include <errno.h>
 #include <netinet/in.h>
@@ -13,11 +9,15 @@
 #include <unistd.h>
 #include <uuid/uuid.h>
 
-#include "../../../upstream/wslay/lib/wslay_event.h"
-
 #include <fstream>
 #include <iostream>
 #include <print>
+
+#include "../../../upstream/wslay/lib/wslay_event.h"
+#include "../orb.hh"
+#include "../exception.hh"
+#include "ws/createAcceptKey.hh"
+#include "ws/socket.hh"
 
 using namespace std;
 
@@ -241,7 +241,7 @@ void libev_read_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
                     if (handler->headers.find("\r\n\r\n") != std::string::npos) {
                         // println("HTTP:CLIENT received http\n{}\n\n", handler->headers);
 
-                        string& resheader = handler->headers;
+                        string &resheader = handler->headers;
 
                         std::string::size_type keyhdstart;
                         if ((keyhdstart = resheader.find("Sec-WebSocket-Accept: ")) == std::string::npos) {
@@ -353,6 +353,8 @@ void WsConnection::send(void *buffer, size_t nbyte) {
             cout << "WSLAY_ERR_NO_MORE_MSG: Could not queue given message." << endl
                  << "The one of possible reason is that close control frame has been queued/sent" << endl
                  << "and no further queueing message is not allowed." << endl;
+            throw CORBA::COMM_FAILURE(0, CORBA::CompletionStatus::NO);
+            break;
         case WSLAY_ERR_INVALID_ARGUMENT:
             cout << "WSLAY_ERR_INVALID_ARGUMENT: The given message is invalid." << endl;
             break;
@@ -369,14 +371,36 @@ void WsConnection::send(void *buffer, size_t nbyte) {
 // called by wslay to send data to the socket
 ssize_t wslay_send_callback(wslay_event_context_ptr ctx, const uint8_t *data, size_t len, int flags, void *user_data) {
     auto handler = reinterpret_cast<client_handler_t *>(user_data);
+
     // println("wslay_send_callback");
-    auto r = send(handler->watcher.fd, (void *)data, len, 0);
-    // println("send() -> {}", r);
+
+    int sflags = 0;
+#ifdef MSG_MORE
+    if (flags & WSLAY_MSG_MORE) {
+        sflags |= MSG_MORE;
+    }
+#endif  // MSG_MORE
+
+    ssize_t r;
+    while ((r = send(handler->watcher.fd, (void *)data, len, sflags)) == -1 && errno == EINTR)
+        ;
+    if (r == -1) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            wslay_event_set_error(ctx, WSLAY_ERR_WOULDBLOCK);
+        } else {
+            wslay_event_set_error(ctx, WSLAY_ERR_CALLBACK_FAILURE);
+        }
+    }
+    return r;
+
     return r;
 }
 
 // called by wslay to read data from the socket
 ssize_t wslay_recv_callback(wslay_event_context_ptr ctx, uint8_t *data, size_t len, int flags, void *user_data) {
+
+    // println("wslay_recv_callback");
+
     auto handler = reinterpret_cast<client_handler_t *>(user_data);
     ssize_t nbytes = recv(handler->watcher.fd, data, len, 0);
     // println("wslay_recv_callback -> {}", nbytes);
@@ -396,6 +420,7 @@ ssize_t wslay_recv_callback(wslay_event_context_ptr ctx, uint8_t *data, size_t l
         if (close(handler->watcher.fd) != 0) {
             perror("close");
         }
+        handler->orb->close(handler->connection);
         delete handler;
     }
 
@@ -406,10 +431,38 @@ ssize_t wslay_recv_callback(wslay_event_context_ptr ctx, uint8_t *data, size_t l
     return nbytes;
 }
 
+//   WSLAY_CONTINUATION_FRAME = 0x0u,
+//   WSLAY_TEXT_FRAME = 0x1u,
+//   WSLAY_BINARY_FRAME = 0x2u,
+//   WSLAY_CONNECTION_CLOSE = 0x8u,
+//   WSLAY_PING = 0x9u,
+//   WSLAY_PONG = 0xau
+
 void wslay_msg_rcv_callback(wslay_event_context_ptr ctx, const struct wslay_event_on_msg_recv_arg *arg, void *user_data) {
-    // println("wslay_msg_rcv_callback");
+    // println("wslay_msg_rcv_callback: opcode {}, length {}", arg->opcode, arg->msg_length);
     auto handler = reinterpret_cast<client_handler_t *>(user_data);
-    handler->orb->socketRcvd(handler->connection, arg->msg, arg->msg_length);
+    switch (arg->opcode) {
+        case WSLAY_BINARY_FRAME:
+            handler->orb->socketRcvd(handler->connection, arg->msg, arg->msg_length);
+            break;
+        case WSLAY_CONNECTION_CLOSE:
+            println("-------------------------------------");
+            println("wslay_msg_rcv_callback: close, status code: {}", arg->status_code);
+            // println("[1]");
+            // // wslay_event_context_free(handler->ctx);
+            // println("[2]");
+            // ev_io_stop(handler->loop, &handler->watcher);
+            // println("[3]");
+            // if (close(handler->watcher.fd) != 0) {
+            //     perror("close");
+            // }
+            // println("[4]");
+            // // handler->orb->close(handler->connection);
+            // println("[5]");
+            // // delete handler;
+            // println("[6]");
+            break;
+    }
     // arg->msg = nullptr; // THIS NEEDS A CHANGE IN WSLAY
 }
 

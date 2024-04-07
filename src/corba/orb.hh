@@ -20,6 +20,23 @@ namespace detail {
     class Connection;
 }
 
+/**
+ * Usually one uses try/catch to handle exceptions. But some exceptions like
+ * 
+ * TRANSIENT: failed to connect to peer
+ * TIMEOUT: timeout for response exceeded
+ * COMM_FAILURE: connectin closed
+ * 
+ * may occur everywhere, hence one can register additional exception handlers
+ * which handle event in case the application did not catch them.
+ * 
+ * This is not part of the CORBA standard but borrowed from OmniORB.
+ */
+void installSystemExceptionHandler(std::shared_ptr<CORBA::Object> object, std::function<void()> handler);
+// installTimeoutExceptionHandler
+// installTransientExceptionHandler
+// installCommFailureExceptionHandler
+
 class ORB : public std::enable_shared_from_this<ORB> {
     public:
         bool debug = false;
@@ -32,14 +49,16 @@ class ORB : public std::enable_shared_from_this<ORB> {
 
         std::vector<detail::Protocol*> protocols;
     public:
+        ORB();
+
         std::vector<detail::Connection*> connections;
+
+        inline void registerProtocol(detail::Protocol *protocol) { protocols.push_back(protocol); }
 
         async<detail::Connection*> getConnection(std::string host, uint16_t port);
         void addConnection(detail::Connection *connection) { connections.push_back(connection); }
-        ORB();
-
-        inline void registerProtocol(detail::Protocol *protocol) { protocols.push_back(protocol); }
         void socketRcvd(detail::Connection *connection, const void *buffer, size_t size);
+        void close(detail::Connection *connection);
 
         async<std::shared_ptr<Object>> stringToObject(const std::string &iorString);
 

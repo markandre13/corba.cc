@@ -83,4 +83,10 @@ class NO_IMPLEMENT : public SystemException {
         const char *major() const override { return "IDL:omg.org/CORBA/NO_IMPLEMENT:1.0"; }
 };
 
+class COMM_FAILURE : public SystemException {
+    public:
+        COMM_FAILURE(uint32_t minor, CompletionStatus completed) : SystemException(minor, completed) {}
+        const char *major() const override { return "IDL:omg.org/CORBA/COMM_FAILURE:1.0"; }
+};
+
 }  // namespace CORBA

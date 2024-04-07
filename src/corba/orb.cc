@@ -109,7 +109,17 @@ std::string_view _rid("IDL:omg.org/CosNaming/NamingContext:1.0");
 std::string_view NamingContextExtImpl::repository_id() const { return _rid; }
 std::string_view NamingContextExtStub::repository_id() const { return _rid; }
 
-Object::~Object() {}
+std::map<CORBA::Object*, std::function<void()>> exceptionHandler;
+void installSystemExceptionHandler(std::shared_ptr<CORBA::Object> object, std::function<void()> handler) {
+    exceptionHandler[object.get()] = handler;
+}
+Object::~Object() {
+    auto h = exceptionHandler.find(this);
+    if (h != exceptionHandler.end()) {
+        println("Object::~Object(): removing global exception handler");
+        exceptionHandler.erase(h);
+    }
+}
 
 ORB::ORB() {}
 
@@ -159,7 +169,7 @@ async<detail::Connection *> ORB::getConnection(string host, uint16_t port) {
     if (host == "::1" || host == "127.0.0.1") {
         host = "localhost";
     }
-    for (auto conn : connections) {
+    for (auto &conn : connections) {
         if (conn->remoteAddress() == host && conn->remotePort() == port) {
             if (debug) {
                 println("ORB : Found active connection");
@@ -167,7 +177,7 @@ async<detail::Connection *> ORB::getConnection(string host, uint16_t port) {
             co_return conn;
         }
     }
-    for (auto proto : protocols) {
+    for (auto &proto : protocols) {
         if (debug) {
             if (connections.size() == 0) {
                 println("ORB : Creating new connection to {}:{} as no others exist", host, port);
@@ -190,6 +200,10 @@ async<detail::Connection *> ORB::getConnection(string host, uint16_t port) {
     throw runtime_error(format("failed to allocate connection to {}:{}", host, port));
 }
 
+void ORB::close(detail::Connection *connection) {
+
+}
+
 async<GIOPDecoder *> ORB::_twowayCall(Stub *stub, const char *operation, std::function<void(GIOPEncoder &)> encode) {
     // println("ORB::_twowayCall(stub, \"{}\", ...) ENTER", operation);
     if (stub->connection == nullptr) {
@@ -209,7 +223,17 @@ async<GIOPDecoder *> ORB::_twowayCall(Stub *stub, const char *operation, std::fu
         println("ORB::_twowayCall(stub, \"{}\", ...) SEND REQUEST objectKey=\"{}\", operation=\"{}\", requestId={}", operation, stub->objectKey, operation,
                 requestId);
     }
-    stub->connection->send((void *)encoder.buffer.data(), encoder.buffer.offset);
+    try {
+        stub->connection->send((void *)encoder.buffer.data(), encoder.buffer.offset);
+    }
+    catch(COMM_FAILURE &ex) {
+        auto h = exceptionHandler.find(stub);
+        if (h != exceptionHandler.end()) {
+            println("found a global exception handler for the object");
+            h->second();
+            // TODO: the callback might drop the object's reference, which in turn should delete it from 'exceptionHandler'
+        }
+    }
     if (debug) {
         println("ORB::_twowayCall(stub, \"{}\", ...) SUSPEND FOR REPLY", operation);
     }
@@ -245,6 +269,12 @@ async<GIOPDecoder *> ORB::_twowayCall(Stub *stub, const char *operation, std::fu
                 throw TRANSIENT(minorCodeValue, completionStatus);
             } else if (exceptionId == "IDL:omg.org/CORBA/OBJECT_ADAPTER:1.0") {
                 throw OBJECT_ADAPTER(minorCodeValue, completionStatus);
+            } else if (exceptionId == "IDL:omg.org/CORBA/REBIND:1.0") {
+                throw REBIND(minorCodeValue, completionStatus);
+            } else if (exceptionId == "IDL:omg.org/CORBA/NO_IMPLEMENT:1.0") {
+                throw NO_IMPLEMENT(minorCodeValue, completionStatus);
+            } else if (exceptionId == "IDL:omg.org/CORBA/COMM_FAILURE:1.0") {
+                throw COMM_FAILURE(minorCodeValue, completionStatus);
             } else if (exceptionId == "IDL:mark13.org/CORBA/GENERIC:1.0") {
                 throw runtime_error(
                     format("Remote CORBA exception from {}:{}: {}", stub->connection->remoteAddress(), stub->connection->remotePort(), decoder->readString()));
@@ -273,7 +303,18 @@ void ORB::onewayCall(Stub *stub, const char *operation, std::function<void(GIOPE
     encoder.encodeRequest(stub->objectKey, operation, requestId, responseExpected);
     encode(encoder);
     encoder.setGIOPHeader(MessageType::REQUEST);
-    stub->connection->send((void *)encoder.buffer.data(), encoder.buffer.offset);
+
+    try {
+        stub->connection->send((void *)encoder.buffer.data(), encoder.buffer.offset);
+    }
+    catch(COMM_FAILURE &ex) {
+        auto h = exceptionHandler.find(stub);
+        if (h != exceptionHandler.end()) {
+            println("found a global exception handler for the object");
+            h->second();
+            // TODO: the callback might drop the object's reference, which in turn should delete it from 'exceptionHandler'
+        }
+    }    
 }
 
 blob_view ORB::registerServant(Skeleton *servant) {
