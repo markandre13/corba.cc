@@ -117,7 +117,9 @@ async<shared_ptr<Object>> ORB::stringToObject(const std::string &iorString) {
     // std::println("ORB::stringToObject(\"{}\"): enter", iorString);
     auto uri = decodeURI(iorString);
     if (std::holds_alternative<IOR>(uri)) {
-        // return iorToObject(std::get<IOR>(uri));
+        auto ior = std::get<IOR>(uri);
+        auto reference = std::make_shared<IOR>(this->shared_from_this(), ior.oid, ior.host, ior.port, ior.objectKey);
+        co_return dynamic_pointer_cast<Object, IOR>(reference);
     }
     if (std::holds_alternative<CorbaName>(uri)) {
         auto name = std::get<CorbaName>(uri);
@@ -180,7 +182,8 @@ async<detail::Connection *> ORB::getConnection(string host, uint16_t port) {
         if (connection == nullptr) {
             throw runtime_error(format("failed to get connection to {}:{}", host, port));
         }
-        println("CREATED CONNECTION FROM {}:{} TO {}:{}", connection->localAddress(), connection->remotePort(), connection->remoteAddress(), connection->remotePort());
+        println("CREATED CONNECTION FROM {}:{} TO {}:{}", connection->localAddress(), connection->localPort(), connection->remoteAddress(),
+                connection->remotePort());
         connections.push_back(connection);
         co_return connection;
     }
@@ -304,7 +307,6 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
     decoder.connection = connection;
     auto type = decoder.scanGIOPHeader();
     switch (type) {
-
         case MessageType::REQUEST: {
             // TODO: move this into a method
             auto request = decoder.scanRequestHeader();
@@ -446,18 +448,13 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
         } break;
 
         case MessageType::LOCATE_REQUEST: {
-            auto _data = decoder.scanLocateRequest(); // actuall
+            auto _data = decoder.scanLocateRequest();  // actuall
             auto servant = servants.find(_data->objectKey);
             GIOPEncoder encoder(connection);
             encoder.majorVersion = decoder.majorVersion;
             encoder.minorVersion = decoder.minorVersion;
 
-            encoder.encodeLocateReply(
-                _data->requestId,
-                servant != servants.end() ?
-                    LocateStatusType::OBJECT_HERE :
-                    LocateStatusType::UNKNOWN_OBJECT
-            );
+            encoder.encodeLocateReply(_data->requestId, servant != servants.end() ? LocateStatusType::OBJECT_HERE : LocateStatusType::UNKNOWN_OBJECT);
             encoder.setGIOPHeader(MessageType::LOCATE_REPLY);
             connection->send((void *)encoder.buffer.data(), encoder.buffer.offset);
             delete _data;

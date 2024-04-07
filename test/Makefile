@@ -51,6 +51,7 @@ depend:
 	makedepend -I../src -Y $(SRC)
 
 run:
+#	scp 192.168.178.105:omni-test3/IOR.txt .
 	DYLD_LIBRARY_PATH=$(MEDIAPIPE_CPP_DIR)/library ./$(APP) --reporter=info --report-timing --only=foo
 
 valgrind:
@@ -61,11 +62,11 @@ clean:
 
 $(APP): $(OBJ)
 	@echo "linking..."
-	$(CXX) $(LDFLAGS) $(PROTOBUF_LDFLAGS) $(MEDIAPIPE_CPP_LDFLAGS) $(LIB) $(OBJ) -o $(APP)
+	$(CXX) $(LDFLAGS) $(LIB) $(OBJ) -o $(APP)
 
 .cc.o:
 	@echo compiling $*.cc ...
-	$(CXX) $(PROTOBUF_FLAGS) $(CFLAGS) $(WSLAG_FLAGS) $(OPENCV_FLAGS) \
+	$(CXX) $(CFLAGS) $(WSLAG_FLAGS) \
 	-c -o $*.o $*.cc
 
 .c.o:
@@ -139,9 +140,9 @@ net/tcp.spec.o: ../src/corba/skeleton.hh ../src/corba/object.hh
 net/tcp.spec.o: ../src/corba/stub.hh ../src/corba/ior.hh
 net/tcp.spec.o: ../src/corba/exception.hh ../src/corba/orb.hh
 net/tcp.spec.o: ../src/corba/giop.hh ../src/corba/coroutine.hh
-net/tcp.spec.o: interface/interface.hh interface/interface_skel.hh util.hh
-net/tcp.spec.o: ../src/corba/hexdump.hh ../src/corba/coroutine.hh
-net/tcp.spec.o: ../src/corba/corba.hh
+net/tcp.spec.o: interface/interface.hh interface/interface_skel.hh
+net/tcp.spec.o: ../src/corba/corba.hh util.hh ../src/corba/hexdump.hh
+net/tcp.spec.o: ../src/corba/coroutine.hh
 util.o: util.hh ../src/corba/hexdump.hh ../src/corba/blob.hh
 util.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
 fake.o: fake.hh ../src/corba/blob.hh ../src/corba/protocol.hh

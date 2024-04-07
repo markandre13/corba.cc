@@ -1,4 +1,5 @@
 #include "interface_skel.hh"
+#include <print>
 
 class Interface_impl : public Interface_skel {
     public:
@@ -48,14 +49,19 @@ class Interface_impl : public Interface_skel {
             auto s = co_await peer->callString(std::string(value) + " to the");
             co_return s + ".";
         }
-        // next steps:
-        // [X] set/get callback object and call it
-        // [ ] use ArrayBuffer/Buffer for sequence<octet> for the javascript side
-        // [ ] completeness: signed & floating point
 };
 
 class Peer_impl : public Peer_skel {
     public:
         Peer_impl(std::shared_ptr<CORBA::ORB> orb) : Peer_skel(orb) {}
         CORBA::async<std::string> callString(const std::string_view &value) override { co_return std::string(value) + " world"; }
+};
+
+class Client_impl : public Client_skel {
+    public:
+        Client_impl(std::shared_ptr<CORBA::ORB> orb) : Client_skel(orb) {}
+        CORBA::async<> ping() override { 
+            std::println("got ping");
+            co_return;
+        }
 };

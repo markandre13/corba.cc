@@ -25,10 +25,10 @@
 
 #include <fcntl.h>
 #include <netdb.h>
+#include <netinet/tcp.h>
 #include <signal.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-#include <netinet/tcp.h>
 #include <unistd.h>
 
 #include <cstring>
@@ -95,35 +95,34 @@ int create_listen_socket(const char *hostname, uint16_t port) {
 }
 
 int connect_to(const char *host, uint16_t port) {
-  struct addrinfo hints;
-  int fd = -1;
-  int r;
-  memset(&hints, 0, sizeof(struct addrinfo));
-  hints.ai_family = AF_UNSPEC;
-  hints.ai_socktype = SOCK_STREAM;
-  struct addrinfo *res;
-  auto service = std::to_string(port);
-  r = getaddrinfo(host, service.c_str(), &hints, &res);
-  if (r != 0) {
-    std::cerr << "getaddrinfo: " << gai_strerror(r) << std::endl;
-    return -1;
-  }
-  for (struct addrinfo *rp = res; rp; rp = rp->ai_next) {
-    fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-    if (fd == -1) {
-      continue;
+    struct addrinfo hints;
+    int fd = -1;
+    int r;
+    memset(&hints, 0, sizeof(struct addrinfo));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    struct addrinfo *res;
+    auto service = std::to_string(port);
+    r = getaddrinfo(host, service.c_str(), &hints, &res);
+    if (r != 0) {
+        std::cerr << "getaddrinfo: " << gai_strerror(r) << std::endl;
+        return -1;
     }
-    while ((r = connect(fd, rp->ai_addr, rp->ai_addrlen)) == -1 &&
-           errno == EINTR)
-      ;
-    if (r == 0) {
-      break;
+    for (struct addrinfo *rp = res; rp; rp = rp->ai_next) {
+        fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+        if (fd == -1) {
+            continue;
+        }
+        while ((r = connect(fd, rp->ai_addr, rp->ai_addrlen)) == -1 && errno == EINTR)
+            ;
+        if (r == 0) {
+            break;
+        }
+        close(fd);
+        fd = -1;
     }
-    close(fd);
-    fd = -1;
-  }
-  freeaddrinfo(res);
-  return fd;
+    freeaddrinfo(res);
+    return fd;
 }
 
 int set_non_block(int fd) {

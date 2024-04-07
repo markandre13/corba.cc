@@ -29,3 +29,12 @@ interface Interface {
     void setPeer(in Peer peer);
     string callPeer(in string value);
 };
+
+interface Client
+{
+	void ping();
+};
+
+interface Server {
+	oneway void addClient(in Client client);
+};

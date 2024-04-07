@@ -193,6 +193,7 @@ void GIOPEncoder::writeServiceContext() {
         connection->didSendBiDirIIOP = true;
         writeEncapsulation(ServiceId::BI_DIR_IIOP, [this] {
             writeUlong(1); // number of listen points
+            // cout << "ENCODE BI_DIR_IIOP " << connection->localAddress() << ":" << connection->localPort() << endl;
             writeString(connection->localAddress());
             writeUshort(connection->localPort());
         });

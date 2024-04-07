@@ -7,8 +7,17 @@ using namespace std;
 
 namespace CORBA {
 
-IOR::IOR(const string &ior) {
+static std::string trim(const std::string & source) {
+    std::string s(source);
+    s.erase(0,s.find_first_not_of(" \n\r\t"));
+    s.erase(s.find_last_not_of(" \n\r\t")+1);
+    return s;
+}
+
+IOR::IOR(const string &_ior) {
     // 7.6.9 Stringified Object References
+
+    auto ior = trim(_ior);
 
     // Standard stringified IOR format
     if (ior.compare(0, 4, "IOR:") != 0) {

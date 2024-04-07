@@ -70,7 +70,7 @@ class OBJECT_ADAPTER : public SystemException {
         const char *major() const override { return "IDL:omg.org/CORBA/OBJECT_ADAPTER:1.0"; }
 };
 
-// raised when effefctive RebindPolicy has value NO_REBIND or NO_RECONNECT
+// raised when effective RebindPolicy has value NO_REBIND or NO_RECONNECT
 class REBIND : public SystemException {
     public:
         REBIND(uint32_t minor, CompletionStatus completed) : SystemException(minor, completed) {}
