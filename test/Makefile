@@ -23,13 +23,13 @@ LIB=-lev -lwslay -lnettle
 
 APP_SRC=cdr_decoder.spec.cc cdr_encoder.spec.cc giop.spec.cc corba.spec.cc blob.spec.cc \
 	  interface/interface.spec.cc interface/interface.cc \
-	  net/ws.spec.cc \
+	  net/ws.spec.cc net/tcp.spec.cc \
 	  main.cc util.cc fake.cc
 IDL_GEN=interface/interface.cc interface/interface.hh interface/interface_skel.hh interface/interface_stub.hh
 
 CORBA_PATH=../src
 CORBA_SRC=orb.cc ior.cc skeleton.cc stub.cc giop.cc cdr.cc url.cc hexdump.cc \
-        net/ws.cc net/ws/socket.cc net/ws/createAcceptKey.cc
+        net/ws.cc net/tcp.cc net/ws/socket.cc net/ws/createAcceptKey.cc
 
 SRC = $(APP_SRC) \
 	  $(patsubst %.cc,$(CORBA_PATH)/corba/%.cc,$(CORBA_SRC)) \
@@ -130,6 +130,18 @@ net/ws.spec.o: ../src/corba/giop.hh ../src/corba/coroutine.hh
 net/ws.spec.o: interface/interface.hh interface/interface_skel.hh util.hh
 net/ws.spec.o: ../src/corba/hexdump.hh ../src/corba/coroutine.hh
 net/ws.spec.o: ../src/corba/corba.hh
+net/tcp.spec.o: ../src/corba/net/tcp.hh ../src/corba/protocol.hh
+net/tcp.spec.o: ../src/corba/blob.hh ../src/corba/coroutine.hh
+net/tcp.spec.o: ../upstream/async.cc/src/async.hh interface/interface_impl.hh
+net/tcp.spec.o: interface/interface_skel.hh ../src/corba/corba.hh
+net/tcp.spec.o: ../src/corba/orb.hh ../src/corba/giop.hh ../src/corba/cdr.hh
+net/tcp.spec.o: ../src/corba/skeleton.hh ../src/corba/object.hh
+net/tcp.spec.o: ../src/corba/stub.hh ../src/corba/ior.hh
+net/tcp.spec.o: ../src/corba/exception.hh ../src/corba/orb.hh
+net/tcp.spec.o: ../src/corba/giop.hh ../src/corba/coroutine.hh
+net/tcp.spec.o: interface/interface.hh interface/interface_skel.hh util.hh
+net/tcp.spec.o: ../src/corba/hexdump.hh ../src/corba/coroutine.hh
+net/tcp.spec.o: ../src/corba/corba.hh
 util.o: util.hh ../src/corba/hexdump.hh ../src/corba/blob.hh
 util.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
 fake.o: fake.hh ../src/corba/blob.hh ../src/corba/protocol.hh
@@ -179,5 +191,11 @@ fake.o: ../src/corba/giop.hh ../src/corba/cdr.hh
 ../src/corba/net/ws.o: ../src/corba/net/ws/socket.hh
 ../src/corba/net/ws.o: ../../../upstream/wslay/lib/wslay_event.h
 ../src/corba/net/ws.o: ../../../upstream/wslay/lib/wslay_queue.h
+../src/corba/net/tcp.o: ../src/corba/net/tcp.hh ../src/corba/protocol.hh
+../src/corba/net/tcp.o: ../src/corba/blob.hh ../src/corba/coroutine.hh
+../src/corba/net/tcp.o: ../upstream/async.cc/src/async.hh
+../src/corba/net/tcp.o: ../src/corba/net/ws/socket.hh ../src/corba/orb.hh
+../src/corba/net/tcp.o: ../src/corba/giop.hh ../src/corba/cdr.hh
+../src/corba/net/tcp.o: ../src/corba/hexdump.hh
 ../src/corba/net/ws/createAcceptKey.o: ../src/corba/net/ws/createAcceptKey.hh
 ../upstream/kaffeeklatsch/src/kaffeeklatsch.o: ../upstream/kaffeeklatsch/src/kaffeeklatsch.hh

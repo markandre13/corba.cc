@@ -1,4 +1,4 @@
-#include "../src/corba/net/ws.hh"
+#include "../src/corba/net/tcp.hh"
 
 #include <arpa/inet.h>
 #include <errno.h>
@@ -23,14 +23,14 @@ using CORBA::async;
 
 kaffeeklatsch_spec([] {
     describe("net", [] {
-        describe("websocket", [] {
-            it("bi-directional iiop connection", [] {
+        describe("tcp", [] {
+            fit("bi-directional iiop connection", [] {
                 struct ev_loop *loop = EV_DEFAULT;
 
                 // start server & client on the same ev loop
                 auto serverORB = make_shared<CORBA::ORB>();
                 serverORB->debug = true;
-                auto protocol = new CORBA::net::WsProtocol();
+                auto protocol = new CORBA::net::TcpProtocol();
                 serverORB->registerProtocol(protocol);
                 protocol->listen(serverORB.get(), loop, "localhost", 9002);
 
@@ -42,7 +42,7 @@ kaffeeklatsch_spec([] {
                 auto clientORB = make_shared<CORBA::ORB>();
 
                 parallel(eptr, loop, [loop, clientORB] -> async<> {
-                    auto protocol = new CORBA::net::WsProtocol();
+                    auto protocol = new CORBA::net::TcpProtocol();
                     clientORB->registerProtocol(protocol);
                     clientORB->debug = true;
 
