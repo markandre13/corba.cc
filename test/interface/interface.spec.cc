@@ -4,19 +4,6 @@
 
 #include "kaffeeklatsch.hh"
 
-namespace cppasync {
-
-#ifdef _COROUTINE_DEBUG
-unsigned promise_sn_counter = 0;
-unsigned async_sn_counter = 0;
-unsigned awaitable_sn_counter = 0;
-unsigned promise_use_counter = 0;
-unsigned async_use_counter = 0;
-unsigned awaitable_use_counter = 0;
-#endif
-
-}  // namespace cppasync
-
 using namespace std;
 using namespace kaffeeklatsch;
 using CORBA::async, CORBA::ORB, CORBA::blob, CORBA::blob_view;

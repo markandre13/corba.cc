@@ -26,50 +26,6 @@ using CORBA::async;
 kaffeeklatsch_spec([] {
     describe("net", [] {
         describe("websocket", [] {
-            it("open socket and get host", [] {
-                // int fd = socket(PF_INET, SOCK_STREAM, 0);
-
-                // sockaddr_in name;
-                // name.sin_family = AF_INET;
-                // name.sin_addr.s_addr = htonl(INADDR_ANY);
-                // name.sin_port = htons(2809);
-
-                // auto r = bind(fd, (sockaddr *)&name, (socklen_t)sizeof(name));
-
-                // if (r < 0) {
-                //     perror("bind");
-                //     close(fd);
-                // }
-
-                // struct addrinfo hints;
-                // memset(&hints, 0, sizeof(struct addrinfo));
-                // hints.ai_family = AF_UNSPEC;
-                // hints.ai_socktype = SOCK_STREAM;
-                // hints.ai_flags = AI_PASSIVE | AI_ADDRCONFIG;
-                // struct addrinfo *addrinfo;
-                // int r = getaddrinfo(0, "8080", &hints, &addrinfo);
-                // if (r != 0) {
-                //     std::cerr << "getaddrinfo: " << gai_strerror(r) << std::endl;
-                //     return;
-                // }
-                // for (struct addrinfo *rp = addrinfo; rp; rp = rp->ai_next) {
-                //     // rp->ai_family, rp->ai_socktype, rp->ai_protocol
-                //     // rp->ai_addr, rp->ai_addrlen
-
-                //     // struct sockaddr_in my_addr;
-                //     // bzero(&my_addr, sizeof(my_addr));
-                //     // socklen_t len = sizeof(my_addr);
-                //     // getsockname(fd, (struct sockaddr *)&my_addr, &len);
-                //     char myIP[256];
-                //     bzero(&myIP, sizeof(myIP));
-                //     inet_ntop(rp->ai_family, &rp->ai_addr, myIP, sizeof(myIP));
-
-                //     // localAddress = myIP;
-                //     // localPort = ntohs(my_addr.sin_port);
-                //     println("got address {}", myIP);
-                // }
-                // freeaddrinfo(addrinfo);
-            });
             it("bi-directional iiop connection", [] {
                 struct ev_loop *loop = EV_DEFAULT;
 
