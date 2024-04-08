@@ -34,7 +34,12 @@ Object::~Object() {
 }
 
 void ORB::dump() {
-
+    println("CORBA.CC DUMP");
+    println("    CONNECTIONS: {}", connections.size());
+    for(auto c: connections) {
+        println("        * LOCAL {}:{} REMOTE {}:{}", c->localAddress(), c->localPort(), c->remoteAddress(), c->remotePort());
+        println("          ACTIVE STUBS {}", c->stubsById.size());
+    }
 }
 
 ORB::ORB() {}
