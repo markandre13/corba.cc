@@ -1,8 +1,9 @@
 #include "stub.hh"
+#include "orb.hh"
+#include "protocol.hh"
 
 #include <print>
 
-#include "protocol.hh"
 using namespace std;
 
 namespace CORBA {
@@ -11,6 +12,7 @@ namespace CORBA {
 
 Stub::~Stub() {
     println("Stub::~Stub()");
+    orb->dump();
     if (connection) {
         println("Stub::~Stub(): we have a connection with {} stubs",  connection->stubsById.size());
         for (auto ptr = connection->stubsById.begin(); ptr != connection->stubsById.end(); ++ptr) {

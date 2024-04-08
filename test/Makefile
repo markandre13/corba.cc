@@ -29,7 +29,8 @@ APP_SRC=cdr_decoder.spec.cc cdr_encoder.spec.cc giop.spec.cc corba.spec.cc blob.
 IDL_GEN=interface/interface.cc interface/interface.hh interface/interface_skel.hh interface/interface_stub.hh
 
 CORBA_PATH=../src
-CORBA_SRC=orb.cc ior.cc skeleton.cc stub.cc giop.cc cdr.cc url.cc hexdump.cc \
+CORBA_SRC=orb.cc ior.cc skeleton.cc stub.cc giop.cc cdr.cc url.cc \
+		naminc.cc hexdump.cc \
         net/ws.cc net/tcp.cc net/ws/socket.cc net/ws/createAcceptKey.cc
 
 SRC = $(APP_SRC) \

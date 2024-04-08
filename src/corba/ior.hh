@@ -5,9 +5,7 @@
 namespace CORBA {
 
 namespace detail {
-
 class Connection;
-
 };
 
 class IOR : public Object {

@@ -25,7 +25,7 @@ namespace detail {
  * 
  * TRANSIENT: failed to connect to peer
  * TIMEOUT: timeout for response exceeded
- * COMM_FAILURE: connectin closed
+ * COMM_FAILURE: connection closed
  * 
  * may occur everywhere, hence one can register additional exception handlers
  * which handle event in case the application did not catch them.
@@ -40,6 +40,7 @@ void installSystemExceptionHandler(std::shared_ptr<CORBA::Object> object, std::f
 class ORB : public std::enable_shared_from_this<ORB> {
     public:
         bool debug = false;
+        void dump();
     protected:
         NamingContextExtImpl * namingService = nullptr;
         // std::map<std::string, Skeleton*> initialReferences; // name to
