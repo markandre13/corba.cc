@@ -111,6 +111,25 @@ void libev_accept_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
     // requestId 1 and increments by 2
     // (while client starts with requestId 0 and also increments by 2)
     auto InitialResponderRequestIdBiDirectionalIIOP = 1;
+
+    struct sockaddr_in peer_addr;
+    bzero(&peer_addr, sizeof(peer_addr));
+    socklen_t len = sizeof(peer_addr);
+    // getsockname(fd, (struct sockaddr *)&my_addr, &len);
+    getpeername(fd, (struct sockaddr *)&peer_addr, &len);
+
+    string remoteHost;
+    uint16_t remotePort;
+    switch(peer_addr.sin_family) {
+        case AF_INET:
+            remoteHost = inet_ntoa(peer_addr.sin_addr);
+            remotePort = ntohs(peer_addr.sin_port);
+            break;
+        case AF_INET6:
+    }
+
+    println("WsProtocol: CREATE NEW CONNECTION {} {}:{} {}:{}", fd, handler->protocol->m_localAddress, handler->protocol->m_localPort, "frontend", 2);
+    println("    {}:{}", remoteHost, remotePort);
     client_handler->connection =
         new WsConnection(handler->protocol->m_localAddress, handler->protocol->m_localPort, "frontend", 2, InitialResponderRequestIdBiDirectionalIIOP);
     handler->protocol->m_orb->connections.push_back(client_handler->connection);

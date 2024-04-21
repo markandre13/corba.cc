@@ -2,6 +2,8 @@
 
 #include <map>
 #include <string>
+#include <atomic>
+#include <mutex>
 
 #include "blob.hh"
 #include "coroutine.hh"
@@ -51,9 +53,10 @@ class Connection {
         /**
          * counter to create new outgoing request ids
          */
-        uint32_t requestId = 0;
+        std::atomic_uint32_t requestId = 0;
 
     public:
+        std::mutex send_mutex;
         // bi-directional service context needs only to be send once
         bool didSendBiDirIIOP = false;
 

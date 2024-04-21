@@ -13,18 +13,16 @@
 #include "corba.hh"
 #include "giop.hh"
 #include "hexdump.hh"
+#include "naming.hh"
 #include "protocol.hh"
 #include "url.hh"
-#include "naming.hh"
 
 using namespace std;
 
 namespace CORBA {
 
-std::map<CORBA::Object*, std::function<void()>> exceptionHandler;
-void installSystemExceptionHandler(std::shared_ptr<CORBA::Object> object, std::function<void()> handler) {
-    exceptionHandler[object.get()] = handler;
-}
+std::map<CORBA::Object *, std::function<void()>> exceptionHandler;
+void installSystemExceptionHandler(std::shared_ptr<CORBA::Object> object, std::function<void()> handler) { exceptionHandler[object.get()] = handler; }
 Object::~Object() {
     auto h = exceptionHandler.find(this);
     if (h != exceptionHandler.end()) {
@@ -36,7 +34,7 @@ Object::~Object() {
 void ORB::dump() {
     println("CORBA.CC DUMP");
     println("    CONNECTIONS: {}", connections.size());
-    for(auto c: connections) {
+    for (auto c : connections) {
         println("        * LOCAL {}:{} REMOTE {}:{}", c->localAddress(), c->localPort(), c->remoteAddress(), c->remotePort());
         println("          ACTIVE STUBS {}", c->stubsById.size());
     }
@@ -121,17 +119,14 @@ async<detail::Connection *> ORB::getConnection(string host, uint16_t port) {
     throw runtime_error(format("failed to allocate connection to {}:{}", host, port));
 }
 
-void ORB::close(detail::Connection *connection) {
-
-}
+void ORB::close(detail::Connection *connection) {}
 
 async<GIOPDecoder *> ORB::_twowayCall(Stub *stub, const char *operation, std::function<void(GIOPEncoder &)> encode) {
     // println("ORB::_twowayCall(stub, \"{}\", ...) ENTER", operation);
     if (stub->connection == nullptr) {
         throw runtime_error("ORB::_twowayCall(): the stub has no connection");
     }
-    auto requestId = stub->connection->requestId;
-    stub->connection->requestId += 2;
+    auto requestId = stub->connection->requestId.fetch_add(2);
     // printf("CONNECTION %p %s:%u -> %s:%u requestId=%u\n", static_cast<void *>(stub->connection), stub->connection->localAddress().c_str(),
     //        stub->connection->localPort(), stub->connection->remoteAddress().c_str(), stub->connection->remotePort(), stub->connection->requestId);
 
@@ -145,9 +140,9 @@ async<GIOPDecoder *> ORB::_twowayCall(Stub *stub, const char *operation, std::fu
                 requestId);
     }
     try {
+        lock_guard guard(stub->connection->send_mutex);
         stub->connection->send((void *)encoder.buffer.data(), encoder.buffer.offset);
-    }
-    catch(COMM_FAILURE &ex) {
+    } catch (COMM_FAILURE &ex) {
         auto h = exceptionHandler.find(stub);
         if (h != exceptionHandler.end()) {
             println("found a global exception handler for the object");
@@ -217,8 +212,7 @@ void ORB::onewayCall(Stub *stub, const char *operation, std::function<void(GIOPE
     if (stub->connection == nullptr) {
         throw runtime_error("ORB::onewayCall(): the stub has no connection");
     }
-    auto requestId = stub->connection->requestId;
-    stub->connection->requestId += 2;
+    auto requestId = stub->connection->requestId.fetch_add(2);
     GIOPEncoder encoder(stub->connection);
     auto responseExpected = false;
     encoder.encodeRequest(stub->objectKey, operation, requestId, responseExpected);
@@ -226,16 +220,16 @@ void ORB::onewayCall(Stub *stub, const char *operation, std::function<void(GIOPE
     encoder.setGIOPHeader(MessageType::REQUEST);
 
     try {
+        lock_guard guard(stub->connection->send_mutex);
         stub->connection->send((void *)encoder.buffer.data(), encoder.buffer.offset);
-    }
-    catch(COMM_FAILURE &ex) {
+    } catch (COMM_FAILURE &ex) {
         auto h = exceptionHandler.find(stub);
         if (h != exceptionHandler.end()) {
             println("found a global exception handler for the object");
             h->second();
             // TODO: the callback might drop the object's reference, which in turn should delete it from 'exceptionHandler'
         }
-    }    
+    }
 }
 
 blob_view ORB::registerServant(Skeleton *servant) {

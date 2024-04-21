@@ -10,6 +10,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <ifaddrs.h>
 
 #include <fstream>
 
@@ -27,8 +28,6 @@ std::string readString(const char *filename) {
     std::ifstream t(filename);
     t.seekg(0, std::ios::end);
     size_t size = t.tellg();
-    // std::string buffer;
-    // buffer.reserve(size);
     std::string buffer(size, ' ');
     t.seekg(0);
     t.read(&buffer[0], size);
@@ -80,6 +79,28 @@ kaffeeklatsch_spec([] {
                 }
             });
             it("bi-directional iiop connection", [] {
+                // find all the system's ip addresses
+                // ifaddrs *addrs, *tmp;
+                // getifaddrs(&addrs);
+                // tmp = addrs;
+                // while (tmp) {
+                //     if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET) {
+                //         sockaddr_in *addr = reinterpret_cast<sockaddr_in *>(tmp->ifa_addr);
+                //         printf("%s %s:%u\n", tmp->ifa_name, inet_ntoa(addr->sin_addr), ntohs(addr->sin_port));
+                //     } else
+                //     if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET6) {
+                //         sockaddr_in6 *addr = reinterpret_cast<sockaddr_in6 *>(tmp->ifa_addr);
+                //         char buf[INET6_ADDRSTRLEN];
+                //         inet_ntop(tmp->ifa_addr->sa_family, &addr->sin6_addr, buf, sizeof(buf));
+                //         printf("%s %s:%u\n", tmp->ifa_name, buf, ntohs(addr->sin6_port));
+                //     } else {
+                //         printf("%s\n", tmp->ifa_name);
+                //     }
+                //     tmp = tmp->ifa_next;
+                // }
+                // freeifaddrs(addrs);
+                // return;
+
                 struct ev_loop *loop = EV_DEFAULT;
 
                 // start server & client on the same ev loop

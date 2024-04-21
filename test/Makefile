@@ -30,7 +30,7 @@ IDL_GEN=interface/interface.cc interface/interface.hh interface/interface_skel.h
 
 CORBA_PATH=../src
 CORBA_SRC=orb.cc ior.cc skeleton.cc stub.cc giop.cc cdr.cc url.cc \
-		naminc.cc hexdump.cc \
+		naming.cc hexdump.cc \
         net/ws.cc net/tcp.cc net/ws/socket.cc net/ws/createAcceptKey.cc
 
 SRC = $(APP_SRC) \
