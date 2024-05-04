@@ -71,7 +71,9 @@ vector<string_view> split(string_view data) {
             result.push_back(data.substr(bol));
             break;
         }
-        result.push_back(data.substr(bol, eol - bol));
+        if (bol != eol) {
+            result.push_back(data.substr(bol, eol - bol));
+        }
         bol = eol + 1;
     }
     return result;
@@ -95,5 +97,5 @@ string_view trim(string_view data) {
             break;
         }
     }
-    return data.substr(bol, eol);
+    return data.substr(bol, eol+1);
 }
