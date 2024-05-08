@@ -13,7 +13,7 @@
 #include <iostream>
 #include <print>
 
-#include "../../../upstream/wslay/lib/wslay_event.h"
+#include <wslay/wslay.h>
 #include "../orb.hh"
 #include "../exception.hh"
 #include "ws/createAcceptKey.hh"
