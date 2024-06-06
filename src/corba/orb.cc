@@ -338,12 +338,16 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
                                 connection->send((void *)encoder->buffer.data(), length);
                             }
                         },
-                        [encoder, connection, responseExpected, requestId](std::exception_ptr eptr) {  // FIXME: the references objects won't be available
+                        [&](std::exception_ptr eptr) {  // FIXME: the references objects won't be available
                             try {
                                 // std::rethrow_exception(ex);
                                 std::rethrow_exception(eptr);
                             } catch (CORBA::UserException &ex) {
-                                println("SERVANT THREW CORBA::USER EXCEPTION");
+                                println("CORBA::UserException while calling local servant {}::{}(...): {}", 
+                                    servant->second->repository_id(), 
+                                    request->operation,
+                                    ex.what()
+                                );
                                 if (responseExpected) {
                                     auto length = encoder->buffer.offset;
                                     encoder->setGIOPHeader(MessageType::REPLY);
@@ -351,7 +355,12 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
                                     connection->send((void *)encoder->buffer.data(), length);
                                 }
                             } catch (CORBA::SystemException &error) {
-                                println("SERVANT THREW CORBA::SYSTEM EXCEPTION");
+                                println("{} while calling local servant {}::{}(...): {}",
+                                    error.major(),
+                                    servant->second->repository_id(), 
+                                    request->operation,
+                                    error.what()
+                                );
                                 if (responseExpected) {
                                     encoder->writeString(error.major());
                                     encoder->writeUlong(error.minor);
@@ -362,7 +371,11 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
                                     connection->send((void *)encoder->buffer.data(), length);
                                 }
                             } catch (std::exception &ex) {
-                                println("SERVANT THREW STD::EXCEPTION");
+                                println("std::exception while calling local servant {}::{}(...): {}", 
+                                    servant->second->repository_id(), 
+                                    request->operation,
+                                    ex.what()
+                                );
                                 if (responseExpected) {
                                     encoder->writeString("IDL:mark13.org/CORBA/GENERIC:1.0");
                                     encoder->writeUlong(0);
