@@ -2,8 +2,6 @@
 
 #include "util.hh"
 
-import std;
-
 #include "kaffeeklatsch.hh"
 
 using namespace kaffeeklatsch;

@@ -8,6 +8,7 @@
 #include <string>
 #include <utility>
 #include <variant>
+#include <typeinfo>
 
 #include "cdr.hh"
 #include "corba.hh"

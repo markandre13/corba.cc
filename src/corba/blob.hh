@@ -25,35 +25,35 @@ using ostream_formatter = basic_ostream_formatter<char>;
 
 class blob;
 
-class blob_view : public std::basic_string_view<std::byte> {
+class blob_view : public std::basic_string_view<char8_t> {
     private:
-        using base_t = std::basic_string_view<std::byte>;
+        using base_t = std::basic_string_view<char8_t>;
 
     public:
         inline blob_view(): base_t() {}
-        inline blob_view(const char *buffer) : base_t(reinterpret_cast<const std::byte *>(buffer), strlen(buffer)) {}
-        inline blob_view(const void *buffer, size_t nbytes) : base_t(reinterpret_cast<const std::byte *>(buffer), nbytes) {}
-        inline blob_view(const std::string &blob): base_t(reinterpret_cast<const std::byte *>(blob.data()), blob.size()) {}
+        inline blob_view(const char *buffer) : base_t(reinterpret_cast<const char8_t *>(buffer), strlen(buffer)) {}
+        inline blob_view(const void *buffer, size_t nbytes) : base_t(reinterpret_cast<const char8_t *>(buffer), nbytes) {}
+        inline blob_view(const std::string &blob): base_t(reinterpret_cast<const char8_t *>(blob.data()), blob.size()) {}
         inline blob_view(const blob &blob);
         // friend ostream &operator<<(ostream &os, const blob_view &dt);
 };
 
-class blob : public std::basic_string<std::byte> {
+class blob : public std::basic_string<char8_t> {
     private:
-        using base_t = std::basic_string<std::byte>;
+        using base_t = std::basic_string<char8_t>;
 
     public:
         inline blob(): base_t() {}
-        inline blob(const char *buffer) : base_t(reinterpret_cast<const std::byte *>(buffer), strlen(buffer)) {}
-        inline blob(const void *buffer, size_t nbytes) : base_t(reinterpret_cast<const std::byte *>(buffer), nbytes) {}
-        inline blob(const std::string &buffer): base_t(reinterpret_cast<const std::byte *>(buffer.data()), buffer.size()) {}
+        inline blob(const char *buffer) : base_t(reinterpret_cast<const char8_t *>(buffer), strlen(buffer)) {}
+        inline blob(const void *buffer, size_t nbytes) : base_t(reinterpret_cast<const char8_t *>(buffer), nbytes) {}
+        inline blob(const std::string &buffer): base_t(reinterpret_cast<const char8_t *>(buffer.data()), buffer.size()) {}
         inline blob(const blob_view &value) : base_t(value) {}
         // operator blob_view() const { return blob_view(*this);}
 
         // friend ostream &operator<<(ostream &os, const blob_view &dt);
 };
 
-inline blob_view::blob_view(const blob &blob): base_t(reinterpret_cast<const std::byte *>(blob.data()), blob.size()) {}
+inline blob_view::blob_view(const blob &blob): base_t(reinterpret_cast<const char8_t *>(blob.data()), blob.size()) {}
 
 inline std::ostream &operator<<(std::ostream &os, const blob &dt) {
     os << std::hex << std::setfill('0');

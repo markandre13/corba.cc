@@ -157,8 +157,8 @@ fake.o: ../src/corba/giop.hh ../src/corba/cdr.hh
 ../src/corba/orb.o: ../src/corba/corba.hh ../src/corba/skeleton.hh
 ../src/corba/orb.o: ../src/corba/object.hh ../src/corba/stub.hh
 ../src/corba/orb.o: ../src/corba/ior.hh ../src/corba/exception.hh
-../src/corba/orb.o: ../src/corba/hexdump.hh ../src/corba/protocol.hh
-../src/corba/orb.o: ../src/corba/url.hh
+../src/corba/orb.o: ../src/corba/hexdump.hh ../src/corba/naming.hh
+../src/corba/orb.o: ../src/corba/protocol.hh ../src/corba/url.hh
 ../src/corba/ior.o: ../src/corba/ior.hh ../src/corba/object.hh
 ../src/corba/ior.o: ../src/corba/blob.hh ../src/corba/giop.hh
 ../src/corba/ior.o: ../src/corba/cdr.hh
@@ -168,7 +168,10 @@ fake.o: ../src/corba/giop.hh ../src/corba/cdr.hh
 ../src/corba/skeleton.o: ../src/corba/orb.hh ../src/corba/giop.hh
 ../src/corba/skeleton.o: ../src/corba/cdr.hh
 ../src/corba/stub.o: ../src/corba/stub.hh ../src/corba/object.hh
-../src/corba/stub.o: ../src/corba/blob.hh
+../src/corba/stub.o: ../src/corba/blob.hh ../src/corba/orb.hh
+../src/corba/stub.o: ../src/corba/coroutine.hh
+../src/corba/stub.o: ../upstream/async.cc/src/async.hh ../src/corba/giop.hh
+../src/corba/stub.o: ../src/corba/cdr.hh ../src/corba/protocol.hh
 ../src/corba/giop.o: ../src/corba/giop.hh ../src/corba/cdr.hh
 ../src/corba/giop.o: ../src/corba/blob.hh ../src/corba/corba.hh
 ../src/corba/giop.o: ../src/corba/orb.hh ../src/corba/coroutine.hh
@@ -186,14 +189,20 @@ fake.o: ../src/corba/giop.hh ../src/corba/cdr.hh
 ../src/corba/url.o: ../src/corba/skeleton.hh ../src/corba/object.hh
 ../src/corba/url.o: ../src/corba/stub.hh ../src/corba/ior.hh
 ../src/corba/url.o: ../src/corba/exception.hh
+../src/corba/naming.o: ../src/corba/naming.hh ../src/corba/skeleton.hh
+../src/corba/naming.o: ../src/corba/object.hh ../src/corba/blob.hh
+../src/corba/naming.o: ../src/corba/coroutine.hh
+../src/corba/naming.o: ../upstream/async.cc/src/async.hh ../src/corba/stub.hh
+../src/corba/naming.o: ../src/corba/orb.hh ../src/corba/giop.hh
+../src/corba/naming.o: ../src/corba/cdr.hh ../src/corba/hexdump.hh
+../src/corba/naming.o: ../src/corba/ior.hh
 ../src/corba/net/ws.o: ../src/corba/net/ws.hh ../src/corba/protocol.hh
 ../src/corba/net/ws.o: ../src/corba/blob.hh ../src/corba/coroutine.hh
 ../src/corba/net/ws.o: ../upstream/async.cc/src/async.hh ../src/corba/orb.hh
 ../src/corba/net/ws.o: ../src/corba/giop.hh ../src/corba/cdr.hh
+../src/corba/net/ws.o: ../src/corba/exception.hh
 ../src/corba/net/ws.o: ../src/corba/net/ws/createAcceptKey.hh
 ../src/corba/net/ws.o: ../src/corba/net/ws/socket.hh
-../src/corba/net/ws.o: ../../../upstream/wslay/lib/wslay_event.h
-../src/corba/net/ws.o: ../../../upstream/wslay/lib/wslay_queue.h
 ../src/corba/net/tcp.o: ../src/corba/net/tcp.hh ../src/corba/protocol.hh
 ../src/corba/net/tcp.o: ../src/corba/blob.hh ../src/corba/coroutine.hh
 ../src/corba/net/tcp.o: ../upstream/async.cc/src/async.hh

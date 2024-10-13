@@ -1,5 +1,3 @@
-import std;
-
 #include "fake.hh"
 
 #include "../src/corba/corba.hh"

@@ -12,12 +12,12 @@ kaffeeklatsch_spec([] {
         it("blob(const char *buffer, size_t nbytes) makes a copy of buffer", [] {
             auto raw = "hello";
             blob id(raw, 3);
-            expect(id.data()).to.not_().equal((std::byte *)raw);
+            expect(id.data()).to.not_().equal((char8_t *)raw);
         });
         it("blob_view(const char *buffer, size_t nbytes) references buffer", [] {
             auto raw = "hello";
             blob_view id(raw, 3);
-            expect(id.data()).to.equal(reinterpret_cast<const std::byte *>(raw));
+            expect(id.data()).to.equal(reinterpret_cast<const char8_t *>(raw));
         });
         it("we can create a blob from a blob_view", [] {
             blob_view id0("hello");
