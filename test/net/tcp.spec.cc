@@ -45,7 +45,7 @@ kaffeeklatsch_spec([] {
 
                 struct ev_loop *loop = EV_DEFAULT;
                 // BiDirIIOP does not work yet, so we must offer a server port for the server be able to call us
-                protocol->listen(orb.get(), loop, "192.168.178.24", 9002);
+                protocol->listen(orb.get(), loop, "192.168.178.24", 9003);
                 // protocol->attach(clientORB.get(), loop);
 
                 std::exception_ptr eptr;
@@ -108,7 +108,7 @@ kaffeeklatsch_spec([] {
                 serverORB->debug = true;
                 auto protocol = new CORBA::net::TcpProtocol();
                 serverORB->registerProtocol(protocol);
-                protocol->listen(serverORB.get(), loop, "localhost", 9002);
+                protocol->listen(serverORB.get(), loop, "localhost", 9003);
 
                 auto backend = make_shared<Interface_impl>(serverORB);
                 serverORB->bind("Backend", backend);
@@ -125,7 +125,7 @@ kaffeeklatsch_spec([] {
                     protocol->attach(clientORB.get(), loop);
 
                     println("CLIENT: resolve 'Backend'");
-                    auto object = co_await clientORB->stringToObject("corbaname::localhost:9002#Backend");
+                    auto object = co_await clientORB->stringToObject("corbaname::localhost:9003#Backend");
                     auto backend = co_await Interface::_narrow(object);
                     println("CLIENT: call backend");
 
@@ -146,7 +146,7 @@ kaffeeklatsch_spec([] {
                 println("CLIENT HAS ONE CONNECTION FROM {}:{} TO {}:{}", clientConn->localAddress(), clientConn->localPort(), clientConn->remoteAddress(),
                         clientConn->remotePort());
                 expect(clientConn->remoteAddress()).to.equal("localhost");
-                expect(clientConn->remotePort()).to.equal(9002);
+                expect(clientConn->remotePort()).to.equal(9003);
 
                 expect(clientConn->localAddress().c_str()).to.be.uuid();
                 expect(clientConn->localPort()).to.be.not_().equal(0);
@@ -159,7 +159,7 @@ kaffeeklatsch_spec([] {
                 println("SERVER HAS ONE CONNECTION FROM {}:{} TO {}:{}", serverConn->localAddress(), serverConn->localPort(), serverConn->remoteAddress(),
                         serverConn->remotePort());
                 expect(serverConn->localAddress()).to.equal("localhost");
-                expect(serverConn->localPort()).to.equal(9002);
+                expect(serverConn->localPort()).to.equal(9003);
 
                 expect(clientConn->localAddress()).to.equal(serverConn->remoteAddress());
                 expect(clientConn->localPort()).to.equal(serverConn->remotePort());
