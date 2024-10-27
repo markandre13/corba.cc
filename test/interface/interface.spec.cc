@@ -1,12 +1,13 @@
 #include "../fake.hh"
 #include "../util.hh"
 #include "interface_impl.hh"
-
 #include "kaffeeklatsch.hh"
 
 using namespace std;
 using namespace kaffeeklatsch;
 using CORBA::async, CORBA::ORB, CORBA::blob, CORBA::blob_view;
+
+bool operator==(const RGBA& lhs, const RGBA& rhs) { return lhs.r == rhs.r && lhs.g == rhs.g && lhs.b == rhs.b && lhs.a == rhs.a; }
 
 kaffeeklatsch_spec([] {
     describe("interface", [] {
@@ -48,11 +49,13 @@ kaffeeklatsch_spec([] {
                 expect(co_await backend->callString("hello")).to.equal("hello");
                 expect(co_await backend->callBlob(blob_view("hello"))).to.equal(blob("hello"));
 
-                float floatArray[] = {3.1415, 2.7182 };
-                expect(co_await backend->callSeqFloat(floatArray)).to.equal(vector<float>(floatArray, floatArray+2));
+                expect(co_await backend->callStruct(RGBA{.r = 255, .g = 192, .b = 128, .a = 64})).to.equal(RGBA{.r = 255, .g = 192, .b = 128, .a = 64});
 
-                double doubleArray[] = {3.1415l, 2.7182l };
-                expect(co_await backend->callSeqDouble(doubleArray)).to.equal(vector<double>(doubleArray, doubleArray+2));
+                float floatArray[] = {3.1415, 2.7182};
+                expect(co_await backend->callSeqFloat(floatArray)).to.equal(vector<float>(floatArray, floatArray + 2));
+
+                double doubleArray[] = {3.1415l, 2.7182l};
+                expect(co_await backend->callSeqDouble(doubleArray)).to.equal(vector<double>(doubleArray, doubleArray + 2));
 
                 expect(co_await backend->callSeqString({"alice", "bob"})).to.equal({"alice", "bob"});
 
@@ -61,9 +64,8 @@ kaffeeklatsch_spec([] {
                 expect(co_await backend->callPeer("hello")).to.equal("hello to the world.");
             });
 
-            vector<FakeTcpProtocol *> protocols = {serverProtocol, clientProtocol};
-            while (transmit(protocols))
-                ;
+            vector<FakeTcpProtocol*> protocols = {serverProtocol, clientProtocol};
+            while (transmit(protocols));
 
             if (eptr) {
                 std::rethrow_exception(eptr);
@@ -96,11 +98,11 @@ kaffeeklatsch_spec([] {
                 expect(co_await backend->callPeer("hello")).to.equal("hello to the world.");
             });
 
-            vector<FakeTcpProtocol *> protocols = {serverProtocol, clientProtocol};
+            vector<FakeTcpProtocol*> protocols = {serverProtocol, clientProtocol};
             {
                 auto packet = clientProtocol->packets.front();
                 // this should contain the bidiriiop payload
-                transmit(protocols); // client to server
+                transmit(protocols);  // client to server
                 // server should have created a connection to client mentioned in bidiriiop payload
                 // ws.cc currently uses a hardcoded 'frontend:2'
                 // ...

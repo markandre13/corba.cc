@@ -2,6 +2,11 @@ interface Peer {
     string callString(in string value);
 };
 
+struct RGBA {
+    octet r, g, b;
+    octet a;
+};
+
 interface Interface {
     boolean callBoolean(in boolean value);
 
@@ -19,8 +24,10 @@ interface Interface {
     double callDouble(in double value);
 
     string callString(in string value);
-
     sequence<octet> callBlob(in sequence<octet> value);
+
+    RGBA callStruct(in RGBA rgba);
+
     // TODO: sequence of integer types
     sequence<float> callSeqFloat(in sequence<float> value);
     sequence<double> callSeqDouble(in sequence<double> value);
