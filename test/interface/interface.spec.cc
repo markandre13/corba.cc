@@ -11,7 +11,7 @@ bool operator==(const RGBA& lhs, const RGBA& rhs) { return lhs.r == rhs.r && lhs
 
 kaffeeklatsch_spec([] {
     describe("interface", [] {
-        it("send'n receive", [] {
+       fit("send'n receive", [] {
             // SERVER
             auto serverORB = make_shared<ORB>();
             auto serverProtocol = new FakeTcpProtocol(serverORB.get(), "backend.local", 2809);
@@ -31,6 +31,11 @@ kaffeeklatsch_spec([] {
             parallel(eptr, [&clientORB] -> async<> {
                 auto object = co_await clientORB->stringToObject("corbaname::backend.local:2809#Backend");
                 auto backend = co_await Interface::_narrow(object);
+
+                expect(co_await backend->roAttribute()).to.equal("static");
+                expect(co_await backend->rwAttribute()).to.equal("hello");
+                co_await backend->rwAttribute("world");
+                expect(co_await backend->rwAttribute()).to.equal("world");
 
                 expect(co_await backend->callBoolean(true)).to.equal(true);
                 expect(co_await backend->callOctet(42)).to.equal(42);

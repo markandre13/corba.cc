@@ -8,6 +8,10 @@ struct RGBA {
 };
 
 interface Interface {
+
+    readonly attribute string roAttribute;
+    attribute string rwAttribute;
+
     boolean callBoolean(in boolean value);
 
     octet callOctet(in octet value);

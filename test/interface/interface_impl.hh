@@ -3,8 +3,17 @@
 #include "interface_skel.hh"
 
 class Interface_impl : public Interface_skel {
+        std::string _rwattr;
+
     public:
-        Interface_impl(std::shared_ptr<CORBA::ORB> orb) : Interface_skel(orb) {}
+        Interface_impl(std::shared_ptr<CORBA::ORB> orb) : Interface_skel(orb), _rwattr("hello") {}
+
+        virtual CORBA::async<std::string> roAttribute() override { co_return std::string("static"); }
+        virtual CORBA::async<std::string> rwAttribute() override { co_return _rwattr; }
+        virtual CORBA::async<void> rwAttribute(const std::string_view &value) override {
+            _rwattr = value;
+            co_return;
+        }
 
         CORBA::async<bool> callBoolean(bool value) override { co_return value; }
         CORBA::async<uint8_t> callOctet(uint8_t value) override { co_return value; }  // check uint8_t with real CORBA
