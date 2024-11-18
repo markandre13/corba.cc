@@ -37,6 +37,23 @@ interface Interface {
     sequence<double> callSeqDouble(in sequence<double> value);
     sequence<string> callSeqString(in sequence<string> value);
 
+    sequence<RGBA> callSeqRGBA(in sequence<RGBA> value);
+
+    // there is a C++11 mapping for CORBA. (formal-14-01-01.pdf) i haven't been aware of
+    //
+    // 6.7.8 Argument Passing Considerations
+    // The mapping of parameter passing modes is focused at simplicity and ease of use.
+    // For all primitive types, enums, and reference types, an in argument A of type P, that argument is passed as P.
+    // For all other types, an in argument A of type P is passed as const P&.
+    // For an inout and out argument it is passed as P&.
+    // If we return a type of P, it is returned as P.
+    //
+    // check C++ RVO and NRVO for efficiency, though it doesn't cover returning non-temporary values
+    //
+    // https://stackoverflow.com/questions/15704565/efficient-way-to-return-a-stdvector-in-c
+    // see also 6.12 Mapping for Sequence types and 6.13 Mapping for Array Types
+
+
     void setPeer(in Peer peer);
     string callPeer(in string value);
 };

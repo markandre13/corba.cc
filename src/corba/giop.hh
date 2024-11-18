@@ -275,7 +275,7 @@ class GIOPDecoder : public GIOPBase {
         inline std::vector<double> readSequenceVectorDouble() {return buffer.readSequenceVectorDouble(); }
 
         template<class T>
-        inline std::vector<T> readSequenceVector(std::function<T()> readElement) {
+        inline std::vector<T> readSequence(std::function<T()> readElement) {
             auto size = readUlong();
             std::vector<T> out;
             out.reserve(size);

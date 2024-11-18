@@ -11,7 +11,7 @@ bool operator==(const RGBA& lhs, const RGBA& rhs) { return lhs.r == rhs.r && lhs
 
 kaffeeklatsch_spec([] {
     describe("interface", [] {
-       fit("send'n receive", [] {
+        it("send'n receive", [] {
             // SERVER
             auto serverORB = make_shared<ORB>();
             auto serverProtocol = new FakeTcpProtocol(serverORB.get(), "backend.local", 2809);
@@ -63,6 +63,9 @@ kaffeeklatsch_spec([] {
                 expect(co_await backend->callSeqDouble(doubleArray)).to.equal(vector<double>(doubleArray, doubleArray + 2));
 
                 expect(co_await backend->callSeqString({"alice", "bob"})).to.equal({"alice", "bob"});
+
+                vector<RGBA> color{{.r = 255, .g = 192, .b = 128, .a = 64}, {.r = 0, .g = 128, .b = 255, .a = 255}};
+                expect(co_await backend->callSeqRGBA(color)).to.equal(color);
 
                 auto frontend = make_shared<Peer_impl>(clientORB);
                 co_await backend->setPeer(frontend);

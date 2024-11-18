@@ -78,9 +78,6 @@ $(APP): $(OBJ)
 $(IDL_GEN): interface/interface.idl
 	bun ../upstream/corba.js/src/idl/idl.ts --cc-all interface/interface.idl
 
-makehuman.hh: makehuman.idl
-	bun ../upstream/corba.js/src/idl/idl.ts --cc-all makehuman.idl
-
 # DO NOT DELETE
 
 cdr_decoder.spec.o: ../src/corba/cdr.hh ../src/corba/blob.hh
