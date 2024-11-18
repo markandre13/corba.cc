@@ -1,0 +1,28 @@
+{
+    "configurations": [
+        {
+            "name": "Mac",
+            "includePath": [
+                "${default}",
+                "/usr/local/opt/llvm/include/c++",
+                "/usr/local/opt/opencv@3/include",
+                "/usr/local/include",
+                "${workspaceFolder}/src",
+                "${workspaceFolder}/upstream/kaffeeklatsch/src"
+            ],
+            "defines": [],
+            "macFrameworkPath": [
+                "/Library/Developer/CommandLineTools/SDKs/MacOSX12.sdk/System/Library/Frameworks"
+            ],
+            "cStandard": "c17",
+            "intelliSenseMode": "macos-clang-x64",
+            "compilerPath": "/usr/local/opt/llvm/bin/clang++",
+            "compilerArgs": [
+                "-std=c++23",
+                "-ObjC++",
+            ],
+            "cppStandard": "c++23"
+        }
+    ],
+    "version": 4
+}
