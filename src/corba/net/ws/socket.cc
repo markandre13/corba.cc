@@ -111,6 +111,7 @@ int connect_to(const char *host, uint16_t port) {
     for (struct addrinfo *rp = res; rp; rp = rp->ai_next) {
         fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
         if (fd == -1) {
+            std::cerr << "failed to create socket: " << strerror(errno) << std::endl;
             continue;
         }
         while ((r = connect(fd, rp->ai_addr, rp->ai_addrlen)) == -1 && errno == EINTR)
@@ -118,6 +119,7 @@ int connect_to(const char *host, uint16_t port) {
         if (r == 0) {
             break;
         }
+        std::cerr << "failed to connect socket: " << strerror(errno) << std::endl;
         close(fd);
         fd = -1;
     }

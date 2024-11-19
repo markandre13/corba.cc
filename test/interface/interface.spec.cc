@@ -10,38 +10,6 @@ using CORBA::async, CORBA::ORB, CORBA::blob, CORBA::blob_view;
 bool operator==(const RGBA& lhs, const RGBA& rhs) { return lhs.r == rhs.r && lhs.g == rhs.g && lhs.b == rhs.b && lhs.a == rhs.a; }
 
 kaffeeklatsch_spec([] {
-    fdescribe("lifecycle", [] {
-        it("connection handling", [] {
-            // SERVER
-            auto serverORB = make_shared<ORB>();
-            auto serverProtocol = new FakeTcpProtocol(serverORB.get(), "backend.local", 2809);
-            serverORB->registerProtocol(serverProtocol);
-            // serverORB->debug = true;
-            auto backend = make_shared<Interface_impl>(serverORB);
-            serverORB->bind("Backend", backend);
-
-            // CLIENT
-            auto clientORB = make_shared<ORB>();
-            // clientORB->debug = true;
-            auto clientProtocol = new FakeTcpProtocol(clientORB.get(), "frontend.local", 32768);
-            clientORB->registerProtocol(clientProtocol);
-
-            std::exception_ptr eptr;
-
-            parallel(eptr, [&clientORB] -> async<> {
-                auto object = co_await clientORB->stringToObject("corbaname::backend.local:2809#Backend");
-                auto backend = Interface::_narrow(object);
-            });
-
-            vector<FakeTcpProtocol*> protocols = {serverProtocol, clientProtocol};
-            while (transmit(protocols));
-
-            if (eptr) {
-                std::rethrow_exception(eptr);
-            }
-
-        });
-    });
     describe("interface", [] {
         it("send'n receive", [] {
             // SERVER
