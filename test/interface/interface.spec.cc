@@ -10,6 +10,38 @@ using CORBA::async, CORBA::ORB, CORBA::blob, CORBA::blob_view;
 bool operator==(const RGBA& lhs, const RGBA& rhs) { return lhs.r == rhs.r && lhs.g == rhs.g && lhs.b == rhs.b && lhs.a == rhs.a; }
 
 kaffeeklatsch_spec([] {
+    fdescribe("lifecycle", [] {
+        it("connection handling", [] {
+            // SERVER
+            auto serverORB = make_shared<ORB>();
+            auto serverProtocol = new FakeTcpProtocol(serverORB.get(), "backend.local", 2809);
+            serverORB->registerProtocol(serverProtocol);
+            // serverORB->debug = true;
+            auto backend = make_shared<Interface_impl>(serverORB);
+            serverORB->bind("Backend", backend);
+
+            // CLIENT
+            auto clientORB = make_shared<ORB>();
+            // clientORB->debug = true;
+            auto clientProtocol = new FakeTcpProtocol(clientORB.get(), "frontend.local", 32768);
+            clientORB->registerProtocol(clientProtocol);
+
+            std::exception_ptr eptr;
+
+            parallel(eptr, [&clientORB] -> async<> {
+                auto object = co_await clientORB->stringToObject("corbaname::backend.local:2809#Backend");
+                auto backend = Interface::_narrow(object);
+            });
+
+            vector<FakeTcpProtocol*> protocols = {serverProtocol, clientProtocol};
+            while (transmit(protocols));
+
+            if (eptr) {
+                std::rethrow_exception(eptr);
+            }
+
+        });
+    });
     describe("interface", [] {
         it("send'n receive", [] {
             // SERVER
@@ -66,6 +98,29 @@ kaffeeklatsch_spec([] {
 
                 vector<RGBA> color{{.r = 255, .g = 192, .b = 128, .a = 64}, {.r = 0, .g = 128, .b = 255, .a = 255}};
                 expect(co_await backend->callSeqRGBA(color)).to.equal(color);
+
+                // omniORB does not establish the tcp connection during _narrow()!!!
+                //
+                // the connection handling implementation is minimal at the moment.
+                // ORB::close() is actually empty!!!
+                // proto->create() might need to go...
+                //
+                // === get parent
+                // omniORB: (0) 2024-11-19 08:04:17.825941: sendChunk: to giop:tcp:192.168.178.105:51955 72 bytes
+                // omniORB: (3) 2024-11-19 08:04:17.828143: inputMessage: from giop:tcp:192.168.178.105:51955 28 bytes
+                // 1.3
+                // omniORB: (0) 2024-11-19 08:04:17.844758: inputMessage: from giop:tcp:192.168.178.105:51955 168 bytes
+                // omniORB: (0) 2024-11-19 08:04:17.845012: Creating ref to remote: root/BiDirPOA<0>
+                //  target id      : IDL:Model:1.0
+                //  most derived id: IDL:Model:1.0
+                // === call parent
+                // omniORB: (0) 2024-11-19 08:04:17.845203: LocateRequest to remote: root/BiDirPOA<0>
+                // omniORB: (0) 2024-11-19 08:04:17.845279: sendChunk: to giop:tcp:192.168.178.105:51955 47 bytes
+                // omniORB: (0) 2024-11-19 08:04:17.845868: inputMessage: from giop:tcp:192.168.178.105:51955 20 bytes
+                // omniORB: (0) 2024-11-19 08:04:17.845939: sendChunk: to giop:tcp:192.168.178.105:51955 76 bytes
+                // omniORB: (3) 2024-11-19 08:04:17.849466: inputMessage: from giop:tcp:[::ffff:192.168.178.105]:50768 68 bytes
+                // model changed to omniORB: (3) 2024-11-19 08:04:17.849586: sendChunk: to giop:tcp:192.168.178.105:51955 72 bytes
+                // omniORB: (0) 2024-11-19 08:04:17.849893: inputMessage: from giop:tcp:192.168.178.105:51955 24 bytes
 
                 auto frontend = make_shared<Peer_impl>(clientORB);
                 co_await backend->setPeer(frontend);

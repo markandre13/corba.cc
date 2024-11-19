@@ -346,7 +346,7 @@ void GIOPDecoder::readServiceContext() {
                         auto host = readStringView();
                         auto port = readUshort();
                         // cout << "    " << host << ":" << port << endl;
-                        connection->addPeer(host, port);
+                        connection->setPeer(host, port);
                     }
                 } break;
                 case ServiceId::SecurityAttributeService:

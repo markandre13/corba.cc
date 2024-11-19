@@ -4,10 +4,10 @@
 
 using std::println;
 
-CORBA::async<CORBA::detail::Connection *> FakeTcpProtocol::connect(const ::CORBA::ORB *orb, const std::string &hostname, uint16_t port) {
-    // println("TcpFakeConnection::connect(\"{}\", {})", hostname, port);
+CORBA::async<CORBA::detail::Connection *> FakeTcpProtocol::create(const ::CORBA::ORB *orb, const std::string &hostname, uint16_t port) {
+    // println("TcpFakeConnection::create(\"{}\", {})", hostname, port);
     auto conn = new TcpFakeConnection(this, m_localAddress, m_localPort, hostname, port);
-    // printf("TcpFakeConnection::connect() -> %p %s:%u -> %s:%u requestId=%u\n", static_cast<void *>(conn), conn->localAddress().c_str(), conn->localPort(),
+    // printf("TcpFakeConnection::create() -> %p %s:%u -> %s:%u requestId=%u\n", static_cast<void *>(conn), conn->localAddress().c_str(), conn->localPort(),
     //        conn->remoteAddress().c_str(), conn->remotePort(), conn->requestId);
     connections.push_back(conn);
     co_return conn;

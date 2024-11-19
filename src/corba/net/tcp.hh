@@ -20,7 +20,7 @@ class TcpConnection : public CORBA::detail::Connection {
         TcpConnection(const std::string &localAddress, uint16_t localPort, const std::string &remoteAddress, uint16_t remotePort, uint32_t initialRequestId = 0)
             : Connection(initialRequestId), m_localAddress(localAddress), m_localPort(localPort), m_remoteAddress(remoteAddress), m_remotePort(remotePort) {}
 
-        void addPeer(const std::string_view &hostname, uint16_t port) override {
+        void setPeer(const std::string_view &hostname, uint16_t port) override {
             // FIXME: hack, this needs to be a list
             m_remoteAddress = hostname;
             m_remotePort = port;
@@ -46,7 +46,7 @@ struct TcpProtocol : public CORBA::detail::Protocol {
         void listen(CORBA::ORB *orb, struct ev_loop *loop, const std::string &hostname, uint16_t port);
         void attach(CORBA::ORB *orb, struct ev_loop *loop);
 
-        async<detail::Connection*> connect(const CORBA::ORB *orb, const std::string &hostname, uint16_t port) override;
+        async<detail::Connection*> create(const CORBA::ORB *orb, const std::string &hostname, uint16_t port) override;
         CORBA::async<void> close() override;
 };
 

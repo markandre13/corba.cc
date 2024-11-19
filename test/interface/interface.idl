@@ -38,6 +38,7 @@ interface Interface {
     sequence<string> callSeqString(in sequence<string> value);
 
     sequence<RGBA> callSeqRGBA(in sequence<RGBA> value);
+    // sequence<Peer> getSeqPeer();
 
     // there is a C++11 mapping for CORBA. (formal-14-01-01.pdf) i haven't been aware of
     //

@@ -108,7 +108,7 @@ async<detail::Connection *> ORB::getConnection(string host, uint16_t port) {
                 println("ORB : active connection {}:{}", conn->remoteAddress(), conn->remotePort());
             }
         }
-        CORBA::detail::Connection *connection = co_await proto->connect(this, host, port);
+        CORBA::detail::Connection *connection = co_await proto->create(this, host, port);
         if (connection == nullptr) {
             throw runtime_error(format("failed to get connection to {}:{}", host, port));
         }

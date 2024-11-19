@@ -45,6 +45,13 @@ class Interface_impl : public Interface_skel {
             co_return out;
         };
         CORBA::async<std::vector<RGBA>> callSeqRGBA(const std::vector<RGBA> &value) override { co_return value; }
+        // CORBA::async<std::vector<std::shared_ptr<Peer>>> getSeqPeer() override {
+        //     std::vector<std::shared_ptr<Peer>> result;
+        //     if (peer) {
+        //         result.push_back(peer);
+        //     }
+        //     co_return result;
+        // }
 
         std::shared_ptr<Peer> peer;
         CORBA::async<void> setPeer(std::shared_ptr<Peer> aPeer) override {

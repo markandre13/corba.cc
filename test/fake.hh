@@ -16,7 +16,7 @@ struct FakePaket {
 struct FakeTcpProtocol : public CORBA::detail::Protocol {
         FakeTcpProtocol(CORBA::ORB *orb, const std::string &localAddress, uint16_t localPort) : m_orb(orb), m_localAddress(localAddress), m_localPort(localPort) {}
 
-        CORBA::async<CORBA::detail::Connection*> connect(const CORBA::ORB *orb, const std::string &hostname, uint16_t port);
+        CORBA::async<CORBA::detail::Connection*> create(const CORBA::ORB *orb, const std::string &hostname, uint16_t port);
         CORBA::async<void> close();
 
         CORBA::ORB *m_orb;
