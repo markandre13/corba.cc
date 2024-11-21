@@ -71,6 +71,12 @@
         "__verbose_abort": "cpp",
         "execution": "cpp",
         "print": "cpp",
-        "algorithm": "cpp"
+        "algorithm": "cpp",
+        "functional": "cpp",
+        "list": "cpp",
+        "map": "cpp",
+        "set": "cpp",
+        "unordered_set": "cpp",
+        "*.tcc": "cpp"
     }
 }

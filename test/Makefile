@@ -3,7 +3,7 @@ APP=tests
 MEM=-fsanitize=address -fsanitize=leak
 
 CXX=/usr/local/opt/llvm/bin/clang++
-CFLAGS=-std=c++23 -fmodules $(MEM) -O0 -g \
+CFLAGS=-std=c++23 $(MEM) -O0 -g \
 	-mmacosx-version-min=12.0 \
 	-Wall -Wextra -Wno-deprecated-anon-enum-enum-conversion \
 	-Werror=return-type -Werror=shadow \

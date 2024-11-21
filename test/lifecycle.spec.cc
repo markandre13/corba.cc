@@ -8,8 +8,23 @@
 #include <unistd.h>
 
 #include <print>
+#include <set>
+#include <thread>
 
 #include "../src/corba/net/ws/socket.hh"
+
+/*
+
+scenarios
+
+* listen
+  orb has a public ip and port which can be used on all IORs
+* not listening
+  each connection has it's own ip/port which the peer knows
+* not being able to listen because of nat
+  each connection has it's own ip/port
+*/
+
 #include "kaffeeklatsch.hh"
 
 using namespace std;
@@ -40,8 +55,7 @@ struct client_handler_t {
 class TcpProtocol {
         struct ev_loop *loop;
 
-        int listenSocket = -1;
-        unique_ptr<listen_handler_t> listenHandler;
+        std::vector<std::unique_ptr<listen_handler_t>> listeners;
 
     public:
         TcpProtocol(struct ev_loop *loop) : loop(loop) {}
@@ -55,12 +69,12 @@ class TcpProtocol {
 };
 
 class TcpConnection {
-        const char *host;
-        unsigned port;
-        int fd;
-
     public:
-        TcpConnection(const char *host, unsigned port, int fd = -1) : host(host), port(port), fd(fd) {}
+        int fd;
+        HostAndPort local;
+        HostAndPort remote;
+
+        TcpConnection(const char *host, uint16_t port, int fd = -1) : fd(fd), remote(HostAndPort{host, port}) {}
 
         /**
          * there does not seem an asynchronous variant for connect()
@@ -69,9 +83,81 @@ class TcpConnection {
          * throw CORBA exceptions similar to omniORB
          */
         void up();
+
+        void print();
 };
 
+void TcpConnection::print() {
+    println(" -> {}", remote.str());
+    // println("{}:{} -> {}:{}", protocol->localHost, protocol->localPort, localHost, localPort);
+}
+
+auto cmp = [](TcpConnection *a, TcpConnection *b) {
+    if (a->remote.port < b->remote.port) {
+        return true;
+    }
+    if (a->remote.port == b->remote.port) {
+        return a->remote.host < b->remote.host;
+    }
+    return false;
+};
+
+class ConnectionPool {
+        // FIXME: this needs to be a map, set
+        std::set<TcpConnection *, decltype(cmp)> connections;
+
+    public:
+        inline void insert(TcpConnection *conn) { connections.insert(conn); }
+        inline void erase(TcpConnection *conn) { connections.erase(conn); }
+        inline void clear() { connections.clear(); }
+        inline size_t size() { return connections.size(); }
+        TcpConnection *find(const char *host, uint16_t port);
+        void print();
+};
+
+TcpConnection *ConnectionPool::find(const char *host, uint16_t port) {
+    TcpConnection conn(host, port);
+    auto p = connections.find(&conn);
+    if (p == connections.end()) {
+        return nullptr;
+    }
+    return *p;
+}
+
+void ConnectionPool::print() {
+    for (auto c : connections) {
+        c->print();
+    }
+}
+
+ConnectionPool pool;
+
 kaffeeklatsch_spec([] {
+    beforeEach([] {
+        pool.clear();
+    });
+    describe("ConnectionPool", [] {
+        it("insert and find", [] {
+            auto pool = make_unique<ConnectionPool>();
+            TcpConnection a80("a", 80);
+            TcpConnection b79("b", 79);
+            TcpConnection b80("b", 80);
+            TcpConnection b81("b", 81);
+            TcpConnection c80("c", 80);
+
+            pool->insert(&a80);
+            pool->insert(&b79);
+            pool->insert(&b80);
+            pool->insert(&b81);
+            pool->insert(&c80);
+
+            expect(pool->find("a", 80)).to.equal(&a80);
+            expect(pool->find("b", 79)).to.equal(&b79);
+            expect(pool->find("b", 80)).to.equal(&b80);
+            expect(pool->find("b", 81)).to.equal(&b81);
+            expect(pool->find("c", 80)).to.equal(&c80);
+        });
+    });
     describe("TcpProtocol (new)", [] {
         describe("listen(host, port)", [] {
             it("when the socket is already in use, throws a runtime_error", [] {
@@ -107,27 +193,35 @@ kaffeeklatsch_spec([] {
             });
         });
         describe("connect(host, port)", [] {
+            it("can connect", [] {
+                struct ev_loop *loop = EV_DEFAULT;
+
+                auto server = make_unique<TcpProtocol>(loop);
+                server->listen("localhost", 9003);
+
+                auto client = make_unique<TcpProtocol>(loop);
+                auto clientConn = client->connect("localhost", 9003);
+                clientConn->up();
+
+                expect(pool.size()).to.equal(0);
+                ev_run(loop, EVRUN_ONCE);
+                expect(pool.size()).to.equal(1);
+
+                auto serverConn = pool.find("::1", getLocalName(clientConn->fd).port);
+                expect(serverConn).to.be.not_().equal(nullptr);
+            });
+            it("retry until listener is ready");
+        });
+    });
+    describe("TcpConnection", [] {
+        describe("up()", [] {
             it("when connect()->up() fails, throws a runtime_error", [] {
                 struct ev_loop *loop = EV_DEFAULT;
                 auto protocol1 = make_unique<TcpProtocol>(loop);
                 auto connection = protocol1->connect("localhost", 9004);
                 expect([&] {
                     connection->up();
-                }).to.throw_(runtime_error("TcpConnection()::up(): localhost:9004: Connection refused"));
-            });
-            it("can connect", [] {
-                struct ev_loop *loop = EV_DEFAULT;
-                auto protocol0 = make_unique<TcpProtocol>(loop);
-                protocol0->listen("localhost", 9003);
-
-                auto protocol1 = make_unique<TcpProtocol>(loop);
-                auto connection = protocol1->connect("localhost", 9003);
-                connection->up();
-
-                ev_run(loop, EVRUN_ONCE);
-
-                // orb should now have a connection which is able to receive...
-                // only: we DO NOT PUT THE CONNECTION HANDLING INTO CLASS ORB!!! class ConnectionPool!!!
+                }).to.throw_(runtime_error("TcpConnection()::up(): [localhost]:9004: Connection refused"));
             });
         });
     });
@@ -135,61 +229,55 @@ kaffeeklatsch_spec([] {
 
 TcpProtocol::~TcpProtocol() { shutdown(); }
 
-void TcpProtocol::shutdown() {
-    if (listenSocket >= 0) {
-        if (listenHandler.get()) {
-            ev_io_stop(loop, &listenHandler->watcher);
-            listenHandler.reset();
-        }
-
-        close(listenSocket);
-        listenSocket = -1;
-    }
-}
-
 void TcpProtocol::listen(const char *host, unsigned port) {
-    if (listenSocket >= 0) {
-        throw runtime_error(format("TcpProtocol::listen(): already listening"));
-    }
 
-    listenSocket = create_listen_socket(host, port);
-
-    if (listenSocket < 0) {
+    auto sockets = create_listen_socket(host, port);
+    if (sockets.size() == 0) {
         throw runtime_error(format("TcpProtocol::listen(): {}:{}: {}", host, port, strerror(errno)));
     }
 
-    listenHandler = make_unique<listen_handler_t>();
-    listenHandler->protocol = this;
-    ev_io_init(&listenHandler->watcher, libev_accept_cb, listenSocket, EV_READ);
-    ev_io_start(loop, &listenHandler->watcher);
+    for(auto socket: sockets) {
+        listeners.push_back(make_unique<listen_handler_t>());
+        auto &handler = listeners.back();
+        handler->protocol = this;
+        ev_io_init(&handler->watcher, libev_accept_cb, socket, EV_READ);
+        ev_io_start(loop, &handler->watcher);
+    }
+}
+
+void TcpProtocol::shutdown() {
+    for(auto &listener: listeners) {
+        ev_io_stop(loop, &listener->watcher);
+        close(listener->watcher.fd);
+    }
+    listeners.clear();
 }
 
 shared_ptr<TcpConnection> TcpProtocol::connect(const char *host, unsigned port) { return make_shared<TcpConnection>(host, port); }
 
 void TcpConnection::up() {
+    println("UP CONFIG IS {}", remote.str());
+
     if (fd >= 0) {
         return;
     }
-    fd = connect_to(host, port);
+    fd = connect_to(remote.host.c_str(), remote.port);
     if (fd < 0) {
-        throw runtime_error(format("TcpConnection()::up(): {}:{}: {}", host, port, strerror(errno)));
+        throw runtime_error(format("TcpConnection()::up(): {}: {}", remote.str(), strerror(errno)));
     }
-    println("outgoing: up {}", fd);
+
+    println("UP LOCAL {}, REMOTE {}", getLocalName(fd).str(), getPeerName(fd).str());
 }
 
 // called by libev when a client want's to connect
 void libev_accept_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
-    println("incoming: got client");
-    auto handler = reinterpret_cast<listen_handler_t *>(watcher);
+    // println("incoming: got client");
+    // auto handler = reinterpret_cast<listen_handler_t *>(watcher);
     // puts("got client");
     if (EV_ERROR & revents) {
         perror("got invalid event");
         return;
     }
-
-    char ip[INET6_ADDRSTRLEN];
-    memset(ip, 0, sizeof(ip));
-    uint16_t port = 0;
 
     struct sockaddr_storage addr;
     socklen_t addrlen = sizeof(addr);
@@ -201,24 +289,12 @@ void libev_accept_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
         return;
     }
 
-    switch (addr.ss_family) {
-        case AF_INET: {
-            struct sockaddr_in *sin = (struct sockaddr_in *)&addr;
-            inet_ntop(AF_INET, sin, ip, sizeof(ip));
-            port = htons(sin->sin_port);
-        } break;
-        case AF_INET6: {
-            struct sockaddr_in6 *sin = (struct sockaddr_in6 *)&addr;
-            inet_ntop(AF_INET6, sin, ip, sizeof(ip));
-            port = htons(sin->sin6_port);
-        } break;
-        default:
-            println("PEER IS UNKNOWN");
-    }
-    println("PEER IS [{}]:{}", ip, port);
+    println("ACCEPT LOCAL {}, REMOTE {}", getLocalName(fd).str(), getPeerName(fd).str());
+
+    auto peer = getPeerName(fd);
 
     auto client_handler = new client_handler_t();
-    client_handler->connection = new TcpConnection(ip, port, fd);
+    client_handler->connection = new TcpConnection(peer.host.c_str(), peer.port, fd);
     // client_handler->loop = loop;
     // client_handler->orb = handler->protocol->m_orb;
     // // a serve will only send requests when BiDir was negotiated, and then starts with
@@ -231,6 +307,8 @@ void libev_accept_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
     // client_handler->connection->handler = client_handler;
     ev_io_init(&client_handler->watcher, libev_read_cb, fd, EV_READ);
     ev_io_start(loop, &client_handler->watcher);
+
+    pool.insert(client_handler->connection);
 }
 
 // called by libev when data can be read

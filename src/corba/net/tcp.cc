@@ -52,7 +52,7 @@ void TcpProtocol::listen(CORBA::ORB *orb, struct ev_loop *loop, const std::strin
     m_orb = orb;
     m_loop = loop;
 
-    int fd = create_listen_socket(hostname.c_str(), port);
+    int fd = create_listen_socket(hostname.c_str(), port)[0];
     if (fd < 0) {
         throw runtime_error(format("TcpProtocol::listen(): {}:{}: {}", hostname, port, strerror(errno)));
     }
