@@ -2,23 +2,36 @@ APP=tests
 
 MEM=-fsanitize=address -fsanitize=leak
 
+# macOS
+ifeq ($(shell uname -s),Darwin)
 CXX=/usr/local/opt/llvm/bin/clang++
+OS_CFLAGS=-mmacosx-version-min=12.0 \
+	-I/usr/local/opt/llvm/include/c++ \
+	-I/usr/local/include
+OS_LFLAGS=-mmacosx-version-min=12.0 \
+	-L/usr/local/opt/llvm/lib/c++ \
+	-Wl,-rpath,/usr/local/opt/llvm/lib/c++ \
+	-L/usr/local/lib
+endif
+
+# debian
+ifeq ($(shell uname -s),Linux)
+CXX=clang++-19
+OS_CFLAGS=
+OS_LFLAGS=-luuid
+endif
+
 CFLAGS=-std=c++23 $(MEM) -O0 -g \
-	-mmacosx-version-min=12.0 \
+	$(OS_CFLAGS) \
 	-Wall -Wextra -Wno-deprecated-anon-enum-enum-conversion \
 	-Werror=return-type -Werror=shadow \
 	-Wno-unused-parameter -Wno-module-import-in-extern-c \
-	-I/usr/local/opt/llvm/include/c++ \
 	-I../upstream/kaffeeklatsch/src \
 	-I../src
 # -D_COROUTINE_DEBUG=1
 
-LDFLAGS=-L/usr/local/opt/llvm/lib/c++ \
-	-mmacosx-version-min=12.0 \
-	-Wl,-rpath,/usr/local/opt/llvm/lib/c++ \
-	-L/usr/local/lib $(MEM)
+LFLAGS=$(OS_LFLAGS) $(MEM)
 
-WSLAG_FLAGS=-I/usr/local/include
 LIB=-lev -lwslay -lnettle
 
 APP_SRC=cdr_decoder.spec.cc cdr_encoder.spec.cc giop.spec.cc corba.spec.cc blob.spec.cc \
@@ -64,12 +77,11 @@ clean:
 
 $(APP): $(OBJ)
 	@echo "linking..."
-	$(CXX) $(LDFLAGS) $(LIB) $(OBJ) -o $(APP)
+	$(CXX) $(LFLAGS) $(LIB) $(OBJ) -o $(APP)
 
 .cc.o:
 	@echo compiling $*.cc ...
-	$(CXX) $(CFLAGS) $(WSLAG_FLAGS) \
-	-c -o $*.o $*.cc
+	$(CXX) $(CFLAGS) -c -o $*.o $*.cc
 
 .c.o:
 	@echo compiling $*.c ...

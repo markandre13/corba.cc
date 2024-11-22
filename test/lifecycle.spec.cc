@@ -275,7 +275,7 @@ kaffeeklatsch_spec([] {
 
             //
             //   ETIMEDOUT    Operation timed out (after 75s)
-            it("connect()", [] {
+            xit("connect()", [] {
                 struct ev_loop *loop = EV_DEFAULT;
                 auto client = make_unique<TcpProtocol>(loop);
                 auto clientConn = client->connect("192.168.178.105", 9090);

@@ -3,6 +3,7 @@
 #include <string>
 #include <variant>
 #include <vector>
+#include <cstdint>
 
 namespace CORBA {
 

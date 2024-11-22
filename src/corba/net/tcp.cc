@@ -126,7 +126,11 @@ async<detail::Connection *> TcpProtocol::create(const CORBA::ORB *orb, const std
         // this orb/protocol has no listen port, assume bi-directional iiop and makeup a hostname
         // using a random number also helps avoiding collisions with other orbs on the peer
         uuid_t uuid;
+#ifdef _UUID_STRING_T
         uuid_string_t uuid_str;
+#else
+        char uuid_str[UUID_STR_LEN];
+#endif
         uuid_generate_random(uuid);
         uuid_unparse_lower(uuid, uuid_str);
         m_localAddress = uuid_str;

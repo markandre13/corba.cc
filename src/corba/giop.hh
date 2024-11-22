@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 #include <functional>
+#include <memory>
 #include <string>
 
 #include "cdr.hh"
