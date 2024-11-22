@@ -14,6 +14,8 @@
 #include "../src/corba/net/ws/socket.hh"
 #include "util.hh"
 
+#if 1
+
 /*
 
 scenarios
@@ -37,6 +39,20 @@ static void libev_read_cb(struct ev_loop *loop, struct ev_io *watcher, int reven
 class TcpProtocol;
 class TcpConnection;
 
+class ConnectionPool {
+        // FIXME: this needs to be a map, set
+        // std::set<shared_ptr<TcpConnection>, decltype(cmp)> connections;
+        std::set<shared_ptr<TcpConnection>> connections;
+
+    public:
+        inline void insert(shared_ptr<TcpConnection> conn) { connections.insert(conn); }
+        inline void erase(shared_ptr<TcpConnection> conn) { connections.erase(conn); }
+        inline void clear() { connections.clear(); }
+        inline size_t size() { return connections.size(); }
+        TcpConnection *find(const char *host, uint16_t port);
+        void print();
+};
+
 // libev user data for the listen handler
 struct listen_handler_t {
         ev_io watcher;
@@ -56,6 +72,9 @@ struct client_handler_t {
 class TcpConnection;
 
 class TcpProtocol {
+    public:
+        ConnectionPool pool;
+    private:
         friend class TcpConnection;
         struct ev_loop *loop;
 
@@ -73,13 +92,16 @@ class TcpProtocol {
 };
 
 class TcpConnection {
+        int fd = -1;
+        std::unique_ptr<client_handler_t> handler;
+
     public:
         TcpProtocol *protocol;
-        int fd;
         HostAndPort local;
         HostAndPort remote;
 
-        TcpConnection(TcpProtocol *protocol, const char *host, uint16_t port, int fd = -1) : protocol(protocol), fd(fd), remote(HostAndPort{host, port}) {}
+        TcpConnection(TcpProtocol *protocol, const char *host, uint16_t port) : protocol(protocol), remote(HostAndPort{host, port}) {}
+        ~TcpConnection();
 
         /**
          * there does not seem an asynchronous variant for connect()
@@ -88,7 +110,9 @@ class TcpConnection {
          * throw CORBA exceptions similar to omniORB
          */
         void up();
-        void connRefused();
+
+        void accept(int fd);
+        void canRead();
 
         std::function<void(void *buffer, size_t nbyte)> receiver;
 
@@ -96,6 +120,7 @@ class TcpConnection {
         void recv(void *buffer, size_t nbyte);
 
         void print();
+        inline int getFD() { return this->fd; }
 };
 
 void TcpConnection::send(void *buffer, size_t nbytes) {
@@ -108,16 +133,54 @@ void TcpConnection::send(void *buffer, size_t nbytes) {
 }
 
 void TcpConnection::recv(void *buffer, size_t nbytes) {
-    cout << "RECV" << endl;
-    hexdump(buffer, nbytes);
+    // cout << "RECV" << endl;
+    // hexdump(buffer, nbytes);
     if (receiver) {
         receiver(buffer, nbytes);
     }
 }
 
-void TcpConnection::connRefused() {
-    close(fd);
-    fd = -1;
+void TcpConnection::accept(int client) {
+    if (handler) {
+        println("TcpConnection::accept(int fd): we already have a handler");
+        ev_io_stop(protocol->loop, &handler->watcher);
+        handler.reset();
+    }
+    if (fd != -1) {
+        println("TcpConnection::accept(int fd): fd is already set");
+        ::close(fd);
+    }
+    fd = client;
+    handler = make_unique<client_handler_t>();
+    handler->connection = this;
+
+    ev_io_init(&handler->watcher, libev_read_cb, fd, EV_READ);
+    ev_io_start(protocol->loop, &handler->watcher);
+}
+
+TcpConnection::~TcpConnection() {
+    if (handler) {
+        ev_io_stop(protocol->loop, &handler->watcher);
+        handler.reset();
+    }
+    if (fd != -1) {
+        ::close(fd);
+    }
+}
+
+void TcpConnection::canRead() {
+    char buffer[8192];
+    ssize_t nbytes = ::recv(fd, buffer, sizeof(buffer), 0);
+    if (nbytes < 0) {
+        println("TcpConnection::canRead(): {} ({})", strerror(errno), errno);
+        ev_io_stop(protocol->loop, &handler->watcher);
+        handler.reset();
+        ::close(fd);
+        fd = -1;
+        return;
+    }
+    println("recv'd {} bytes", nbytes);
+    recv(buffer, nbytes);
 }
 
 void TcpConnection::print() {
@@ -135,26 +198,19 @@ auto cmp = [](TcpConnection *a, TcpConnection *b) {
     return false;
 };
 
-class ConnectionPool {
-        // FIXME: this needs to be a map, set
-        std::set<TcpConnection *, decltype(cmp)> connections;
-
-    public:
-        inline void insert(TcpConnection *conn) { connections.insert(conn); }
-        inline void erase(TcpConnection *conn) { connections.erase(conn); }
-        inline void clear() { connections.clear(); }
-        inline size_t size() { return connections.size(); }
-        TcpConnection *find(const char *host, uint16_t port);
-        void print();
-};
-
 TcpConnection *ConnectionPool::find(const char *host, uint16_t port) {
-    TcpConnection conn(nullptr, host, port);
-    auto p = connections.find(&conn);
-    if (p == connections.end()) {
-        return nullptr;
+    for(auto &c: connections) {
+        if (c->remote.host == host && c->remote.port == port) {
+            return c.get();
+        }
     }
-    return *p;
+    return nullptr;
+    // auto conn = make_shared<TcpConnection>(nullptr, host, port);
+    // auto p = connections.find(conn);
+    // if (p == connections.end()) {
+    //     return nullptr;
+    // }
+    // return p->get();
 }
 
 void ConnectionPool::print() {
@@ -163,35 +219,45 @@ void ConnectionPool::print() {
     }
 }
 
-ConnectionPool pool;
+// MAYBE EACH PROTOCOL NEEDS IT'S OWN POOL???
 
 kaffeeklatsch_spec([] {
-    beforeEach([] {
-        pool.clear();
-    });
+    // beforeEach([] {
+    //     pool.clear();
+    // });
+    // afterEach([] {
+    //     pool.clear();
+    // });
+
     describe("ConnectionPool", [] {
         it("insert and find", [] {
             auto pool = make_unique<ConnectionPool>();
-            TcpConnection a80(nullptr, "a", 80);
-            TcpConnection b79(nullptr, "b", 79);
-            TcpConnection b80(nullptr, "b", 80);
-            TcpConnection b81(nullptr, "b", 81);
-            TcpConnection c80(nullptr, "c", 80);
+            auto a80 = make_shared<TcpConnection>(nullptr, "a", 80);
+            auto b79 = make_shared<TcpConnection>(nullptr, "b", 79);
+            auto b80 = make_shared<TcpConnection>(nullptr, "b", 80);
+            auto b81 = make_shared<TcpConnection>(nullptr, "b", 81);
+            auto c80 = make_shared<TcpConnection>(nullptr, "c", 80);
 
-            pool->insert(&a80);
-            pool->insert(&b79);
-            pool->insert(&b80);
-            pool->insert(&b81);
-            pool->insert(&c80);
+            pool->insert(a80);
+            pool->insert(b79);
+            pool->insert(b80);
+            pool->insert(b81);
+            pool->insert(c80);
 
-            expect(pool->find("a", 80)).to.equal(&a80);
-            expect(pool->find("b", 79)).to.equal(&b79);
-            expect(pool->find("b", 80)).to.equal(&b80);
-            expect(pool->find("b", 81)).to.equal(&b81);
-            expect(pool->find("c", 80)).to.equal(&c80);
+            expect(pool->find("a", 80)).to.equal(a80.get());
+            expect(pool->find("b", 79)).to.equal(b79.get());
+            expect(pool->find("b", 80)).to.equal(b80.get());
+            expect(pool->find("b", 81)).to.equal(b81.get());
+            expect(pool->find("c", 80)).to.equal(c80.get());
+
+            // pool->erase(&a80);
+            // pool->erase(&b79);
+            // pool->erase(&b80);
+            // pool->erase(&b81);
+            // pool->erase(&c80);
         });
     });
-    fdescribe("TcpProtocol (new)", [] {
+    describe("TcpProtocol (new)", [] {
         describe("listen(host, port)", [] {
             it("when the socket is already in use, throws a runtime_error", [] {
                 struct ev_loop *loop = EV_DEFAULT;
@@ -273,14 +339,23 @@ kaffeeklatsch_spec([] {
 
             // TESTS FOR CORBA PACKAGES ARRIVE IN MULTIPLE MESSAGES
 
-            //
-            //   ETIMEDOUT    Operation timed out (after 75s)
-            xit("connect()", [] {
+            // EHOSTUNREACH No route to host
+            //   e.g. host down
+            // ECONNREFUSED Connection refused
+            //  host is up but no service is listening on that requested port
+            // ETIMEDOUT    Connection timed out
+            //  DROP rule, macOS 75s, Linux 134s
+
+            // /sbin/iptables is IPv4, hence the test needs to use IPv4 addresses
+            it("connect()", [] {
+                // expect(system("/sbin/iptables -F INPUT")).to.equal(0);
+                // expect(system("/sbin/iptables -A INPUT -p tcp --dport 9090 -j DROP")).to.equal(0);
                 struct ev_loop *loop = EV_DEFAULT;
                 auto client = make_unique<TcpProtocol>(loop);
-                auto clientConn = client->connect("192.168.178.105", 9090);
+                auto clientConn = client->connect("127.0.0.1", 9090);
                 clientConn->up();
-                ev_run(loop);
+                ev_run(loop, 0);
+                // expect(system("/sbin/iptables -v -L INPUT")).to.equal(0);
             });
             it("can connect", [] {
                 struct ev_loop *loop = EV_DEFAULT;
@@ -292,11 +367,11 @@ kaffeeklatsch_spec([] {
                 auto clientConn = client->connect("localhost", 9003);
                 clientConn->up();
 
-                expect(pool.size()).to.equal(0);
+                expect(server->pool.size()).to.equal(0);
                 ev_run(loop, EVRUN_ONCE);
-                expect(pool.size()).to.equal(1);
+                expect(server->pool.size()).to.equal(1);
 
-                auto serverConn = pool.find("::1", getLocalName(clientConn->fd).port);
+                auto serverConn = server->pool.find("::1", getLocalName(clientConn->getFD()).port);
                 expect(serverConn).to.be.not_().equal(nullptr);
                 string result;
                 serverConn->receiver = [&](void *buffer, size_t nbytes) {
@@ -332,7 +407,6 @@ void TcpProtocol::listen(const char *host, unsigned port) {
     if (sockets.size() == 0) {
         throw runtime_error(format("TcpProtocol::listen(): {}:{}: {}", host, port, strerror(errno)));
     }
-
     for (auto socket : sockets) {
         listeners.push_back(make_unique<listen_handler_t>());
         auto &handler = listeners.back();
@@ -347,34 +421,33 @@ void TcpProtocol::shutdown() {
         ev_io_stop(loop, &listener->watcher);
         close(listener->watcher.fd);
     }
-    listeners.clear();
+    // listeners.clear();
 }
 
 shared_ptr<TcpConnection> TcpProtocol::connect(const char *host, unsigned port) { return make_shared<TcpConnection>(this, host, port); }
 
 void TcpConnection::up() {
     println("UP CONFIG IS {}", remote.str());
-
     if (fd >= 0) {
         return;
     }
+
     fd = connect_to(remote.host.c_str(), remote.port);
     if (fd < 0) {
         throw runtime_error(format("TcpConnection()::up(): {}: {}", remote.str(), strerror(errno)));
     }
 
-    println("UP LOCAL {}, REMOTE {}", getLocalName(fd).str(), getPeerName(fd).str());
+    // println("UP LOCAL {}, REMOTE {}", getLocalName(fd).str(), getPeerName(fd).str());
 
-    auto client_handler = new client_handler_t();
-    client_handler->connection = this;
-    ev_io_init(&client_handler->watcher, libev_read_cb, fd, EV_READ);
-    ev_io_start(protocol->loop, &client_handler->watcher);
+    handler = make_unique<client_handler_t>();
+    handler->connection = this;
+    ev_io_init(&handler->watcher, libev_read_cb, fd, EV_READ);
+    ev_io_start(protocol->loop, &handler->watcher);
 }
 
 // called by libev when a client want's to connect
 void libev_accept_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
     // println("incoming: got client");
-    auto handler = reinterpret_cast<listen_handler_t *>(watcher);
     // puts("got client");
     if (EV_ERROR & revents) {
         perror("got invalid event");
@@ -385,18 +458,19 @@ void libev_accept_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
     socklen_t addrlen = sizeof(addr);
     int fd = accept(watcher->fd, (struct sockaddr *)&addr, &addrlen);
 
+    println("ACCEPT LOCAL {}, REMOTE {}", getLocalName(fd).str(), getPeerName(fd).str());
+
     if (set_non_block(fd) == -1 || set_no_delay(fd) == -1) {
         puts("failed to setup");
         close(fd);
         return;
     }
 
-    println("ACCEPT LOCAL {}, REMOTE {}", getLocalName(fd).str(), getPeerName(fd).str());
-
+    auto handler = reinterpret_cast<listen_handler_t *>(watcher);
     auto peer = getPeerName(fd);
-
-    auto client_handler = new client_handler_t();
-    client_handler->connection = new TcpConnection(handler->protocol, peer.host.c_str(), peer.port, fd);
+    auto connection = make_shared<TcpConnection>(handler->protocol, peer.host.c_str(), peer.port);
+    handler->protocol->pool.insert(connection);
+    connection->accept(fd);
     // client_handler->loop = loop;
     // client_handler->orb = handler->protocol->m_orb;
     // // a serve will only send requests when BiDir was negotiated, and then starts with
@@ -407,10 +481,6 @@ void libev_accept_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
     //     new TcpConnection(handler->protocol->m_localAddress, handler->protocol->m_localPort, "frontend", 2, InitialResponderRequestIdBiDirectionalIIOP);
     // handler->protocol->m_orb->connections.push_back(client_handler->connection);
     // client_handler->connection->handler = client_handler;
-    ev_io_init(&client_handler->watcher, libev_read_cb, fd, EV_READ);
-    ev_io_start(loop, &client_handler->watcher);
-
-    pool.insert(client_handler->connection);
 }
 
 // called by libev when data can be read
@@ -419,17 +489,9 @@ void libev_read_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
         perror("libev_read_cb(): got invalid event");
         return;
     }
+    println("can recv");
     auto handler = reinterpret_cast<client_handler_t *>(watcher);
-    char buffer[8192];
-    ssize_t nbytes = ::recv(handler->watcher.fd, buffer, sizeof(buffer), 0);
-    if (nbytes < 0) {
-        perror("recv");
-        if (errno == ECONNREFUSED) {
-            handler->connection->connRefused();
-            ev_io_stop(loop, watcher);
-            delete handler;
-        }
-        return;
-    }
-    handler->connection->recv(buffer, nbytes);
+    handler->connection->canRead();
 }
+
+#endif

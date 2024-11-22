@@ -70,10 +70,10 @@ run:
 	DYLD_LIBRARY_PATH=$(MEDIAPIPE_CPP_DIR)/library ./$(APP) --reporter=info --report-timing --only=foo
 
 valgrind:
-	/usr/local/Cellar/valgrind/HEAD-93191c1/bin/valgrind --track-origins=yes ./$(APP)
+	valgrind --track-origins=yes --tool=memcheck --leak-check=full --num-callers=20 ./$(APP)
 
 clean:
-	rm -f $(OBJ) $(IDL_GEN)
+	rm -f $(OBJ) $(IDL_GEN) $(APP)
 
 $(APP): $(OBJ)
 	@echo "linking..."
@@ -107,6 +107,9 @@ corba.spec.o: ../src/corba/exception.hh ../src/corba/orb.hh
 corba.spec.o: ../src/corba/protocol.hh ../src/corba/url.hh util.hh
 corba.spec.o: ../src/corba/hexdump.hh ../src/corba/coroutine.hh
 blob.spec.o: ../src/corba/blob.hh
+lifecycle.spec.o: ../src/corba/net/ws/socket.hh util.hh
+lifecycle.spec.o: ../src/corba/hexdump.hh ../src/corba/blob.hh
+lifecycle.spec.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
 interface/interface.spec.o: fake.hh ../src/corba/blob.hh
 interface/interface.spec.o: ../src/corba/protocol.hh ../src/corba/blob.hh
 interface/interface.spec.o: ../src/corba/coroutine.hh
@@ -218,5 +221,6 @@ fake.o: ../src/corba/giop.hh ../src/corba/cdr.hh
 ../src/corba/net/tcp.o: ../src/corba/net/ws/socket.hh ../src/corba/orb.hh
 ../src/corba/net/tcp.o: ../src/corba/giop.hh ../src/corba/cdr.hh
 ../src/corba/net/tcp.o: ../src/corba/hexdump.hh
+../src/corba/net/ws/socket.o: ../src/corba/net/ws/socket.hh
 ../src/corba/net/ws/createAcceptKey.o: ../src/corba/net/ws/createAcceptKey.hh
 ../upstream/kaffeeklatsch/src/kaffeeklatsch.o: ../upstream/kaffeeklatsch/src/kaffeeklatsch.hh
