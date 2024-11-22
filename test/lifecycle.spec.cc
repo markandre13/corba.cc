@@ -12,6 +12,7 @@
 #include <thread>
 
 #include "../src/corba/net/ws/socket.hh"
+#include "util.hh"
 
 /*
 
@@ -52,7 +53,10 @@ struct client_handler_t {
         TcpConnection *connection;
 };
 
+class TcpConnection;
+
 class TcpProtocol {
+        friend class TcpConnection;
         struct ev_loop *loop;
 
         std::vector<std::unique_ptr<listen_handler_t>> listeners;
@@ -70,11 +74,12 @@ class TcpProtocol {
 
 class TcpConnection {
     public:
+        TcpProtocol *protocol;
         int fd;
         HostAndPort local;
         HostAndPort remote;
 
-        TcpConnection(const char *host, uint16_t port, int fd = -1) : fd(fd), remote(HostAndPort{host, port}) {}
+        TcpConnection(TcpProtocol *protocol, const char *host, uint16_t port, int fd = -1) : protocol(protocol), fd(fd), remote(HostAndPort{host, port}) {}
 
         /**
          * there does not seem an asynchronous variant for connect()
@@ -83,9 +88,37 @@ class TcpConnection {
          * throw CORBA exceptions similar to omniORB
          */
         void up();
+        void connRefused();
+
+        std::function<void(void *buffer, size_t nbyte)> receiver;
+
+        void send(void *buffer, size_t nbyte);
+        void recv(void *buffer, size_t nbyte);
 
         void print();
 };
+
+void TcpConnection::send(void *buffer, size_t nbytes) {
+    cout << "SEND" << endl;
+    hexdump(buffer, nbytes);
+    ssize_t n = ::send(fd, buffer, nbytes, 0);
+    if (n != nbytes) {
+        perror("send");
+    }
+}
+
+void TcpConnection::recv(void *buffer, size_t nbytes) {
+    cout << "RECV" << endl;
+    hexdump(buffer, nbytes);
+    if (receiver) {
+        receiver(buffer, nbytes);
+    }
+}
+
+void TcpConnection::connRefused() {
+    close(fd);
+    fd = -1;
+}
 
 void TcpConnection::print() {
     println(" -> {}", remote.str());
@@ -116,7 +149,7 @@ class ConnectionPool {
 };
 
 TcpConnection *ConnectionPool::find(const char *host, uint16_t port) {
-    TcpConnection conn(host, port);
+    TcpConnection conn(nullptr, host, port);
     auto p = connections.find(&conn);
     if (p == connections.end()) {
         return nullptr;
@@ -139,11 +172,11 @@ kaffeeklatsch_spec([] {
     describe("ConnectionPool", [] {
         it("insert and find", [] {
             auto pool = make_unique<ConnectionPool>();
-            TcpConnection a80("a", 80);
-            TcpConnection b79("b", 79);
-            TcpConnection b80("b", 80);
-            TcpConnection b81("b", 81);
-            TcpConnection c80("c", 80);
+            TcpConnection a80(nullptr, "a", 80);
+            TcpConnection b79(nullptr, "b", 79);
+            TcpConnection b80(nullptr, "b", 80);
+            TcpConnection b81(nullptr, "b", 81);
+            TcpConnection c80(nullptr, "c", 80);
 
             pool->insert(&a80);
             pool->insert(&b79);
@@ -158,7 +191,7 @@ kaffeeklatsch_spec([] {
             expect(pool->find("c", 80)).to.equal(&c80);
         });
     });
-    describe("TcpProtocol (new)", [] {
+    fdescribe("TcpProtocol (new)", [] {
         describe("listen(host, port)", [] {
             it("when the socket is already in use, throws a runtime_error", [] {
                 struct ev_loop *loop = EV_DEFAULT;
@@ -192,7 +225,63 @@ kaffeeklatsch_spec([] {
                 protocol1->listen("localhost", 9003);
             });
         });
+
+        // omniORB https://omniorb.sourceforge.io/omni42/omniORB/omniORB004.html
+        // connect timeout
+        //   * time allowed to connect to peer
+        //   * default 10s
+        //   * CORBA::TIMEOUT thrown when timeout exceeds
+        //     if there are more than one host/ports, the next attempt will use another one
+        //   * user can defined custom timeouts per process, thread and object reference
+        //   * user defined timeout > 10s
+        //     the first call may take this long
+        //   * there are idle shutdowns for outgoing and incoming connections
+        // call timeout
+        //   * time allowed to get a response
+        //   * specified in milliseconds
+        //   * in case of timeout, CORBA::TRANSIENT exception is thrown an connection is closed
+        //   * with non-block connect returns with != 0 and errno = 36
+
         describe("connect(host, port)", [] {
+            // https://stackoverflow.com/questions/17769964/linux-sockets-non-blocking-connect
+            // https://cr.yp.to/docs/connect.html
+            // Once the system signals the socket as writable, first call getpeername() to see if it connected or not.
+            // If that call succeeded, the socket connected and you can start using it. If that call fails with ENOTCONN,
+            // the connection failed. To find out why it failed, try to read one byte from the socket read(fd, &ch, 1),
+            // which will fail as well but the error you get is the error you would have gotten from connect() if it wasn't
+            // non-blocking.
+
+            // TESTS FOR CONNECT
+            // =========================
+            // CASE: NO LISTENER
+            //   ECONNREFUSED Connection refused
+            // CASE: LISTENER (connect() is immediatly successful)
+            //
+            // CASE: NO RESPONSE (PEER HAS DROP RULE), ECONNREFUSED LATER
+            // /sbin/iptables -A INPUT -p tcp --dport 9090 -j DROP
+            //   EINPROGRESS  Operation now in progress
+            // /sbin/iptables -A INPUT -p tcp --dport 9090 -j DROP
+            // wait
+            // /sbin/iptables -F INPUT
+            //   ECONNREFUSED
+            // CASE: NO RESPONSE (PEER HAS DROP RULE), accept LATER
+
+            // TESTS FOR PEER DISAPPEARS
+            // =========================
+            // * PEER CLOSES IT'S SOCKET
+            // * DROP RULE ADDED WHILE CONNECTION IS UP
+
+            // TESTS FOR CORBA PACKAGES ARRIVE IN MULTIPLE MESSAGES
+
+            //
+            //   ETIMEDOUT    Operation timed out (after 75s)
+            it("connect()", [] {
+                struct ev_loop *loop = EV_DEFAULT;
+                auto client = make_unique<TcpProtocol>(loop);
+                auto clientConn = client->connect("192.168.178.105", 9090);
+                clientConn->up();
+                ev_run(loop);
+            });
             it("can connect", [] {
                 struct ev_loop *loop = EV_DEFAULT;
 
@@ -209,6 +298,15 @@ kaffeeklatsch_spec([] {
 
                 auto serverConn = pool.find("::1", getLocalName(clientConn->fd).port);
                 expect(serverConn).to.be.not_().equal(nullptr);
+                string result;
+                serverConn->receiver = [&](void *buffer, size_t nbytes) {
+                    result.assign((char *)buffer, nbytes);
+                };
+
+                clientConn->send((void *)"hello", 5);
+
+                ev_run(loop, EVRUN_ONCE);
+                expect(result).to.equal("hello");
             });
             it("retry until listener is ready");
         });
@@ -230,13 +328,12 @@ kaffeeklatsch_spec([] {
 TcpProtocol::~TcpProtocol() { shutdown(); }
 
 void TcpProtocol::listen(const char *host, unsigned port) {
-
     auto sockets = create_listen_socket(host, port);
     if (sockets.size() == 0) {
         throw runtime_error(format("TcpProtocol::listen(): {}:{}: {}", host, port, strerror(errno)));
     }
 
-    for(auto socket: sockets) {
+    for (auto socket : sockets) {
         listeners.push_back(make_unique<listen_handler_t>());
         auto &handler = listeners.back();
         handler->protocol = this;
@@ -246,14 +343,14 @@ void TcpProtocol::listen(const char *host, unsigned port) {
 }
 
 void TcpProtocol::shutdown() {
-    for(auto &listener: listeners) {
+    for (auto &listener : listeners) {
         ev_io_stop(loop, &listener->watcher);
         close(listener->watcher.fd);
     }
     listeners.clear();
 }
 
-shared_ptr<TcpConnection> TcpProtocol::connect(const char *host, unsigned port) { return make_shared<TcpConnection>(host, port); }
+shared_ptr<TcpConnection> TcpProtocol::connect(const char *host, unsigned port) { return make_shared<TcpConnection>(this, host, port); }
 
 void TcpConnection::up() {
     println("UP CONFIG IS {}", remote.str());
@@ -267,12 +364,17 @@ void TcpConnection::up() {
     }
 
     println("UP LOCAL {}, REMOTE {}", getLocalName(fd).str(), getPeerName(fd).str());
+
+    auto client_handler = new client_handler_t();
+    client_handler->connection = this;
+    ev_io_init(&client_handler->watcher, libev_read_cb, fd, EV_READ);
+    ev_io_start(protocol->loop, &client_handler->watcher);
 }
 
 // called by libev when a client want's to connect
 void libev_accept_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
     // println("incoming: got client");
-    // auto handler = reinterpret_cast<listen_handler_t *>(watcher);
+    auto handler = reinterpret_cast<listen_handler_t *>(watcher);
     // puts("got client");
     if (EV_ERROR & revents) {
         perror("got invalid event");
@@ -294,7 +396,7 @@ void libev_accept_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
     auto peer = getPeerName(fd);
 
     auto client_handler = new client_handler_t();
-    client_handler->connection = new TcpConnection(peer.host.c_str(), peer.port, fd);
+    client_handler->connection = new TcpConnection(handler->protocol, peer.host.c_str(), peer.port, fd);
     // client_handler->loop = loop;
     // client_handler->orb = handler->protocol->m_orb;
     // // a serve will only send requests when BiDir was negotiated, and then starts with
@@ -319,18 +421,15 @@ void libev_read_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
     }
     auto handler = reinterpret_cast<client_handler_t *>(watcher);
     char buffer[8192];
-    ssize_t nbytes = ::recv(handler->watcher.fd, buffer, 8192, 0);
-    if (nbytes > 0) {
-        // FIXME: what about partial data...?
-        cout << "RECEIVED" << endl;
-        // hexdump(buffer, nbytes);
-        // handler->orb->socketRcvd(handler->connection, buffer, nbytes);
-    } else {
-        cerr << "recv -> " << nbytes << endl;
-        if (nbytes < 0) {
-            perror("recv");
+    ssize_t nbytes = ::recv(handler->watcher.fd, buffer, sizeof(buffer), 0);
+    if (nbytes < 0) {
+        perror("recv");
+        if (errno == ECONNREFUSED) {
+            handler->connection->connRefused();
+            ev_io_stop(loop, watcher);
+            delete handler;
         }
-        // sleep(60);
-        // exit(1);
+        return;
     }
+    handler->connection->recv(buffer, nbytes);
 }

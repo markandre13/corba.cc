@@ -105,8 +105,29 @@ int connect_to(const char *host, uint16_t port) {
             std::cerr << "failed to create socket: " << strerror(errno) << std::endl;
             continue;
         }
+        // https://stackoverflow.com/questions/17769964/linux-sockets-non-blocking-connect
+        // * create socket with socket(..., SOCK_NONBLOCK, ...)
+        // * start connection with connect(fd, ...)
+        // * if return value is neither 0 nor EINPROGRESS, then abort with error
+        // * wait until fd is signalled as ready for output
+        // * check status of socket with getsockopt(fd, SOL_SOCKET, SO_ERROR, ...)
+        // * done
+        // No loops - unless you want to handle EINTR.
+        //
+        // If the client is started first, you should see the error ECONNREFUSED in the last step. If this happens, close the socket and start from the beginning.
+        //
+        // https://cr.yp.to/docs/connect.html
+        // Once the system signals the socket as writable, first call getpeername() to see if it connected or not.
+        // If that call succeeded, the socket connected and you can start using it. If that call fails with ENOTCONN,
+        // the connection failed. To find out why it failed, try to read one byte from the socket read(fd, &ch, 1),
+        // which will fail as well but the error you get is the error you would have gotten from connect() if it wasn't
+        // non-blocking.
+        //
+        // as of now the only way i know how to test it is on linux with firewall rules :)
+        set_non_block(fd);
+        set_no_delay(fd);
         while ((r = connect(fd, rp->ai_addr, rp->ai_addrlen)) == -1 && errno == EINTR);
-        if (r == 0) {
+        if (r == 0 || errno == EINPROGRESS) {
             break;
         }
         std::cerr << "failed to connect socket: " << strerror(errno) << std::endl;
