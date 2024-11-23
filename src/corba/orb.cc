@@ -357,13 +357,13 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
                                 }
                             } catch (CORBA::SystemException &error) {
                                 println("{} while calling local servant {}::{}(...): {}",
-                                    error.major(),
+                                    error._rep_id(),
                                     servant->second->repository_id(), 
                                     request->operation,
                                     error.what()
                                 );
                                 if (responseExpected) {
-                                    encoder->writeString(error.major());
+                                    encoder->writeString(error._rep_id());
                                     encoder->writeUlong(error.minor);
                                     encoder->writeUlong(error.completed);
                                     auto length = encoder->buffer.offset;
