@@ -7,15 +7,24 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include <array>
+#include <list>
 #include <print>
 #include <set>
 #include <thread>
 #include <utility>
-#include <list>
 
 #include "../src/corba/exception.hh"
+#include "../src/corba/giop.hh"
 #include "../src/corba/net/ws/socket.hh"
 #include "util.hh"
+
+template <typename T>
+bool operator==(const std::span<T> &lhs, const std::span<T> &rhs) {
+    return lhs.size_bytes() == rhs.size_bytes() || memcmp(lhs.data(), rhs.data(), lhs.size_bytes()) == 0;
+}
+
+#include "kaffeeklatsch.hh"
 
 #define CORBA_IIOP_PORT 683
 #define CORBA_IIOP_SSL_PORT 684
@@ -85,8 +94,6 @@ scenarios
 //  host is up but no service is listening on that requested port
 // ETIMEDOUT    Connection timed out
 //  DROP rule, macOS 75s, Linux 134s
-
-#include "kaffeeklatsch.hh"
 
 using namespace std;
 using namespace kaffeeklatsch;
@@ -211,6 +218,51 @@ class TcpConnection {
         void stopWriteHandler();
 };
 
+class GIOPStream2Packets {
+        size_t receiveBufferSize = 0x20000;
+        char *data = nullptr;
+        size_t size = 0;
+        size_t reserved = 0;
+
+        size_t offset = 0;
+        size_t messageSize = 0;
+
+    public:
+        GIOPStream2Packets(size_t receiveBufferSize = 0x20000) : receiveBufferSize(receiveBufferSize) {}
+        ~GIOPStream2Packets() { free(data); }
+
+        // get read buffer
+        char *buffer() {
+            if (reserved - size < receiveBufferSize) {
+                reserved += receiveBufferSize;
+                data = (char *)realloc(data, reserved);
+            }
+            return data + size;
+        }
+        inline size_t length() { return reserved - size; }
+
+        // ad
+        inline void received(size_t nbytes) { size += nbytes; }
+
+        std::span<char> message() {
+            if (messageSize == 0 && size - offset >= 16) {
+                CORBA::CDRDecoder cdr(data + offset, size - offset);
+                CORBA::GIOPDecoder giop(cdr);
+                giop.scanGIOPHeader();
+                messageSize = giop.m_length;
+            }
+            if (messageSize != 0 && size - offset < messageSize) {
+                return {};
+            }
+            span result(data + offset, data + offset + messageSize);
+            offset += messageSize;
+            if (offset == size) {
+                offset = 0;
+            }
+            return result;
+        }
+};
+
 kaffeeklatsch_spec([] {
     fdescribe("networking", [] {
         describe("ConnectionPool", [] {
@@ -240,6 +292,58 @@ kaffeeklatsch_spec([] {
                 // pool->erase(&b81);
                 // pool->erase(&c80);
             });
+        });
+        describe("GIOPStream2Packets", [] {
+            fit("GIOPStream2Packets(readBufferSize) will provide a read buffer of at least readBufferSize bytes", [] {
+                GIOPStream2Packets s2p(512);
+                expect(s2p.buffer()).to.not_().equal(nullptr);
+                expect(s2p.length()).to.equal(512);
+            });
+            fit("returns a single packet as is", [] {
+                // GIVEN a whole single packet being read
+                CORBA::GIOPEncoder encoder;
+                encoder.encodeRequest(CORBA::blob("1234"), "operation", 0, false);
+                string s(16, 'a');
+                encoder.writeString(s);
+                encoder.setGIOPHeader(CORBA::MessageType::REQUEST);
+
+                // WHEN it's feed into GIOPStream2Packets
+                GIOPStream2Packets s2p(512);
+                memcpy(s2p.buffer(), encoder.buffer.data(), encoder.buffer.length());
+
+                s2p.received(encoder.buffer.length());
+
+                // THEN it's returned on the 1st call to message()
+                expect(span(encoder.buffer.data(), encoder.buffer.length())).to.equal(s2p.message());
+
+                // THEN the 2nd call to message() returns an empty
+                expect(s2p.message().empty()).to.beTrue();
+            });
+            fit("returns 3 packets", []{
+                                CORBA::GIOPEncoder encoder;
+                encoder.encodeRequest(CORBA::blob("1234"), "operation", 0, false);
+                string s(16, 'a');
+                encoder.writeString(s);
+                encoder.setGIOPHeader(CORBA::MessageType::REQUEST);
+
+                // WHEN it's feed into GIOPStream2Packets 3 times
+                GIOPStream2Packets s2p(512);
+                memcpy(s2p.buffer(), encoder.buffer.data(), encoder.buffer.length());
+                memcpy(s2p.buffer() + encoder.buffer.length(), encoder.buffer.data(), encoder.buffer.length());
+                memcpy(s2p.buffer() + 2 * encoder.buffer.length(), encoder.buffer.data(), encoder.buffer.length());
+
+                s2p.received(3 * encoder.buffer.length());
+
+                // THEN it's returned on the 1st, 2nd and 3rd call to message()
+                expect(span(encoder.buffer.data(), encoder.buffer.length())).to.equal(s2p.message());
+                expect(span(encoder.buffer.data(), encoder.buffer.length())).to.equal(s2p.message());
+                expect(span(encoder.buffer.data(), encoder.buffer.length())).to.equal(s2p.message());
+
+                // THEN the 4th call to message() returns an empty
+                expect(s2p.message().empty()).to.beTrue();
+            });
+
+            // splits two packets
         });
         describe("TcpProtocol::listen(host, port)", [] {
             it("when the socket is already in use, it throws a CORBA::INITIALIZE exception", [] {
@@ -370,7 +474,7 @@ kaffeeklatsch_spec([] {
                 ev_run(loop, EVRUN_ONCE);
                 expect(clientReceived).to.equal("hello");
             });
-            fit("buffer outgoing data", [] {
+            it("buffer outgoing data", [] {
                 struct ev_loop *loop = EV_DEFAULT;
 
                 auto server = create_listen_socket("127.0.0.1", 9003)[0];
@@ -396,20 +500,38 @@ kaffeeklatsch_spec([] {
                 // setsockopt(serverConn, SOL_SOCKET, SO_RCVBUF, (void *)&serverRecvBufSize, m);
                 getsockopt(serverConn, SOL_SOCKET, SO_RCVBUF, (void *)&serverRecvBufSize, &m);
 
+                auto l = serverRecvBufSize * 512;
+
                 println("===== send 26 packets");
 
-                for(int i=0; i<26; ++i) {
-                    clientConn->send(make_unique<vector<char>>(serverRecvBufSize, 'a' + i));
+                for (int i = 0; i < 26; ++i) {
+                    CORBA::GIOPEncoder encoder;
+                    encoder.encodeRequest(CORBA::blob("1234"), "operation", 0, false);
+                    string s(l, 'a' + i);
+                    encoder.writeString(s);
+                    encoder.setGIOPHeader(CORBA::MessageType::REQUEST);  // THIS IS TOTAL BOLLOCKS BECAUSE OF THE RESIZE IN IT...
+                    serverRecvBufSize = encoder.buffer.length();
+                    clientConn->send(std::move(encoder.buffer._data));
                     ev_run(loop, EVRUN_ONCE | EVRUN_NOWAIT);
                 }
 
                 println("===== receive 26 packets");
 
                 size_t receivedTotal = 0;
-                while(true) {
-                    char in[131072];
+                while (true) {
+                    char buffer[131072];
                     ssize_t n;
-                    n = recv(serverConn, in, sizeof(in), 0);
+                    n = recv(serverConn, buffer, sizeof(buffer), 0);
+
+                    hexdump(buffer, n < 32 ? n : 32);
+
+                    if (n >= 16) {
+                        CORBA::CDRDecoder data(buffer, n);
+                        CORBA::GIOPDecoder decoder(data);
+                        decoder.scanGIOPHeader();
+                        println("##################################### GOT GIOP MESSAGE OF SIZE {}, BUFFER HAS SIZE {}", decoder.m_length, n);
+                    }
+
                     if (n >= 0) {
                         receivedTotal += n;
                         println("server: got {} (total {}, want {})", n, receivedTotal, (26 * serverRecvBufSize));
@@ -428,6 +550,25 @@ kaffeeklatsch_spec([] {
                     // hexdump(in, n);
                 }
 
+                // this covers the general case, sometimes it might have an incomplete send
+                // for testing send incomplete send, we could use a flag to force a smaller send
+                // BETTER: send more than fits into max of SO_RCVBUF and SO_SNDBUF
+
+                // for re-assembling: the GIOP header is read in MessageType GIOPDecoder::scanGIOPHeader(),
+                // has 16 bytes and contains the lenght of the whole message.
+                // for testing, just use a small receive buffer... my previous implementation had a hardcoded 8kb
+
+                // when reading, begin with a buffer of size SO_RCVBUF
+            });
+
+            it("reassemble incoming data", [] {
+                CORBA::GIOPEncoder encoder;
+                encoder.encodeRequest(CORBA::blob("1234"), "operation", 0, false);
+                string s(0x30000, 'a');
+                encoder.writeString(s);
+                encoder.setGIOPHeader(CORBA::MessageType::REQUEST);  // THIS IS TOTAL BOLLOCKS BECAUSE OF THE RESIZE IN IT...
+
+                println("encoded {} bytes", encoder.buffer.length());
             });
 
             it("retry until listener is ready");
@@ -685,20 +826,20 @@ void TcpConnection::startReadHandler() {
     if (readHandler) {
         return;
     }
-        readHandler = make_unique<read_handler_t>();
-        readHandler->connection = this;
-        ev_io_init(&readHandler->watcher, libev_write_cb, fd, EV_WRITE);
-        ev_io_start(protocol->loop, &readHandler->watcher);
+    readHandler = make_unique<read_handler_t>();
+    readHandler->connection = this;
+    ev_io_init(&readHandler->watcher, libev_write_cb, fd, EV_WRITE);
+    ev_io_start(protocol->loop, &readHandler->watcher);
 }
 
 void TcpConnection::startWriteHandler() {
     if (writeHandler) {
         return;
     }
-        writeHandler = make_unique<write_handler_t>();
-        writeHandler->connection = this;
-        ev_io_init(&writeHandler->watcher, libev_write_cb, fd, EV_WRITE);
-        ev_io_start(protocol->loop, &writeHandler->watcher);
+    writeHandler = make_unique<write_handler_t>();
+    writeHandler->connection = this;
+    ev_io_init(&writeHandler->watcher, libev_write_cb, fd, EV_WRITE);
+    ev_io_start(protocol->loop, &writeHandler->watcher);
 }
 
 void TcpConnection::print() {

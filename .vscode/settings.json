@@ -79,6 +79,7 @@
         "unordered_set": "cpp",
         "*.tcc": "cpp",
         "utility": "cpp",
-        "thread": "cpp"
+        "thread": "cpp",
+        "span": "cpp"
     }
 }
