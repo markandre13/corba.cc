@@ -12,14 +12,14 @@ void CDREncoder::writeEndian() { writeOctet(endian::native == endian::big ? 0 : 
 
 void CDREncoder::writeBoolean(bool value) {
     reserve(offset + 1);
-    auto ptr = reinterpret_cast<uint8_t *>(_data.data() + offset);
+    auto ptr = reinterpret_cast<uint8_t *>(_data->data() + offset);
     offset += 1;
     *ptr = value ? 1 : 0;
 }
 
 void CDREncoder::writeOctet(uint8_t value) {
     reserve(offset + 1);
-    auto ptr = reinterpret_cast<uint8_t *>(_data.data() + offset);
+    auto ptr = reinterpret_cast<uint8_t *>(_data->data() + offset);
     offset += 1;
     *ptr = value;
 }
@@ -27,7 +27,7 @@ void CDREncoder::writeOctet(uint8_t value) {
 void CDREncoder::writeUshort(uint16_t value) {
     align2();
     reserve(offset + 2);
-    auto ptr = reinterpret_cast<uint16_t *>(_data.data() + offset);
+    auto ptr = reinterpret_cast<uint16_t *>(_data->data() + offset);
     offset += 2;
     *ptr = value;
 }
@@ -35,7 +35,7 @@ void CDREncoder::writeUshort(uint16_t value) {
 void CDREncoder::writeUlong(uint32_t value) {
     align4();
     reserve(offset + 4);
-    auto ptr = reinterpret_cast<uint32_t *>(_data.data() + offset);
+    auto ptr = reinterpret_cast<uint32_t *>(_data->data() + offset);
     offset += 4;
     *ptr = value;
 }
@@ -43,7 +43,7 @@ void CDREncoder::writeUlong(uint32_t value) {
 void CDREncoder::writeUlonglong(uint64_t value) {
     align8();
     reserve(offset + 8);
-    auto ptr = reinterpret_cast<uint64_t *>(_data.data() + offset);
+    auto ptr = reinterpret_cast<uint64_t *>(_data->data() + offset);
     offset += 8;
     *ptr = value;
 }
@@ -51,7 +51,7 @@ void CDREncoder::writeUlonglong(uint64_t value) {
 void CDREncoder::writeShort(int16_t value) {
     align2();
     reserve(offset + 2);
-    auto ptr = reinterpret_cast<int16_t *>(_data.data() + offset);
+    auto ptr = reinterpret_cast<int16_t *>(_data->data() + offset);
     offset += 2;
     *ptr = value;
 }
@@ -59,7 +59,7 @@ void CDREncoder::writeShort(int16_t value) {
 void CDREncoder::writeLong(int32_t value) {
     align4();
     reserve(offset + 4);
-    auto ptr = reinterpret_cast<int32_t *>(_data.data() + offset);
+    auto ptr = reinterpret_cast<int32_t *>(_data->data() + offset);
     offset += 4;
     *ptr = value;
 }
@@ -67,7 +67,7 @@ void CDREncoder::writeLong(int32_t value) {
 void CDREncoder::writeLonglong(int64_t value) {
     align8();
     reserve(offset + 8);
-    auto ptr = reinterpret_cast<int64_t *>(_data.data() + offset);
+    auto ptr = reinterpret_cast<int64_t *>(_data->data() + offset);
     offset += 8;
     *ptr = value;
 }
@@ -75,7 +75,7 @@ void CDREncoder::writeLonglong(int64_t value) {
 void CDREncoder::writeFloat(float value) {
     align4();
     reserve(offset + 4);
-    auto ptr = reinterpret_cast<float *>(_data.data() + offset);
+    auto ptr = reinterpret_cast<float *>(_data->data() + offset);
     offset += 4;
     *ptr = value;
 }
@@ -83,7 +83,7 @@ void CDREncoder::writeFloat(float value) {
 void CDREncoder::writeDouble(double value) {
     align8();
     reserve(offset + 8);
-    auto ptr = reinterpret_cast<double *>(_data.data() + offset);
+    auto ptr = reinterpret_cast<double *>(_data->data() + offset);
     offset += 8;
     *ptr = value;
 }
@@ -91,7 +91,7 @@ void CDREncoder::writeDouble(double value) {
 void CDREncoder::writeBlob(const char *value, size_t nbytes) {
     writeUlong(nbytes);
     reserve(offset + nbytes);
-    memcpy(_data.data() + offset, value, nbytes);
+    memcpy(_data->data() + offset, value, nbytes);
     offset += nbytes;
 }
 
@@ -99,9 +99,9 @@ void CDREncoder::writeString(const char *value) { writeString(value, strlen(valu
 void CDREncoder::writeString(const char *value, size_t nbytes) {
     writeUlong(nbytes + 1);
     reserve(offset + nbytes + 1);
-    memcpy(_data.data() + offset, value, nbytes);
+    memcpy(_data->data() + offset, value, nbytes);
     offset += nbytes;
-    _data[offset] = 0;
+    _data->at(offset) = 0;
     ++offset;
 }
 
@@ -110,7 +110,7 @@ void CDREncoder::writeSequence(const std::span<float> & value) {
     // align4(); already aligned at 4
     auto nbytes = 4 * value.size();
     reserve(offset + nbytes);
-    auto ptr = reinterpret_cast<float *>(_data.data() + offset);
+    auto ptr = reinterpret_cast<float *>(_data->data() + offset);
     memcpy(ptr, value.data(), nbytes);
     offset += nbytes;
 }
@@ -120,7 +120,7 @@ void CDREncoder::writeSequence(const std::span<double> & value) {
     align8();
     auto nbytes = 8 * value.size();
     reserve(offset + nbytes);
-    auto ptr = reinterpret_cast<double *>(_data.data() + offset);
+    auto ptr = reinterpret_cast<double *>(_data->data() + offset);
     memcpy(ptr, value.data(), nbytes);
     offset += nbytes;
 }

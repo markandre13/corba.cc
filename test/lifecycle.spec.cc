@@ -11,9 +11,10 @@
 #include <set>
 #include <thread>
 #include <utility>
+#include <list>
 
-#include "../src/corba/net/ws/socket.hh"
 #include "../src/corba/exception.hh"
+#include "../src/corba/net/ws/socket.hh"
 #include "util.hh"
 
 #define CORBA_IIOP_PORT 683
@@ -147,6 +148,12 @@ class TcpProtocol {
         shared_ptr<TcpConnection> connect(const char *host, unsigned port);
 };
 
+unique_ptr<vector<char>> str2vec(const char *data) {
+    auto vec = make_unique<vector<char>>();
+    vec->assign(data, data + strlen(data));
+    return vec;
+}
+
 enum class ConnectionState {
     /**
      * The connection is not established nor is there a need for it to be established.
@@ -171,6 +178,9 @@ class TcpConnection {
         std::unique_ptr<read_handler_t> readHandler;
         std::unique_ptr<write_handler_t> writeHandler;
 
+        list<unique_ptr<vector<char>>> sendBuffer;
+        ssize_t bytesSend = 0;
+
     public:
         ConnectionState state = ConnectionState::IDLE;
 
@@ -188,11 +198,17 @@ class TcpConnection {
 
         std::function<void(void *buffer, size_t nbyte)> receiver;
 
-        void send(void *buffer, size_t nbyte);
+        void send(unique_ptr<vector<char>> &&);
         void recv(void *buffer, size_t nbyte);
 
         void print();
         inline int getFD() { return this->fd; }
+
+    private:
+        void startReadHandler();
+        void stopReadHandler();
+        void startWriteHandler();
+        void stopWriteHandler();
 };
 
 kaffeeklatsch_spec([] {
@@ -274,7 +290,6 @@ kaffeeklatsch_spec([] {
         });
 
         describe("TcpConnection::send()", [] {
-
             it("no listener, no data to be transmitted: IDLE -> INPROGRESS -> IDLE", [] {
                 // expect(system("/sbin/iptables -F INPUT")).to.equal(0);
                 // expect(system("/sbin/iptables -A INPUT -p tcp --dport 9090 -j DROP")).to.equal(0);
@@ -339,7 +354,7 @@ kaffeeklatsch_spec([] {
                 serverConn->receiver = [&](void *buffer, size_t nbytes) {
                     serverReceived.assign((char *)buffer, nbytes);
                 };
-                clientConn->send((void *)"hello", 5);
+                clientConn->send(str2vec("hello"));
 
                 expect(clientConn->state).to.equal(ConnectionState::ESTABLISHED);
 
@@ -351,11 +366,91 @@ kaffeeklatsch_spec([] {
                     clientReceived.assign((char *)buffer, nbytes);
                 };
 
-                serverConn->send((void *)"hello", 5);
+                serverConn->send(str2vec("hello"));
                 ev_run(loop, EVRUN_ONCE);
                 expect(clientReceived).to.equal("hello");
             });
+            fit("buffer outgoing data", [] {
+                struct ev_loop *loop = EV_DEFAULT;
+
+                auto server = create_listen_socket("127.0.0.1", 9003)[0];
+
+                // auto server = make_unique<TcpProtocol>(loop);
+                // server->listen("127.0.0.1", 9003);
+
+                auto client = make_unique<TcpProtocol>(loop);
+                auto clientConn = client->connect("127.0.0.1", 9003);
+                clientConn->up();
+
+                int serverConn = accept(server, nullptr, nullptr);
+                set_non_block(serverConn);
+
+                ev_run(loop, EVRUN_ONCE);
+
+                // auto serverConn = server->pool.find("127.0.0.1", getLocalName(clientConn->getFD()).port);
+                // expect(serverConn).to.be.not_().equal(nullptr);
+                // expect(serverConn->state).to.equal(ConnectionState::ESTABLISHED);
+
+                int serverRecvBufSize = 0;
+                socklen_t m = sizeof(serverRecvBufSize);
+                // setsockopt(serverConn, SOL_SOCKET, SO_RCVBUF, (void *)&serverRecvBufSize, m);
+                getsockopt(serverConn, SOL_SOCKET, SO_RCVBUF, (void *)&serverRecvBufSize, &m);
+
+                println("===== send 26 packets");
+
+                for(int i=0; i<26; ++i) {
+                    clientConn->send(make_unique<vector<char>>(serverRecvBufSize, 'a' + i));
+                    ev_run(loop, EVRUN_ONCE | EVRUN_NOWAIT);
+                }
+
+                println("===== receive 26 packets");
+
+                size_t receivedTotal = 0;
+                while(true) {
+                    char in[131072];
+                    ssize_t n;
+                    n = recv(serverConn, in, sizeof(in), 0);
+                    if (n >= 0) {
+                        receivedTotal += n;
+                        println("server: got {} (total {}, want {})", n, receivedTotal, (26 * serverRecvBufSize));
+                        if (receivedTotal == 26 * serverRecvBufSize) {
+                            break;
+                        }
+                    } else {
+                        if (errno == EAGAIN) {
+                            ev_run(loop, EVRUN_ONCE | EVRUN_NOWAIT);
+                            sleep(1);
+                        } else {
+                            println("server: got error: {} ({})", strerror(errno), errno);
+                        }
+                    }
+                    ev_run(loop, EVRUN_ONCE | EVRUN_NOWAIT);
+                    // hexdump(in, n);
+                }
+
+            });
+
             it("retry until listener is ready");
+
+            // ConnectionPool needs a map, TcpProtocol needs to own the connections
+            // connection can have different remote host:port names
+            // * the a hostname used during connect
+            // * the remote ip we see when the connection is established
+            // * the remote name we've got during IIOP
+
+            // cache multiple sends ()
+
+            // discover/handle peer shutdown
+
+            // throw CORBA::TRANSIENT and CORBA::COMM_FAILURE as needed
+            // throw them on multiple waiting requests as needed
+            // also have a look at the minor codes omniORB uses
+            // TRANSIENT: failed to reach the object, ie. connect failure
+            //    1 Request discarded because of resource exhaustion in POA, or because POA is in discarding state.
+            //    2 No usable profile in IOR
+            //    3 Request Canceled
+            //    4 POA destroyed
+            // COMM_FAILURE: failed while communicating with object
         });
     });
 });
@@ -387,17 +482,9 @@ void TcpProtocol::shutdown() {
 
 shared_ptr<TcpConnection> TcpProtocol::connect(const char *host, unsigned port) { return make_shared<TcpConnection>(this, host, port); }
 
-void TcpConnection::send(void *buffer, size_t nbytes) {
-    cout << "SEND" << endl;
-    hexdump(buffer, nbytes);
-    ssize_t n = ::send(fd, buffer, nbytes, 0);
-    if (n != nbytes) {
-        perror("send");
-    } else {
-        if (state == ConnectionState::INPROGRESS) {
-            state = ConnectionState::ESTABLISHED;
-        }
-    }
+void TcpConnection::send(unique_ptr<vector<char>> &&buffer) {
+    sendBuffer.push_back(move(buffer));
+    startWriteHandler();
 }
 
 void TcpConnection::recv(void *buffer, size_t nbytes) {
@@ -411,8 +498,7 @@ void TcpConnection::recv(void *buffer, size_t nbytes) {
 void TcpConnection::accept(int client) {
     if (readHandler) {
         println("TcpConnection::accept(int fd): we already have a handler");
-        ev_io_stop(protocol->loop, &readHandler->watcher);
-        readHandler.reset();
+        stopReadHandler();
     }
     if (fd != -1) {
         println("TcpConnection::accept(int fd): fd is already set");
@@ -430,25 +516,67 @@ void TcpConnection::accept(int client) {
 }
 
 TcpConnection::~TcpConnection() {
-    if (writeHandler) {
-        ev_io_stop(protocol->loop, &writeHandler->watcher);
-        writeHandler.reset();
-    }
-    if (readHandler) {
-        ev_io_stop(protocol->loop, &readHandler->watcher);
-        readHandler.reset();
-    }
+    stopWriteHandler();
+    stopReadHandler();
     if (fd != -1) {
         ::close(fd);
     }
 }
 
 void TcpConnection::canWrite() {
+    stopWriteHandler();
+
     if (state == ConnectionState::INPROGRESS) {
-         state = ConnectionState::ESTABLISHED;
+        state = ConnectionState::ESTABLISHED;
     }
-    ev_io_stop(protocol->loop, &writeHandler->watcher);
-    writeHandler.reset();
+
+    while (!sendBuffer.empty()) {
+        auto data = sendBuffer.front()->data();
+        auto nbytes = sendBuffer.front()->size();
+
+        ssize_t n = ::send(fd, data + bytesSend, nbytes - bytesSend, 0);
+
+        if (n >= 0) {
+            println("canWrite(): sendbuffer size {}: send {} bytes at {} of out {}", sendBuffer.size(), n, bytesSend, nbytes - bytesSend);
+        } else {
+            if (errno != EAGAIN) {
+                println("canWrite(): sendbuffer size {}: error: {} ({})", sendBuffer.size(), strerror(errno), errno);
+            } else {
+                println("canWrite(): sendbuffer size {}: wait", sendBuffer.size());
+            }
+            break;
+        }
+
+        if (n < 0) {
+            println("  handle error (implementation missing)");
+            break;
+        }
+        if (n != nbytes - bytesSend) {
+            // FOR NOW TO REPRODUCE THIS, THE TEST NEEDS TO BE RUN MULTIPLE TIMES
+            println("************************************************** incomplete send");
+            bytesSend += n;
+            break;
+        } else {
+            sendBuffer.pop_front();
+            bytesSend = 0;
+        }
+    }
+
+    if (!sendBuffer.empty()) {
+        startWriteHandler();
+    }
+    // auto data = buffer->data();
+    // auto nbytes = buffer->size();
+    // cout << "SEND" << endl;
+    // // hexdump(data, nbytes);
+    // ssize_t n = ::send(fd, data, nbytes, 0);
+    // println("send {} bytes of out {} ({})", n, nbytes, strerror(errno));
+    // if (n != nbytes) {
+    // } else {
+    //     if (state == ConnectionState::INPROGRESS) {
+    //         state = ConnectionState::ESTABLISHED;
+    //     }
+    // }
 }
 
 void TcpConnection::canRead() {
@@ -456,8 +584,7 @@ void TcpConnection::canRead() {
     ssize_t nbytes = ::recv(fd, buffer, sizeof(buffer), 0);
     if (nbytes < 0) {
         println("TcpConnection::canRead(): {} ({})", strerror(errno), errno);
-        ev_io_stop(protocol->loop, &readHandler->watcher);
-        readHandler.reset();
+        stopReadHandler();
         ::close(fd);
         fd = -1;
         // TODO: if there packets to be send, switch to pending
@@ -471,42 +598,6 @@ void TcpConnection::canRead() {
     }
     println("recv'd {} bytes", nbytes);
     recv(buffer, nbytes);
-}
-
-void TcpConnection::print() {
-    println(" -> {}", remote.str());
-    // println("{}:{} -> {}:{}", protocol->localHost, protocol->localPort, localHost, localPort);
-}
-
-auto cmp = [](TcpConnection *a, TcpConnection *b) {
-    if (a->remote.port < b->remote.port) {
-        return true;
-    }
-    if (a->remote.port == b->remote.port) {
-        return a->remote.host < b->remote.host;
-    }
-    return false;
-};
-
-TcpConnection *ConnectionPool::find(const char *host, uint16_t port) {
-    for (auto &c : connections) {
-        if (c->remote.host == host && c->remote.port == port) {
-            return c.get();
-        }
-    }
-    return nullptr;
-    // auto conn = make_shared<TcpConnection>(nullptr, host, port);
-    // auto p = connections.find(conn);
-    // if (p == connections.end()) {
-    //     return nullptr;
-    // }
-    // return p->get();
-}
-
-void ConnectionPool::print() {
-    for (auto c : connections) {
-        c->print();
-    }
 }
 
 void TcpConnection::up() {
@@ -524,21 +615,12 @@ void TcpConnection::up() {
     if (errno == EINPROGRESS) {
         println("UP INPROGRESS");
         state = ConnectionState::INPROGRESS;
-        writeHandler = make_unique<write_handler_t>();
-        writeHandler->connection = this;
-        ev_io_init(&writeHandler->watcher, libev_write_cb, fd, EV_WRITE);
-        ev_io_start(protocol->loop, &writeHandler->watcher);
+        startWriteHandler();
     } else {
         println("UP ESTABLISHED");
         state = ConnectionState::ESTABLISHED;
     }
-
-    // println("UP LOCAL {}, REMOTE {}", getLocalName(fd).str(), getPeerName(fd).str());
-
-    readHandler = make_unique<read_handler_t>();
-    readHandler->connection = this;
-    ev_io_init(&readHandler->watcher, libev_read_cb, fd, EV_READ);
-    ev_io_start(protocol->loop, &readHandler->watcher);
+    startReadHandler();
 }
 
 // called by libev when a client want's to connect
@@ -583,4 +665,74 @@ static void libev_write_cb(struct ev_loop *loop, struct ev_io *watcher, int reve
     ev_io_stop(loop, watcher);
     auto handler = reinterpret_cast<write_handler_t *>(watcher);
     handler->connection->canWrite();
+}
+
+void TcpConnection::stopReadHandler() {
+    if (readHandler) {
+        ev_io_stop(protocol->loop, &readHandler->watcher);
+        readHandler.reset();
+    }
+}
+
+void TcpConnection::stopWriteHandler() {
+    if (writeHandler) {
+        ev_io_stop(protocol->loop, &writeHandler->watcher);
+        writeHandler.reset();
+    }
+}
+
+void TcpConnection::startReadHandler() {
+    if (readHandler) {
+        return;
+    }
+        readHandler = make_unique<read_handler_t>();
+        readHandler->connection = this;
+        ev_io_init(&readHandler->watcher, libev_write_cb, fd, EV_WRITE);
+        ev_io_start(protocol->loop, &readHandler->watcher);
+}
+
+void TcpConnection::startWriteHandler() {
+    if (writeHandler) {
+        return;
+    }
+        writeHandler = make_unique<write_handler_t>();
+        writeHandler->connection = this;
+        ev_io_init(&writeHandler->watcher, libev_write_cb, fd, EV_WRITE);
+        ev_io_start(protocol->loop, &writeHandler->watcher);
+}
+
+void TcpConnection::print() {
+    println(" -> {}", remote.str());
+    // println("{}:{} -> {}:{}", protocol->localHost, protocol->localPort, localHost, localPort);
+}
+
+auto cmp = [](TcpConnection *a, TcpConnection *b) {
+    if (a->remote.port < b->remote.port) {
+        return true;
+    }
+    if (a->remote.port == b->remote.port) {
+        return a->remote.host < b->remote.host;
+    }
+    return false;
+};
+
+TcpConnection *ConnectionPool::find(const char *host, uint16_t port) {
+    for (auto &c : connections) {
+        if (c->remote.host == host && c->remote.port == port) {
+            return c.get();
+        }
+    }
+    return nullptr;
+    // auto conn = make_shared<TcpConnection>(nullptr, host, port);
+    // auto p = connections.find(conn);
+    // if (p == connections.end()) {
+    //     return nullptr;
+    // }
+    // return p->get();
+}
+
+void ConnectionPool::print() {
+    for (auto c : connections) {
+        c->print();
+    }
 }

@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include <span>
+#include <memory>
 
 #include "blob.hh"
 
@@ -15,16 +16,20 @@ namespace CORBA {
 
 class CDREncoder {
     public:
-        std::vector<char> _data;
+        std::unique_ptr<std::vector<char>> _data;
         size_t offset = 0;
+
+         CDREncoder() {
+            _data = std::make_unique<std::vector<char>>();
+         }
 
     protected:
         std::vector<size_t> sizeStack;
 
     public:
         inline void reserve(size_t nbytes) {
-            if (_data.size() < nbytes) {
-                _data.resize(nbytes);
+            if (_data->size() < nbytes) {
+                _data->resize(nbytes);
             }
         }
         inline void reserve() { reserve(offset); }
@@ -55,8 +60,8 @@ class CDREncoder {
         void reserveSize();
         void fillInSize();
 
-        const char *data() { return _data.data(); }
-        size_t length() { return _data.size(); }
+        const char *data() { return _data->data(); }
+        size_t length() { return _data->size(); }
 
         void align2() {
             if (offset & 0x01) {

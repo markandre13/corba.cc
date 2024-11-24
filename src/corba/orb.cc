@@ -192,6 +192,8 @@ async<GIOPDecoder *> ORB::_twowayCall(Stub *stub, const char *operation, std::fu
                 throw NO_IMPLEMENT(minorCodeValue, completionStatus);
             } else if (exceptionId == "IDL:omg.org/CORBA/COMM_FAILURE:1.0") {
                 throw COMM_FAILURE(minorCodeValue, completionStatus);
+            } else if (exceptionId == "IDL:omg.org/CORBA/INITIALIZE:1.0") {
+                throw INITIALIZE(minorCodeValue, completionStatus);
             } else if (exceptionId == "IDL:mark13.org/CORBA/GENERIC:1.0") {
                 throw runtime_error(
                     format("Remote CORBA exception from {}:{}: {}", stub->connection->remoteAddress(), stub->connection->remotePort(), decoder->readString()));
