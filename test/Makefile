@@ -5,10 +5,10 @@ MEM=-fsanitize=address -fsanitize=leak
 # macOS
 ifeq ($(shell uname -s),Darwin)
 CXX=/usr/local/opt/llvm/bin/clang++
-OS_CFLAGS=-mmacosx-version-min=12.0 \
+OS_CFLAGS=\
 	-I/usr/local/opt/llvm/include/c++ \
 	-I/usr/local/include
-OS_LFLAGS=-mmacosx-version-min=12.0 \
+OS_LFLAGS=\
 	-L/usr/local/opt/llvm/lib/c++ \
 	-Wl,-rpath,/usr/local/opt/llvm/lib/c++ \
 	-L/usr/local/lib

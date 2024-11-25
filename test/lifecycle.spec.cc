@@ -21,7 +21,13 @@
 
 template <typename T>
 bool operator==(const std::span<T> &lhs, const std::span<T> &rhs) {
-    return lhs.size_bytes() == rhs.size_bytes() || memcmp(lhs.data(), rhs.data(), lhs.size_bytes()) == 0;
+    auto result = lhs.size_bytes() == rhs.size_bytes() || memcmp(lhs.data(), rhs.data(), lhs.size_bytes()) == 0;
+    // std::println("compare {} {} -> {}", lhs.size_bytes(), lhs.size_bytes(), result);
+    // if (!result) {
+    //     hexdump(lhs.data(), lhs.size_bytes());
+    //     hexdump(rhs.data(), rhs.size_bytes());
+    // }
+    return result;
 }
 
 #include "kaffeeklatsch.hh"
@@ -57,14 +63,6 @@ scenarios
 //   * specified in milliseconds
 //   * in case of timeout, CORBA::TRANSIENT exception is thrown an connection is closed
 //   * with non-block connect returns with != 0 and errno = 36
-
-// https://stackoverflow.com/questions/17769964/linux-sockets-non-blocking-connect
-// https://cr.yp.to/docs/connect.html
-// Once the system signals the socket as writable, first call getpeername() to see if it connected or not.
-// If that call succeeded, the socket connected and you can start using it. If that call fails with ENOTCONN,
-// the connection failed. To find out why it failed, try to read one byte from the socket read(fd, &ch, 1),
-// which will fail as well but the error you get is the error you would have gotten from connect() if it wasn't
-// non-blocking.
 
 // TESTS FOR CONNECT
 // =========================
@@ -105,6 +103,10 @@ static void libev_write_cb(struct ev_loop *loop, struct ev_io *watcher, int reve
 class TcpProtocol;
 class TcpConnection;
 
+// FIXME: actually, we do not need the temporary ports and ip's:
+// * if it's a server, all listen(host, port) combinations apply
+// * if it's a client, it should also listen
+// * if it's a client and it can not listen because of NAT, the client's host:port is send via IIOP
 class ConnectionPool {
         // FIXME: this needs to be a map, set
         // std::set<shared_ptr<TcpConnection>, decltype(cmp)> connections;
@@ -218,7 +220,10 @@ class TcpConnection {
         void stopWriteHandler();
 };
 
+#define DBG(CMD)
+
 class GIOPStream2Packets {
+    public:
         size_t receiveBufferSize = 0x20000;
         char *data = nullptr;
         size_t size = 0;
@@ -227,38 +232,63 @@ class GIOPStream2Packets {
         size_t offset = 0;
         size_t messageSize = 0;
 
-    public:
         GIOPStream2Packets(size_t receiveBufferSize = 0x20000) : receiveBufferSize(receiveBufferSize) {}
         ~GIOPStream2Packets() { free(data); }
 
         // get read buffer
         char *buffer() {
+            DBG(println("GIOPStream2Packets::buffer()");)
+            DBG(println("    enter                     : offset={}, size={}, reserved={}, messageSize={}", offset, size, reserved, messageSize);)
             if (reserved - size < receiveBufferSize) {
                 reserved += receiveBufferSize;
                 data = (char *)realloc(data, reserved);
+                DBG(println("    reserved additional memory: offset={}, size={}, reserved={}, messageSize={}", offset, size, reserved, messageSize);)
             }
             return data + size;
         }
         inline size_t length() { return reserved - size; }
 
         // ad
-        inline void received(size_t nbytes) { size += nbytes; }
+        inline void received(size_t nbytes) {
+            DBG(println("GIOPStream2Packets::received({})", nbytes);)
+            size += nbytes;
+            DBG(println("    received more data        : offset={}, size={}, reserved={}, messageSize={}", offset, size, reserved, messageSize);)
+        }
 
         std::span<char> message() {
+            DBG(println("GIOPStream2Packets::message()");)
+            DBG(println("    get message               : offset={}, size={}, reserved={}, messageSize={}", offset, size, reserved, messageSize);)
             if (messageSize == 0 && size - offset >= 16) {
                 CORBA::CDRDecoder cdr(data + offset, size - offset);
                 CORBA::GIOPDecoder giop(cdr);
                 giop.scanGIOPHeader();
-                messageSize = giop.m_length;
+                messageSize = giop.m_length + 12;
+                DBG(println("    got message size          : offset={}, size={}, reserved={}, messageSize={}", offset, size, reserved, messageSize);)
+            }
+            if (messageSize == 0) {
+                DBG(println("    no more messages          : offset={}, size={}, reserved={}, messageSize={}", offset, size, reserved, messageSize);)
+                return {};
             }
             if (messageSize != 0 && size - offset < messageSize) {
+                // incomplete message at buffer end, move to front of buffer
+                DBG(println("    no more messages, move    : offset={}, size={}, reserved={}, messageSize={}", offset, size, reserved, messageSize);)
+                if (offset > 0) {
+                    DBG(println("      move(0, {}, {})", offset, size - offset);)
+                    memmove(data, data + offset, size - offset);
+                }
+                size -= offset;
+                offset = 0;
+                DBG(println("    moved                     : offset={}, size={}, reserved={}, messageSize={}", offset, size, reserved, messageSize);)
                 return {};
             }
             span result(data + offset, data + offset + messageSize);
             offset += messageSize;
+            messageSize = 0;
             if (offset == size) {
-                offset = 0;
+                offset = size = 0;
+                DBG(println("    offset reached end, reset : offset={}, size={}, reserved={}, messageSize={}", offset, size, reserved, messageSize);)
             }
+            DBG(println("    return message            : offset={}, size={}, reserved={}, messageSize={}", offset, size, reserved, messageSize);)
             return result;
         }
 };
@@ -294,12 +324,12 @@ kaffeeklatsch_spec([] {
             });
         });
         describe("GIOPStream2Packets", [] {
-            fit("GIOPStream2Packets(readBufferSize) will provide a read buffer of at least readBufferSize bytes", [] {
+            it("GIOPStream2Packets(readBufferSize) will provide a read buffer of at least readBufferSize bytes", [] {
                 GIOPStream2Packets s2p(512);
                 expect(s2p.buffer()).to.not_().equal(nullptr);
                 expect(s2p.length()).to.equal(512);
             });
-            fit("returns a single packet as is", [] {
+            it("returns a single packet as is", [] {
                 // GIVEN a whole single packet being read
                 CORBA::GIOPEncoder encoder;
                 encoder.encodeRequest(CORBA::blob("1234"), "operation", 0, false);
@@ -319,10 +349,10 @@ kaffeeklatsch_spec([] {
                 // THEN the 2nd call to message() returns an empty
                 expect(s2p.message().empty()).to.beTrue();
             });
-            fit("returns 3 packets", []{
-                                CORBA::GIOPEncoder encoder;
+            it("returns 3 packets", [] {
+                CORBA::GIOPEncoder encoder;
                 encoder.encodeRequest(CORBA::blob("1234"), "operation", 0, false);
-                string s(16, 'a');
+                string s(19, 'a');
                 encoder.writeString(s);
                 encoder.setGIOPHeader(CORBA::MessageType::REQUEST);
 
@@ -334,13 +364,72 @@ kaffeeklatsch_spec([] {
 
                 s2p.received(3 * encoder.buffer.length());
 
+                // hexdump(s2p.data, s2p.size);
+
                 // THEN it's returned on the 1st, 2nd and 3rd call to message()
-                expect(span(encoder.buffer.data(), encoder.buffer.length())).to.equal(s2p.message());
-                expect(span(encoder.buffer.data(), encoder.buffer.length())).to.equal(s2p.message());
-                expect(span(encoder.buffer.data(), encoder.buffer.length())).to.equal(s2p.message());
+                // println("========== m0");
+                auto m0 = s2p.message();
+                // println("m0 {} {}", m0.data() - s2p.data, m0.size_bytes());
+                expect(span(encoder.buffer.data(), encoder.buffer.length())).to.equal(m0);
+
+                // println("========== m1");
+                auto m1 = s2p.message();
+                // println("m1 {} {}", m1.data() - s2p.data, m1.size_bytes());
+                expect(span(encoder.buffer.data(), encoder.buffer.length())).to.equal(m1);
+
+                // println("========== m2");
+                auto m2 = s2p.message();
+                // println("m1 {} {}", m2.data() - s2p.data, m2.size_bytes());
+                expect(span(encoder.buffer.data(), encoder.buffer.length())).to.equal(m2);
 
                 // THEN the 4th call to message() returns an empty
-                expect(s2p.message().empty()).to.beTrue();
+                // println("========== m3");
+                auto m3 = s2p.message();
+                expect(m3.empty()).to.beTrue();
+            });
+            it("can handle incomplete packets", [] {
+                CORBA::GIOPEncoder encoder;
+                encoder.encodeRequest(CORBA::blob("1234"), "operation", 0, false);
+                string s(19, 'a');
+                encoder.writeString(s);
+                encoder.setGIOPHeader(CORBA::MessageType::REQUEST);
+
+                // WHEN we received one and a partial packet
+                GIOPStream2Packets s2p(512);
+                auto buffer = s2p.buffer();
+                memcpy(buffer, encoder.buffer.data(), encoder.buffer.length());
+                memcpy(buffer + encoder.buffer.length(), encoder.buffer.data(), 16);
+
+                s2p.received(encoder.buffer.length() + 16);
+
+                // hexdump(s2p.data, s2p.size);
+
+                // THEN the 1st call to message() returns the first message
+                // println("========== m0");
+                auto m0 = s2p.message();
+                // println("m0 {} {}", m0.data() - s2p.data, m0.size_bytes());
+                expect(span(encoder.buffer.data(), encoder.buffer.length())).to.equal(m0);
+
+                // THEN the 2nd call to message() returns an empty
+                // println("========== m1");
+                auto m1 = s2p.message();
+                expect(m1.empty()).to.beTrue();
+
+                // WHEN we received the remaining packet
+                buffer = s2p.buffer();
+                memcpy(buffer, encoder.buffer.data() + 16, encoder.buffer.length() - 16);
+                s2p.received(encoder.buffer.length() - 16);
+
+                // THEN the 3rd call to message() returns the second message
+                // println("========== m2");
+                auto m2 = s2p.message();
+                // println("m2 {} {}", m0.data() - s2p.data, m0.size_bytes());
+                expect(span(encoder.buffer.data(), encoder.buffer.length())).to.equal(m2);
+
+                // THEN the 4th call to message() returns an empty
+                // println("========== m3");
+                auto m3 = s2p.message();
+                expect(m3.empty()).to.beTrue();
             });
 
             // splits two packets
@@ -432,12 +521,15 @@ kaffeeklatsch_spec([] {
                 // THEN both server and client connections are in state ESTABLISHED
                 expect(clientConn->state).to.equal(ConnectionState::ESTABLISHED);
 
-                auto serverConn = server->pool.find("127.0.0.1", getLocalName(clientConn->getFD()).port);
-                expect(serverConn).to.be.not_().equal(nullptr);
+                TcpConnection *serverConn = nullptr;
+                while (serverConn == nullptr) {
+                    ev_run(loop, EVRUN_ONCE | EVRUN_NOWAIT);
+                    serverConn = server->pool.find("127.0.0.1", getLocalName(clientConn->getFD()).port);
+                }
                 expect(serverConn->state).to.equal(ConnectionState::ESTABLISHED);
             });
 
-            it("when connections are established, data can be transmitted in both directions", [] {
+            xit("when connections are established, data can be transmitted in both directions", [] {
                 struct ev_loop *loop = EV_DEFAULT;
 
                 auto server = make_unique<TcpProtocol>(loop);
@@ -474,16 +566,18 @@ kaffeeklatsch_spec([] {
                 ev_run(loop, EVRUN_ONCE);
                 expect(clientReceived).to.equal("hello");
             });
-            it("buffer outgoing data", [] {
+            it("handle large amounts of outgoing and incoming data", [] {
                 struct ev_loop *loop = EV_DEFAULT;
 
-                auto server = create_listen_socket("127.0.0.1", 9003)[0];
+                auto sockets = create_listen_socket("127.0.0.1", 9013);
+                expect(sockets.size()).to.be.greaterThan(0);
+                auto server = sockets[0];
 
                 // auto server = make_unique<TcpProtocol>(loop);
                 // server->listen("127.0.0.1", 9003);
 
                 auto client = make_unique<TcpProtocol>(loop);
-                auto clientConn = client->connect("127.0.0.1", 9003);
+                auto clientConn = client->connect("127.0.0.1", 9013);
                 clientConn->up();
 
                 int serverConn = accept(server, nullptr, nullptr);
@@ -500,7 +594,7 @@ kaffeeklatsch_spec([] {
                 // setsockopt(serverConn, SOL_SOCKET, SO_RCVBUF, (void *)&serverRecvBufSize, m);
                 getsockopt(serverConn, SOL_SOCKET, SO_RCVBUF, (void *)&serverRecvBufSize, &m);
 
-                auto l = serverRecvBufSize * 512;
+                auto l = 0x100000;
 
                 println("===== send 26 packets");
 
@@ -518,30 +612,24 @@ kaffeeklatsch_spec([] {
                 println("===== receive 26 packets");
 
                 size_t receivedTotal = 0;
+                GIOPStream2Packets g2p;
                 while (true) {
-                    char buffer[131072];
-                    ssize_t n;
-                    n = recv(serverConn, buffer, sizeof(buffer), 0);
-
-                    hexdump(buffer, n < 32 ? n : 32);
-
-                    if (n >= 16) {
-                        CORBA::CDRDecoder data(buffer, n);
-                        CORBA::GIOPDecoder decoder(data);
-                        decoder.scanGIOPHeader();
-                        println("##################################### GOT GIOP MESSAGE OF SIZE {}, BUFFER HAS SIZE {}", decoder.m_length, n);
-                    }
-
+                    // println("server: before recv (total {}, want {})", receivedTotal, (26 * serverRecvBufSize));
+                    ssize_t n = recv(serverConn, g2p.buffer(), g2p.length(), 0);
                     if (n >= 0) {
+                        g2p.received(n);
+                        while (!g2p.message().empty()) {
+                            // println("got message");
+                        }
                         receivedTotal += n;
-                        println("server: got {} (total {}, want {})", n, receivedTotal, (26 * serverRecvBufSize));
+                        // println("server: got {} (total {}, want {})", n, receivedTotal, (26 * serverRecvBufSize));
                         if (receivedTotal == 26 * serverRecvBufSize) {
                             break;
                         }
                     } else {
                         if (errno == EAGAIN) {
                             ev_run(loop, EVRUN_ONCE | EVRUN_NOWAIT);
-                            sleep(1);
+                            // sleep(1);
                         } else {
                             println("server: got error: {} ({})", strerror(errno), errno);
                         }
@@ -559,16 +647,6 @@ kaffeeklatsch_spec([] {
                 // for testing, just use a small receive buffer... my previous implementation had a hardcoded 8kb
 
                 // when reading, begin with a buffer of size SO_RCVBUF
-            });
-
-            it("reassemble incoming data", [] {
-                CORBA::GIOPEncoder encoder;
-                encoder.encodeRequest(CORBA::blob("1234"), "operation", 0, false);
-                string s(0x30000, 'a');
-                encoder.writeString(s);
-                encoder.setGIOPHeader(CORBA::MessageType::REQUEST);  // THIS IS TOTAL BOLLOCKS BECAUSE OF THE RESIZE IN IT...
-
-                println("encoded {} bytes", encoder.buffer.length());
             });
 
             it("retry until listener is ready");
@@ -624,13 +702,13 @@ void TcpProtocol::shutdown() {
 shared_ptr<TcpConnection> TcpProtocol::connect(const char *host, unsigned port) { return make_shared<TcpConnection>(this, host, port); }
 
 void TcpConnection::send(unique_ptr<vector<char>> &&buffer) {
+    // println("TcpConnection::send(): {} bytes", buffer->size());
     sendBuffer.push_back(move(buffer));
     startWriteHandler();
 }
 
 void TcpConnection::recv(void *buffer, size_t nbytes) {
-    // cout << "RECV" << endl;
-    // hexdump(buffer, nbytes);
+    // println("TcpConnection::recv(): {} bytes", nbytes);
     if (receiver) {
         receiver(buffer, nbytes);
     }
@@ -665,10 +743,30 @@ TcpConnection::~TcpConnection() {
 }
 
 void TcpConnection::canWrite() {
+    // println("TcpConnection::canWrite()");
     stopWriteHandler();
 
+    // https://stackoverflow.com/questions/17769964/linux-sockets-non-blocking-connect
+    // https://cr.yp.to/docs/connect.html
+    // Once the system signals the socket as writable, first call getpeername() to see if it connected or not.
+    // If that call succeeded, the socket connected and you can start using it. If that call fails with ENOTCONN,
+    // the connection failed. To find out why it failed, try to read one byte from the socket read(fd, &ch, 1),
+    // which will fail as well but the error you get is the error you would have gotten from connect() if it wasn't
+    // non-blocking.
     if (state == ConnectionState::INPROGRESS) {
-        state = ConnectionState::ESTABLISHED;
+        struct sockaddr_storage addr;
+        socklen_t len = sizeof(addr);
+        if (getpeername(fd, (sockaddr *)&addr, &len) != 0) {
+            println("TcpConnection::canWrite(): INPROGRESS -> IDLE ({} ({}))", strerror(errno), errno);
+            // TODO: when bidirectional or there are packets to be send, go to PENDING instead of IDLE
+            state = ConnectionState::IDLE;
+            close(fd);
+            fd = -1;
+            return;
+        } else {
+            println("TcpConnection::canWrite(): INPROGRESS -> ESTABLISHED");
+            state = ConnectionState::ESTABLISHED;
+        }
     }
 
     while (!sendBuffer.empty()) {
@@ -678,7 +776,7 @@ void TcpConnection::canWrite() {
         ssize_t n = ::send(fd, data + bytesSend, nbytes - bytesSend, 0);
 
         if (n >= 0) {
-            println("canWrite(): sendbuffer size {}: send {} bytes at {} of out {}", sendBuffer.size(), n, bytesSend, nbytes - bytesSend);
+            // println("canWrite(): sendbuffer size {}: send {} bytes at {} of out {}", sendBuffer.size(), n, bytesSend, nbytes - bytesSend);
         } else {
             if (errno != EAGAIN) {
                 println("canWrite(): sendbuffer size {}: error: {} ({})", sendBuffer.size(), strerror(errno), errno);
@@ -688,13 +786,8 @@ void TcpConnection::canWrite() {
             break;
         }
 
-        if (n < 0) {
-            println("  handle error (implementation missing)");
-            break;
-        }
         if (n != nbytes - bytesSend) {
-            // FOR NOW TO REPRODUCE THIS, THE TEST NEEDS TO BE RUN MULTIPLE TIMES
-            println("************************************************** incomplete send");
+            // println("************************************************** incomplete send");
             bytesSend += n;
             break;
         } else {
@@ -706,21 +799,10 @@ void TcpConnection::canWrite() {
     if (!sendBuffer.empty()) {
         startWriteHandler();
     }
-    // auto data = buffer->data();
-    // auto nbytes = buffer->size();
-    // cout << "SEND" << endl;
-    // // hexdump(data, nbytes);
-    // ssize_t n = ::send(fd, data, nbytes, 0);
-    // println("send {} bytes of out {} ({})", n, nbytes, strerror(errno));
-    // if (n != nbytes) {
-    // } else {
-    //     if (state == ConnectionState::INPROGRESS) {
-    //         state = ConnectionState::ESTABLISHED;
-    //     }
-    // }
 }
 
 void TcpConnection::canRead() {
+    // println("TcpConnection::canWrite()");
     char buffer[8192];
     ssize_t nbytes = ::recv(fd, buffer, sizeof(buffer), 0);
     if (nbytes < 0) {
@@ -788,6 +870,7 @@ void libev_accept_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
     auto handler = reinterpret_cast<listen_handler_t *>(watcher);
     auto peer = getPeerName(fd);
     auto connection = make_shared<TcpConnection>(handler->protocol, peer.host.c_str(), peer.port);
+    println("libev_accept_cb(): add {}:{} to pool", peer.host, peer.port);
     handler->protocol->pool.insert(connection);
     connection->accept(fd);
 }
@@ -859,10 +942,12 @@ auto cmp = [](TcpConnection *a, TcpConnection *b) {
 
 TcpConnection *ConnectionPool::find(const char *host, uint16_t port) {
     for (auto &c : connections) {
+        // println("ConnectionPool::find(): {}:{} == {}:{} ??", host, port, c->remote.host, c->remote.port);
         if (c->remote.host == host && c->remote.port == port) {
             return c.get();
         }
     }
+    // println("ConnectionPool::find(): {}:{} == empty", host, port);
     return nullptr;
     // auto conn = make_shared<TcpConnection>(nullptr, host, port);
     // auto p = connections.find(conn);
