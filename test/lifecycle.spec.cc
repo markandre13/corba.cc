@@ -649,6 +649,59 @@ kaffeeklatsch_spec([] {
                 // when reading, begin with a buffer of size SO_RCVBUF
             });
 
+            fit("listener disappears", [] {
+                struct ev_loop *loop = EV_DEFAULT;
+
+                // GIVEN a listening server
+                auto server = make_unique<TcpProtocol>(loop);
+                server->listen("127.0.0.1", 9003);
+
+                // GIVEN a client
+                auto client = make_unique<TcpProtocol>(loop);
+                auto clientConn = client->connect("127.0.0.1", 9003);
+
+                // WHEN the client is asked to connect
+                clientConn->up();
+                ev_run(loop, EVRUN_ONCE);
+                expect(clientConn->state).to.equal(ConnectionState::ESTABLISHED);
+
+                TcpConnection *serverConn = nullptr;
+                while (serverConn == nullptr) {
+                    ev_run(loop, EVRUN_ONCE | EVRUN_NOWAIT);
+                    serverConn = server->pool.find("127.0.0.1", getLocalName(clientConn->getFD()).port);
+                }
+                expect(serverConn->state).to.equal(ConnectionState::ESTABLISHED);
+
+                println("=======================================");
+
+                // i guess, unless we try to send and fail or don't get a reply in time, we won't notice...
+
+                ignore_sig_pipe();
+
+                server.reset();
+                // ev_run(loop, EVRUN_ONCE);
+                
+                for(int i = 0; i < 5; ++i) {
+                    sleep(1);
+                    clientConn->send(str2vec("hello"));
+                    ev_run(loop, EVRUN_ONCE | EVRUN_NOWAIT);
+                }
+                println("=======================================");
+
+                server = make_unique<TcpProtocol>(loop);
+                server->listen("127.0.0.1", 9003);
+                for(int i = 0; i < 10; ++i) {
+                    sleep(1);
+                    clientConn->send(str2vec("hello"));
+                    ev_run(loop, EVRUN_ONCE | EVRUN_NOWAIT);
+                }
+
+                println("=======================================");
+
+            });
+
+            it("listener disappears, comes back again");
+
             it("retry until listener is ready");
 
             // ConnectionPool needs a map, TcpProtocol needs to own the connections
@@ -656,8 +709,6 @@ kaffeeklatsch_spec([] {
             // * the a hostname used during connect
             // * the remote ip we see when the connection is established
             // * the remote name we've got during IIOP
-
-            // cache multiple sends ()
 
             // discover/handle peer shutdown
 
@@ -693,10 +744,11 @@ void TcpProtocol::listen(const char *host, unsigned port) {
 
 void TcpProtocol::shutdown() {
     for (auto &listener : listeners) {
+        println("TcpProtocol::shutdown() {}", getLocalName(listener->watcher.fd).str());
         ev_io_stop(loop, &listener->watcher);
         close(listener->watcher.fd);
     }
-    // listeners.clear();
+    listeners.clear();
 }
 
 shared_ptr<TcpConnection> TcpProtocol::connect(const char *host, unsigned port) { return make_shared<TcpConnection>(this, host, port); }
@@ -704,7 +756,14 @@ shared_ptr<TcpConnection> TcpProtocol::connect(const char *host, unsigned port) 
 void TcpConnection::send(unique_ptr<vector<char>> &&buffer) {
     // println("TcpConnection::send(): {} bytes", buffer->size());
     sendBuffer.push_back(move(buffer));
-    startWriteHandler();
+    switch(state) {
+        case ConnectionState::IDLE:
+            up();
+            break;
+        case ConnectionState::ESTABLISHED:
+            startWriteHandler();
+            break;
+    }
 }
 
 void TcpConnection::recv(void *buffer, size_t nbytes) {
@@ -735,6 +794,11 @@ void TcpConnection::accept(int client) {
 }
 
 TcpConnection::~TcpConnection() {
+    if (fd != -1) {
+        auto loc = getLocalName(fd);
+        auto peer = getPeerName(fd);
+        println("TcpConnection::~TcpConnection(): {} -> {}", loc.str(), peer.str());
+    }
     stopWriteHandler();
     stopReadHandler();
     if (fd != -1) {
@@ -743,9 +807,9 @@ TcpConnection::~TcpConnection() {
 }
 
 void TcpConnection::canWrite() {
-    // println("TcpConnection::canWrite()");
+    println("TcpConnection::canWrite(): send buffer size = {}, fd = {}", sendBuffer.size(), fd);
     stopWriteHandler();
-
+    
     // https://stackoverflow.com/questions/17769964/linux-sockets-non-blocking-connect
     // https://cr.yp.to/docs/connect.html
     // Once the system signals the socket as writable, first call getpeername() to see if it connected or not.
@@ -757,7 +821,11 @@ void TcpConnection::canWrite() {
         struct sockaddr_storage addr;
         socklen_t len = sizeof(addr);
         if (getpeername(fd, (sockaddr *)&addr, &len) != 0) {
-            println("TcpConnection::canWrite(): INPROGRESS -> IDLE ({} ({}))", strerror(errno), errno);
+            if (errno == EINVAL) {
+                println("TcpConnection::canWrite(): INPROGRESS -> IDLE (not connected)");
+            } else {
+                println("TcpConnection::canWrite(): INPROGRESS -> IDLE ({} ({}))", strerror(errno), errno);
+            }
             // TODO: when bidirectional or there are packets to be send, go to PENDING instead of IDLE
             state = ConnectionState::IDLE;
             close(fd);
@@ -776,8 +844,16 @@ void TcpConnection::canWrite() {
         ssize_t n = ::send(fd, data + bytesSend, nbytes - bytesSend, 0);
 
         if (n >= 0) {
-            // println("canWrite(): sendbuffer size {}: send {} bytes at {} of out {}", sendBuffer.size(), n, bytesSend, nbytes - bytesSend);
+            println("canWrite(): sendbuffer size {}: send {} bytes at {} of out {}", sendBuffer.size(), n, bytesSend, nbytes - bytesSend);
         } else {
+            if (errno == EPIPE) {
+                println("TcpConnection::canWrite(): broken connection -> IDLE");
+                // TODO: when bidirectional or there are packets to be send, go to PENDING instead of IDLE
+                state = ConnectionState::IDLE;
+                close(fd);
+                fd = -1;
+                return;
+            } else
             if (errno != EAGAIN) {
                 println("canWrite(): sendbuffer size {}: error: {} ({})", sendBuffer.size(), strerror(errno), errno);
             } else {
@@ -802,7 +878,7 @@ void TcpConnection::canWrite() {
 }
 
 void TcpConnection::canRead() {
-    // println("TcpConnection::canWrite()");
+    println("TcpConnection::canWrite()");
     char buffer[8192];
     ssize_t nbytes = ::recv(fd, buffer, sizeof(buffer), 0);
     if (nbytes < 0) {
@@ -824,23 +900,24 @@ void TcpConnection::canRead() {
 }
 
 void TcpConnection::up() {
-    println("UP CONFIG IS {}", remote.str());
     if (fd >= 0) {
         return;
     }
 
+    println("TcpConnection::up(): -> {}", remote.str());
+
     fd = connect_to(remote.host.c_str(), remote.port);
     if (fd < 0) {
-        println("UP PENDING");
+        println("TcpConnection::up(): -> PENDING");
         state = ConnectionState::PENDING;
         throw runtime_error(format("TcpConnection()::up(): {}: {}", remote.str(), strerror(errno)));
     }
     if (errno == EINPROGRESS) {
-        println("UP INPROGRESS");
+         println("TcpConnection::up(): -> INPROGRESS");
         state = ConnectionState::INPROGRESS;
         startWriteHandler();
     } else {
-        println("UP ESTABLISHED");
+         println("TcpConnection::up(): -> ESTABLISHED");
         state = ConnectionState::ESTABLISHED;
     }
     startReadHandler();
