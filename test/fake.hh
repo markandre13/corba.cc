@@ -1,7 +1,7 @@
 #pragma once
 
 #include <corba/blob.hh>
-#include <corba/protocol.hh>
+#include <corba/net/protocol.hh>
 #include <string>
 #include <vector>
 

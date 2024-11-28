@@ -1,6 +1,6 @@
 #include "stub.hh"
 #include "orb.hh"
-#include "protocol.hh"
+#include "net/protocol.hh"
 
 #include <print>
 

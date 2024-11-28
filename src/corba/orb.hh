@@ -7,6 +7,7 @@
 
 #include "coroutine.hh"
 #include "giop.hh"
+#include "net/connection.hh"
 
 namespace CORBA {
 
@@ -17,7 +18,6 @@ class ORB;
 
 namespace detail {
     class Protocol;
-    class Connection;
 }
 
 /**
@@ -52,12 +52,12 @@ class ORB : public std::enable_shared_from_this<ORB> {
     public:
         ORB();
 
-        std::vector<detail::Connection*> connections;
+        detail::ConnectionPool connections;
 
         inline void registerProtocol(detail::Protocol *protocol) { protocols.push_back(protocol); }
 
-        async<detail::Connection*> getConnection(std::string host, uint16_t port);
-        void addConnection(detail::Connection *connection) { connections.push_back(connection); }
+        detail::Connection * getConnection(std::string host, uint16_t port);
+        // void addConnection(detail::Connection *connection) { connections.push_back(connection); }
         void socketRcvd(detail::Connection *connection, const void *buffer, size_t size);
         void close(detail::Connection *connection);
 
@@ -93,8 +93,6 @@ class ORB : public std::enable_shared_from_this<ORB> {
             Stub *stub,
             const char *operation,
             std::function<void(GIOPEncoder &)> encode);
-
-
 
         //
         // NameService

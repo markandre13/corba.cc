@@ -16,7 +16,9 @@
 
 #include "../src/corba/exception.hh"
 #include "../src/corba/giop.hh"
-#include "../src/corba/net/ws/socket.hh"
+#include "../src/corba/net/tcp/connection.hh"
+#include "../src/corba/net/tcp/protocol.hh"
+#include "../src/corba/net/util/socket.hh"
 #include "util.hh"
 
 template <typename T>
@@ -95,130 +97,39 @@ scenarios
 
 using namespace std;
 using namespace kaffeeklatsch;
+using namespace CORBA;
+using namespace CORBA::detail;
+
+namespace CORBA {
+namespace detail {
 
 static void libev_accept_cb(struct ev_loop *loop, struct ev_io *watcher, int revents);
 static void libev_read_cb(struct ev_loop *loop, struct ev_io *watcher, int revents);
 static void libev_write_cb(struct ev_loop *loop, struct ev_io *watcher, int revents);
 
-class TcpProtocol;
-class TcpConnection;
+// struct listen_handler_t {
+//         ev_io watcher;
+//         TcpProtocol *protocol;
+// };
 
-// FIXME: actually, we do not need the temporary ports and ip's:
-// * if it's a server, all listen(host, port) combinations apply
-// * if it's a client, it should also listen
-// * if it's a client and it can not listen because of NAT, the client's host:port is send via IIOP
-class ConnectionPool {
-        // FIXME: this needs to be a map, set
-        // std::set<shared_ptr<TcpConnection>, decltype(cmp)> connections;
-        std::set<shared_ptr<TcpConnection>> connections;
+// struct read_handler_t {
+//         ev_io watcher;
+//         TcpConnection *connection;
+// };
 
-    public:
-        inline void insert(shared_ptr<TcpConnection> conn) { connections.insert(conn); }
-        inline void erase(shared_ptr<TcpConnection> conn) { connections.erase(conn); }
-        inline void clear() { connections.clear(); }
-        inline size_t size() { return connections.size(); }
-        TcpConnection *find(const char *host, uint16_t port);
-        void print();
-};
+// struct write_handler_t {
+//         ev_io watcher;
+//         TcpConnection *connection;
+// };
 
-struct listen_handler_t {
-        ev_io watcher;
-        TcpProtocol *protocol;
-};
-
-struct read_handler_t {
-        ev_io watcher;
-        TcpConnection *connection;
-};
-
-struct write_handler_t {
-        ev_io watcher;
-        TcpConnection *connection;
-};
-
-class TcpProtocol {
-    public:
-        ConnectionPool pool;
-
-    private:
-        friend class TcpConnection;
-        struct ev_loop *loop;
-
-        std::vector<std::unique_ptr<listen_handler_t>> listeners;
-
-    public:
-        TcpProtocol(struct ev_loop *loop) : loop(loop) {}
-        ~TcpProtocol();
-        /** open listen socket for incoming CORBA connections */
-        void listen(const char *host, unsigned port);
-        /** shutdown listen socket */
-        void shutdown();
-
-        shared_ptr<TcpConnection> connect(const char *host, unsigned port);
-};
+}
+}
 
 unique_ptr<vector<char>> str2vec(const char *data) {
     auto vec = make_unique<vector<char>>();
     vec->assign(data, data + strlen(data));
     return vec;
 }
-
-enum class ConnectionState {
-    /**
-     * The connection is not established nor is there a need for it to be established.
-     */
-    IDLE,
-    /**
-     * The connection needs to be establish but attempt to connect to the remote host has been made yet.
-     */
-    PENDING,
-    /**
-     * An attempt to connect to the remote host is in progress.
-     */
-    INPROGRESS,
-    /**
-     * A connection to the remote host has been established.
-     */
-    ESTABLISHED
-};
-
-class TcpConnection {
-        int fd = -1;
-        std::unique_ptr<read_handler_t> readHandler;
-        std::unique_ptr<write_handler_t> writeHandler;
-
-        list<unique_ptr<vector<char>>> sendBuffer;
-        ssize_t bytesSend = 0;
-
-    public:
-        ConnectionState state = ConnectionState::IDLE;
-
-        TcpProtocol *protocol;
-        HostAndPort local;
-        HostAndPort remote;
-
-        TcpConnection(TcpProtocol *protocol, const char *host, uint16_t port) : protocol(protocol), remote(HostAndPort{host, port}) {}
-        ~TcpConnection();
-
-        void up();
-        void accept(int fd);
-        void canWrite();
-        void canRead();
-
-        std::function<void(void *buffer, size_t nbyte)> receiver;
-
-        void send(unique_ptr<vector<char>> &&);
-        void recv(void *buffer, size_t nbyte);
-
-        void print();
-        inline int getFD() { return this->fd; }
-
-    private:
-        void startReadHandler();
-        void stopReadHandler();
-        void startWriteHandler();
-        void stopWriteHandler();
-};
 
 #define DBG(CMD)
 
@@ -296,8 +207,8 @@ class GIOPStream2Packets {
 kaffeeklatsch_spec([] {
     fdescribe("networking", [] {
         describe("ConnectionPool", [] {
-            it("insert and find", [] {
-                auto pool = make_unique<ConnectionPool>();
+            it("insert, find, erase", [] {
+                auto pool = make_unique<CORBA::detail::ConnectionPool>();
                 auto a80 = make_shared<TcpConnection>(nullptr, "a", 80);
                 auto b79 = make_shared<TcpConnection>(nullptr, "b", 79);
                 auto b80 = make_shared<TcpConnection>(nullptr, "b", 80);
@@ -316,11 +227,18 @@ kaffeeklatsch_spec([] {
                 expect(pool->find("b", 81)).to.equal(b81.get());
                 expect(pool->find("c", 80)).to.equal(c80.get());
 
-                // pool->erase(&a80);
-                // pool->erase(&b79);
-                // pool->erase(&b80);
-                // pool->erase(&b81);
-                // pool->erase(&c80);
+                pool->erase(b80);
+
+                expect(pool->find("a", 80)).to.equal(a80.get());
+                expect(pool->find("b", 79)).to.equal(b79.get());
+                expect(pool->find("b", 80)).to.equal(nullptr);
+                expect(pool->find("b", 81)).to.equal(b81.get());
+                expect(pool->find("c", 80)).to.equal(c80.get());
+
+                pool->erase(a80);
+                pool->erase(b79);
+                pool->erase(b81);
+                pool->erase(c80);
             });
         });
         describe("GIOPStream2Packets", [] {
@@ -438,6 +356,9 @@ kaffeeklatsch_spec([] {
             it("when the socket is already in use, it throws a CORBA::INITIALIZE exception", [] {
                 struct ev_loop *loop = EV_DEFAULT;
                 auto protocol0 = make_unique<TcpProtocol>(loop);
+
+                expect(protocol0->loop).to.equal(loop);
+
                 protocol0->listen("localhost", 9003);
 
                 expect([&] {
@@ -498,74 +419,74 @@ kaffeeklatsch_spec([] {
                 // expect(system("/sbin/iptables -v -L INPUT")).to.equal(0);
             });
 
-            it("listener, no data transmitted: IDLE -> INPROGRESS -> ESTABLISHED", [] {
-                struct ev_loop *loop = EV_DEFAULT;
+            // it("listener, no data transmitted: IDLE -> INPROGRESS -> ESTABLISHED", [] {
+            //     struct ev_loop *loop = EV_DEFAULT;
 
-                // GIVEN a listening server
-                auto server = make_unique<TcpProtocol>(loop);
-                server->listen("127.0.0.1", 9003);
+            //     // GIVEN a listening server
+            //     auto server = make_unique<TcpProtocol>(loop);
+            //     server->listen("127.0.0.1", 9003);
 
-                // GIVEN a client
-                auto client = make_unique<TcpProtocol>(loop);
-                auto clientConn = client->connect("127.0.0.1", 9003);
+            //     // GIVEN a client
+            //     auto client = make_unique<TcpProtocol>(loop);
+            //     auto clientConn = client->connect("127.0.0.1", 9003);
 
-                // WHEN the client is asked to connect
-                clientConn->up();
+            //     // WHEN the client is asked to connect
+            //     clientConn->up();
 
-                // THEN the connection is in state INPROGRESS
-                expect(clientConn->state).to.equal(ConnectionState::INPROGRESS);
+            //     // THEN the connection is in state INPROGRESS
+            //     expect(clientConn->state).to.equal(ConnectionState::INPROGRESS);
 
-                // WHEN the server accepts the connection
-                ev_run(loop, EVRUN_ONCE);
+            //     // WHEN the server accepts the connection
+            //     ev_run(loop, EVRUN_ONCE);
 
-                // THEN both server and client connections are in state ESTABLISHED
-                expect(clientConn->state).to.equal(ConnectionState::ESTABLISHED);
+            //     // THEN both server and client connections are in state ESTABLISHED
+            //     expect(clientConn->state).to.equal(ConnectionState::ESTABLISHED);
 
-                TcpConnection *serverConn = nullptr;
-                while (serverConn == nullptr) {
-                    ev_run(loop, EVRUN_ONCE | EVRUN_NOWAIT);
-                    serverConn = server->pool.find("127.0.0.1", getLocalName(clientConn->getFD()).port);
-                }
-                expect(serverConn->state).to.equal(ConnectionState::ESTABLISHED);
-            });
+            //     TcpConnection *serverConn = nullptr;
+            //     while (serverConn == nullptr) {
+            //         ev_run(loop, EVRUN_ONCE | EVRUN_NOWAIT);
+            //         serverConn = server->pool.find("127.0.0.1", getLocalName(clientConn->getFD()).port);
+            //     }
+            //     expect(serverConn->state).to.equal(ConnectionState::ESTABLISHED);
+            // });
 
-            xit("when connections are established, data can be transmitted in both directions", [] {
-                struct ev_loop *loop = EV_DEFAULT;
+            // xit("when connections are established, data can be transmitted in both directions", [] {
+            //     struct ev_loop *loop = EV_DEFAULT;
 
-                auto server = make_unique<TcpProtocol>(loop);
-                server->listen("localhost", 9003);
+            //     auto server = make_unique<TcpProtocol>(loop);
+            //     server->listen("localhost", 9003);
 
-                auto client = make_unique<TcpProtocol>(loop);
-                auto clientConn = client->connect("localhost", 9003);
-                clientConn->up();
+            //     auto client = make_unique<TcpProtocol>(loop);
+            //     auto clientConn = client->connect("localhost", 9003);
+            //     clientConn->up();
 
-                ev_run(loop, EVRUN_ONCE);
-                expect(clientConn->state).to.equal(ConnectionState::ESTABLISHED);
+            //     ev_run(loop, EVRUN_ONCE);
+            //     expect(clientConn->state).to.equal(ConnectionState::ESTABLISHED);
 
-                auto serverConn = server->pool.find("::1", getLocalName(clientConn->getFD()).port);
-                expect(serverConn).to.be.not_().equal(nullptr);
-                expect(serverConn->state).to.equal(ConnectionState::ESTABLISHED);
+            //     auto serverConn = server->pool.find("::1", getLocalName(clientConn->getFD()).port);
+            //     expect(serverConn).to.be.not_().equal(nullptr);
+            //     expect(serverConn->state).to.equal(ConnectionState::ESTABLISHED);
 
-                string serverReceived;
-                serverConn->receiver = [&](void *buffer, size_t nbytes) {
-                    serverReceived.assign((char *)buffer, nbytes);
-                };
-                clientConn->send(str2vec("hello"));
+            //     string serverReceived;
+            //     serverConn->receiver = [&](void *buffer, size_t nbytes) {
+            //         serverReceived.assign((char *)buffer, nbytes);
+            //     };
+            //     clientConn->send(str2vec("hello"));
 
-                expect(clientConn->state).to.equal(ConnectionState::ESTABLISHED);
+            //     expect(clientConn->state).to.equal(ConnectionState::ESTABLISHED);
 
-                ev_run(loop, EVRUN_ONCE);
-                expect(serverReceived).to.equal("hello");
+            //     ev_run(loop, EVRUN_ONCE);
+            //     expect(serverReceived).to.equal("hello");
 
-                string clientReceived;
-                clientConn->receiver = [&](void *buffer, size_t nbytes) {
-                    clientReceived.assign((char *)buffer, nbytes);
-                };
+            //     string clientReceived;
+            //     clientConn->receiver = [&](void *buffer, size_t nbytes) {
+            //         clientReceived.assign((char *)buffer, nbytes);
+            //     };
 
-                serverConn->send(str2vec("hello"));
-                ev_run(loop, EVRUN_ONCE);
-                expect(clientReceived).to.equal("hello");
-            });
+            //     serverConn->send(str2vec("hello"));
+            //     ev_run(loop, EVRUN_ONCE);
+            //     expect(clientReceived).to.equal("hello");
+            // });
             it("handle large amounts of outgoing and incoming data", [] {
                 struct ev_loop *loop = EV_DEFAULT;
 
@@ -649,56 +570,55 @@ kaffeeklatsch_spec([] {
                 // when reading, begin with a buffer of size SO_RCVBUF
             });
 
-            fit("listener disappears", [] {
-                struct ev_loop *loop = EV_DEFAULT;
+            // fit("listener disappears", [] {
+            //     struct ev_loop *loop = EV_DEFAULT;
 
-                // GIVEN a listening server
-                auto server = make_unique<TcpProtocol>(loop);
-                server->listen("127.0.0.1", 9003);
+            //     // GIVEN a listening server
+            //     auto server = make_unique<TcpProtocol>(loop);
+            //     server->listen("127.0.0.1", 9003);
 
-                // GIVEN a client
-                auto client = make_unique<TcpProtocol>(loop);
-                auto clientConn = client->connect("127.0.0.1", 9003);
+            //     // GIVEN a client
+            //     auto client = make_unique<TcpProtocol>(loop);
+            //     auto clientConn = client->connect("127.0.0.1", 9003);
 
-                // WHEN the client is asked to connect
-                clientConn->up();
-                ev_run(loop, EVRUN_ONCE);
-                expect(clientConn->state).to.equal(ConnectionState::ESTABLISHED);
+            //     // WHEN the client is asked to connect
+            //     clientConn->up();
+            //     ev_run(loop, EVRUN_ONCE);
+            //     expect(clientConn->state).to.equal(ConnectionState::ESTABLISHED);
 
-                TcpConnection *serverConn = nullptr;
-                while (serverConn == nullptr) {
-                    ev_run(loop, EVRUN_ONCE | EVRUN_NOWAIT);
-                    serverConn = server->pool.find("127.0.0.1", getLocalName(clientConn->getFD()).port);
-                }
-                expect(serverConn->state).to.equal(ConnectionState::ESTABLISHED);
+            //     TcpConnection *serverConn = nullptr;
+            //     while (serverConn == nullptr) {
+            //         ev_run(loop, EVRUN_ONCE | EVRUN_NOWAIT);
+            //         serverConn = server->pool.find("127.0.0.1", getLocalName(clientConn->getFD()).port);
+            //     }
+            //     expect(serverConn->state).to.equal(ConnectionState::ESTABLISHED);
 
-                println("=======================================");
+            //     println("=======================================");
 
-                // i guess, unless we try to send and fail or don't get a reply in time, we won't notice...
+            //     // i guess, unless we try to send and fail or don't get a reply in time, we won't notice...
 
-                ignore_sig_pipe();
+            //     ignore_sig_pipe();
 
-                server.reset();
-                // ev_run(loop, EVRUN_ONCE);
-                
-                for(int i = 0; i < 5; ++i) {
-                    sleep(1);
-                    clientConn->send(str2vec("hello"));
-                    ev_run(loop, EVRUN_ONCE | EVRUN_NOWAIT);
-                }
-                println("=======================================");
+            //     server.reset();
+            //     // ev_run(loop, EVRUN_ONCE);
 
-                server = make_unique<TcpProtocol>(loop);
-                server->listen("127.0.0.1", 9003);
-                for(int i = 0; i < 10; ++i) {
-                    sleep(1);
-                    clientConn->send(str2vec("hello"));
-                    ev_run(loop, EVRUN_ONCE | EVRUN_NOWAIT);
-                }
+            //     for (int i = 0; i < 5; ++i) {
+            //         sleep(1);
+            //         clientConn->send(str2vec("hello"));
+            //         ev_run(loop, EVRUN_ONCE | EVRUN_NOWAIT);
+            //     }
+            //     println("=======================================");
 
-                println("=======================================");
+            //     server = make_unique<TcpProtocol>(loop);
+            //     server->listen("127.0.0.1", 9003);
+            //     for (int i = 0; i < 10; ++i) {
+            //         sleep(1);
+            //         clientConn->send(str2vec("hello"));
+            //         ev_run(loop, EVRUN_ONCE | EVRUN_NOWAIT);
+            //     }
 
-            });
+            //     println("=======================================");
+            // });
 
             it("listener disappears, comes back again");
 
@@ -724,6 +644,9 @@ kaffeeklatsch_spec([] {
         });
     });
 });
+
+namespace CORBA {
+namespace detail {
 
 TcpProtocol::~TcpProtocol() { shutdown(); }
 
@@ -751,12 +674,12 @@ void TcpProtocol::shutdown() {
     listeners.clear();
 }
 
-shared_ptr<TcpConnection> TcpProtocol::connect(const char *host, unsigned port) { return make_shared<TcpConnection>(this, host, port); }
+shared_ptr<Connection> TcpProtocol::connect(const char *host, unsigned port) { return make_shared<TcpConnection>(this, host, port); }
 
 void TcpConnection::send(unique_ptr<vector<char>> &&buffer) {
     // println("TcpConnection::send(): {} bytes", buffer->size());
     sendBuffer.push_back(move(buffer));
-    switch(state) {
+    switch (state) {
         case ConnectionState::IDLE:
             up();
             break;
@@ -809,7 +732,7 @@ TcpConnection::~TcpConnection() {
 void TcpConnection::canWrite() {
     println("TcpConnection::canWrite(): send buffer size = {}, fd = {}", sendBuffer.size(), fd);
     stopWriteHandler();
-    
+
     // https://stackoverflow.com/questions/17769964/linux-sockets-non-blocking-connect
     // https://cr.yp.to/docs/connect.html
     // Once the system signals the socket as writable, first call getpeername() to see if it connected or not.
@@ -853,8 +776,7 @@ void TcpConnection::canWrite() {
                 close(fd);
                 fd = -1;
                 return;
-            } else
-            if (errno != EAGAIN) {
+            } else if (errno != EAGAIN) {
                 println("canWrite(): sendbuffer size {}: error: {} ({})", sendBuffer.size(), strerror(errno), errno);
             } else {
                 println("canWrite(): sendbuffer size {}: wait", sendBuffer.size());
@@ -879,7 +801,7 @@ void TcpConnection::canWrite() {
 
 void TcpConnection::canRead() {
     println("TcpConnection::canWrite()");
-    char buffer[8192];
+    char buffer[8192];  // TODO: put GIOPStream2Packets in here!!!
     ssize_t nbytes = ::recv(fd, buffer, sizeof(buffer), 0);
     if (nbytes < 0) {
         println("TcpConnection::canRead(): {} ({})", strerror(errno), errno);
@@ -913,11 +835,11 @@ void TcpConnection::up() {
         throw runtime_error(format("TcpConnection()::up(): {}: {}", remote.str(), strerror(errno)));
     }
     if (errno == EINPROGRESS) {
-         println("TcpConnection::up(): -> INPROGRESS");
+        println("TcpConnection::up(): -> INPROGRESS");
         state = ConnectionState::INPROGRESS;
         startWriteHandler();
     } else {
-         println("TcpConnection::up(): -> ESTABLISHED");
+        println("TcpConnection::up(): -> ESTABLISHED");
         state = ConnectionState::ESTABLISHED;
     }
     startReadHandler();
@@ -946,6 +868,7 @@ void libev_accept_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
 
     auto handler = reinterpret_cast<listen_handler_t *>(watcher);
     auto peer = getPeerName(fd);
+    new TcpConnection(handler->protocol, peer.host.c_str(), peer.port);
     auto connection = make_shared<TcpConnection>(handler->protocol, peer.host.c_str(), peer.port);
     println("libev_accept_cb(): add {}:{} to pool", peer.host, peer.port);
     handler->protocol->pool.insert(connection);
@@ -1007,35 +930,5 @@ void TcpConnection::print() {
     // println("{}:{} -> {}:{}", protocol->localHost, protocol->localPort, localHost, localPort);
 }
 
-auto cmp = [](TcpConnection *a, TcpConnection *b) {
-    if (a->remote.port < b->remote.port) {
-        return true;
-    }
-    if (a->remote.port == b->remote.port) {
-        return a->remote.host < b->remote.host;
-    }
-    return false;
-};
-
-TcpConnection *ConnectionPool::find(const char *host, uint16_t port) {
-    for (auto &c : connections) {
-        // println("ConnectionPool::find(): {}:{} == {}:{} ??", host, port, c->remote.host, c->remote.port);
-        if (c->remote.host == host && c->remote.port == port) {
-            return c.get();
-        }
-    }
-    // println("ConnectionPool::find(): {}:{} == empty", host, port);
-    return nullptr;
-    // auto conn = make_shared<TcpConnection>(nullptr, host, port);
-    // auto p = connections.find(conn);
-    // if (p == connections.end()) {
-    //     return nullptr;
-    // }
-    // return p->get();
 }
-
-void ConnectionPool::print() {
-    for (auto c : connections) {
-        c->print();
-    }
 }

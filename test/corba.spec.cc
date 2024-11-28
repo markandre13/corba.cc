@@ -7,7 +7,7 @@
 #include <format>
 
 #include "../src/corba/orb.hh"
-#include "../src/corba/protocol.hh"
+#include "../src/corba/net/protocol.hh"
 #include "../src/corba/url.hh"
 #include "kaffeeklatsch.hh"
 

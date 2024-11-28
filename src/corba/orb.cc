@@ -15,7 +15,8 @@
 #include "giop.hh"
 #include "hexdump.hh"
 #include "naming.hh"
-#include "protocol.hh"
+#include "net/protocol.hh"
+#include "net/connection.hh"
 #include "url.hh"
 
 using namespace std;
@@ -35,10 +36,7 @@ Object::~Object() {
 void ORB::dump() {
     println("CORBA.CC DUMP");
     println("    CONNECTIONS: {}", connections.size());
-    for (auto c : connections) {
-        println("        * LOCAL {}:{} REMOTE {}:{}", c->localAddress(), c->localPort(), c->remoteAddress(), c->remotePort());
-        println("          ACTIVE STUBS {}", c->stubsById.size());
-    }
+    connections.print();
 }
 
 ORB::ORB() {}
@@ -57,7 +55,7 @@ async<shared_ptr<Object>> ORB::stringToObject(const std::string &iorString) {
         if (addr.proto == "iiop") {
             // get remote NameService (FIXME: what if it's us?)
             // std::println("ORB::stringToObject(\"{}\"): get connection to {}:{}", iorString, addr.host, addr.port);
-            CORBA::detail::Connection *nameConnection = co_await getConnection(addr.host, addr.port);
+            CORBA::detail::Connection *nameConnection = getConnection(addr.host, addr.port);
             // std::println("ORB::stringToObject(\"{}\"): got connection to {}:{}", iorString, addr.host, addr.port);
             auto it = nameConnection->stubsById.find(name.objectKey);
             NamingContextExtStub *rootNamingContext;
@@ -83,20 +81,24 @@ async<shared_ptr<Object>> ORB::stringToObject(const std::string &iorString) {
     throw runtime_error(format("ORB::stringToObject(\"{}\") failed", iorString));
 }
 
-async<detail::Connection *> ORB::getConnection(string host, uint16_t port) {
+detail::Connection * ORB::getConnection(string host, uint16_t port) {
     // println("ORB::getConnection(\"{}\", {}) <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<", host, port);
 
     if (host == "::1" || host == "127.0.0.1") {
         host = "localhost";
     }
-    for (auto &conn : connections) {
-        if (conn->remoteAddress() == host && conn->remotePort() == port) {
-            if (debug) {
-                println("ORB : Found active connection");
-            }
-            co_return conn;
-        }
+    auto conn = connections.find(host.c_str(), port);
+    if (conn) {
+        return conn;
     }
+    // for (auto &conn : connections) {
+    //     if (conn->remote.host == host && conn->remote.port == port) {
+    //         if (debug) {
+    //             println("ORB : Found active connection");
+    //         }
+    //         return conn;
+    //     }
+    // }
     for (auto &proto : protocols) {
         if (debug) {
             if (connections.size() == 0) {
@@ -104,18 +106,14 @@ async<detail::Connection *> ORB::getConnection(string host, uint16_t port) {
             } else {
                 println("ORB : Creating new connection to {}:{}, as none found to", host, port);
             }
-            for (auto conn : connections) {
-                println("ORB : active connection {}:{}", conn->remoteAddress(), conn->remotePort());
-            }
+            // for (auto conn : connections) {
+            //     println("ORB : active connection {}", conn->str());
+            // }
         }
-        CORBA::detail::Connection *connection = co_await proto->create(this, host, port);
-        if (connection == nullptr) {
-            throw runtime_error(format("failed to get connection to {}:{}", host, port));
-        }
-        println("CREATED CONNECTION FROM {}:{} TO {}:{}", connection->localAddress(), connection->localPort(), connection->remoteAddress(),
-                connection->remotePort());
-        connections.push_back(connection);
-        co_return connection;
+        auto connection = proto->connect(host.c_str(), port);
+        println("CREATED CONNECTION {}", connection->str());
+        connections.insert(connection);
+        return connection.get();
     }
     throw runtime_error(format("failed to allocate connection to {}:{}", host, port));
 }
@@ -142,7 +140,7 @@ async<GIOPDecoder *> ORB::_twowayCall(Stub *stub, const char *operation, std::fu
     }
     try {
         lock_guard guard(stub->connection->send_mutex);
-        stub->connection->send((void *)encoder.buffer.data(), encoder.buffer.offset);
+        stub->connection->send(move(encoder.buffer._data));
     } catch (COMM_FAILURE &ex) {
         auto h = exceptionHandler.find(stub);
         if (h != exceptionHandler.end()) {
@@ -196,10 +194,10 @@ async<GIOPDecoder *> ORB::_twowayCall(Stub *stub, const char *operation, std::fu
                 throw INITIALIZE(minorCodeValue, completionStatus);
             } else if (exceptionId == "IDL:mark13.org/CORBA/GENERIC:1.0") {
                 throw runtime_error(
-                    format("Remote CORBA exception from {}:{}: {}", stub->connection->remoteAddress(), stub->connection->remotePort(), decoder->readString()));
+                    format("Remote CORBA exception from {}: {}", stub->connection->str(), decoder->readString()));
             } else {
                 throw runtime_error(
-                    format("CORBA System Exception {} from {}:{}", exceptionId, stub->connection->remoteAddress(), stub->connection->remotePort()));
+                    format("CORBA System Exception {} from {}", exceptionId, stub->connection->str()));
             }
         } break;
         default:
@@ -224,7 +222,7 @@ void ORB::onewayCall(Stub *stub, const char *operation, std::function<void(GIOPE
 
     try {
         lock_guard guard(stub->connection->send_mutex);
-        stub->connection->send((void *)encoder.buffer.data(), encoder.buffer.offset);
+        stub->connection->send(move(encoder.buffer._data));
     } catch (COMM_FAILURE &ex) {
         auto h = exceptionHandler.find(stub);
         if (h != exceptionHandler.end()) {
@@ -288,7 +286,7 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
                     auto length = encoder.buffer.offset;
                     encoder.setGIOPHeader(MessageType::REPLY);
                     encoder.setReplyHeader(request->requestId, ReplyStatus::SYSTEM_EXCEPTION);
-                    connection->send((void *)encoder.buffer.data(), length);
+                    connection->send(move(encoder.buffer._data));
                 }
                 return;
             }
@@ -312,7 +310,7 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
 
                 // hexdump(encoder.buffer.data(), length);
 
-                connection->send((void *)encoder.buffer.data(), length);
+                connection->send(move(encoder.buffer._data));
 
                 return;
             }
@@ -338,7 +336,7 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
                                 encoder->setReplyHeader(requestId, ReplyStatus::NO_EXCEPTION);
                                 // println("ORB::socketRcvd(): send REPLY via connection->send(...)");
                                 // hexdump(encoder->buffer.data(), length);
-                                connection->send((void *)encoder->buffer.data(), length);
+                                connection->send(move(encoder->buffer._data));
                             }
                         },
                         [&](std::exception_ptr eptr) {  // FIXME: the references objects won't be available
@@ -355,7 +353,7 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
                                     auto length = encoder->buffer.offset;
                                     encoder->setGIOPHeader(MessageType::REPLY);
                                     encoder->setReplyHeader(requestId, ReplyStatus::USER_EXCEPTION);
-                                    connection->send((void *)encoder->buffer.data(), length);
+                                    connection->send(move(encoder->buffer._data));
                                 }
                             } catch (CORBA::SystemException &error) {
                                 println("{} while calling local servant {}::{}(...): {}",
@@ -371,7 +369,7 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
                                     auto length = encoder->buffer.offset;
                                     encoder->setGIOPHeader(MessageType::REPLY);
                                     encoder->setReplyHeader(requestId, ReplyStatus::SYSTEM_EXCEPTION);
-                                    connection->send((void *)encoder->buffer.data(), length);
+                                    connection->send(move(encoder->buffer._data));
                                 }
                             } catch (std::exception &ex) {
                                 println("std::exception while calling local servant {}::{}(...): {}", 
@@ -387,7 +385,7 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
                                     auto length = encoder->buffer.offset;
                                     encoder->setGIOPHeader(MessageType::REPLY);
                                     encoder->setReplyHeader(requestId, ReplyStatus::SYSTEM_EXCEPTION);
-                                    connection->send((void *)encoder->buffer.data(), length);
+                                    connection->send(move(encoder->buffer._data));
                                 }
                             } catch (...) {
                                 println("SERVANT THREW EXCEPTION");
@@ -428,7 +426,7 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
 
             encoder.encodeLocateReply(_data->requestId, servant != servants.end() ? LocateStatusType::OBJECT_HERE : LocateStatusType::UNKNOWN_OBJECT);
             encoder.setGIOPHeader(MessageType::LOCATE_REPLY);
-            connection->send((void *)encoder.buffer.data(), encoder.buffer.offset);
+            connection->send(move(encoder.buffer._data));
             delete _data;
         } break;
 

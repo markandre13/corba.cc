@@ -10,7 +10,7 @@
 #include "corba.hh"
 #include "hexdump.hh"
 #include "orb.hh"
-#include "protocol.hh"
+#include "net/protocol.hh"
 
 using namespace std;
 
@@ -68,8 +68,8 @@ void GIOPEncoder::writeReference(const Object* object) {
         cerr << "GIOPEncoder::reference(...) [2]" << endl;
         throw runtime_error("GIOPEncoder::reference(...): the encoder has no connection and can not be reached over the network");
     }
-    writeString(connection->localAddress());
-    writeUshort(connection->localPort());
+    writeString(connection->protocol->local.host);
+    writeUshort(connection->protocol->local.port);
     writeBlob(object->get_object_key());
 
     // IIOP >= 1.1: components
@@ -194,8 +194,8 @@ void GIOPEncoder::writeServiceContext() {
         writeEncapsulation(ServiceId::BI_DIR_IIOP, [this] {
             writeUlong(1); // number of listen points
             // cout << "ENCODE BI_DIR_IIOP " << connection->localAddress() << ":" << connection->localPort() << endl;
-            writeString(connection->localAddress());
-            writeUshort(connection->localPort());
+            writeString(connection->protocol->local.host);
+            writeUshort(connection->protocol->local.port);
         });
     }
 
@@ -346,7 +346,8 @@ void GIOPDecoder::readServiceContext() {
                         auto host = readStringView();
                         auto port = readUshort();
                         // cout << "    " << host << ":" << port << endl;
-                        connection->setPeer(host, port);
+                        connection->remote.host = host;
+                        connection->remote.port = port;
                     }
                 } break;
                 case ServiceId::SecurityAttributeService:

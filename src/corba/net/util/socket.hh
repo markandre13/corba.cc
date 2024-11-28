@@ -8,7 +8,7 @@
 struct HostAndPort {
         std::string host;
         uint16_t port;
-        inline std::string str() { return std::format("[{}]:{}", host, port); }
+        inline std::string str() const { return std::format("[{}]:{}", host, port); }
 };
 
 struct SocketHostPort : HostAndPort {
