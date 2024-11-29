@@ -20,8 +20,8 @@ struct listen_handler_t {
 };
 
 class TcpProtocol : public Protocol {
-    public:
-        ConnectionPool pool; // REMOVE ME??? Use one in ORB instead???
+    // public:
+    //     ConnectionPool pool; // REMOVE ME??? Use one in ORB instead???
 
     private:
         friend class TcpConnection;

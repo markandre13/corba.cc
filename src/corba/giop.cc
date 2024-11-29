@@ -193,7 +193,7 @@ void GIOPEncoder::writeServiceContext() {
         connection->didSendBiDirIIOP = true;
         writeEncapsulation(ServiceId::BI_DIR_IIOP, [this] {
             writeUlong(1); // number of listen points
-            // cout << "ENCODE BI_DIR_IIOP " << connection->localAddress() << ":" << connection->localPort() << endl;
+            cout << "ENCODE BI_DIR_IIOP " << connection->protocol->local.str() << endl;
             writeString(connection->protocol->local.host);
             writeUshort(connection->protocol->local.port);
         });
@@ -340,14 +340,15 @@ void GIOPDecoder::readServiceContext() {
                     // std::cout << "ServiceContext CodeSets" << std::endl;
                     break;
                 case ServiceId::BI_DIR_IIOP: {  
-                    // cout << "ServiceContext BI_DIR_IIOP" << endl;
+                    cout << "ServiceContext BI_DIR_IIOP" << endl;
                     auto count = readUlong();
                     for(auto i = 0; i<count; ++i) {
                         auto host = readStringView();
                         auto port = readUshort();
-                        // cout << "    " << host << ":" << port << endl;
+                        cout << "    switch remote from " << connection->remote.str();
                         connection->remote.host = host;
                         connection->remote.port = port;
+                        cout << "  to " << connection->remote.str() << endl;
                     }
                 } break;
                 case ServiceId::SecurityAttributeService:

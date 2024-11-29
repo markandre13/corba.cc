@@ -9,6 +9,7 @@
 #include <utility>
 #include <variant>
 #include <typeinfo>
+#include <uuid/uuid.h>
 
 #include "cdr.hh"
 #include "corba.hh"
@@ -19,9 +20,22 @@
 #include "net/connection.hh"
 #include "url.hh"
 
+#define CORBA_IIOP_PORT 683
+#define CORBA_IIOP_SSL_PORT 684
+#define CORBA_MANAGEMENT_AGENT_PORT 1050
+#define CORBA_LOC_PORT 2809
+
 using namespace std;
 
 namespace CORBA {
+
+string prefix(ORB *orb) {
+    string result;
+    if (orb->logname) {
+        result += format("ORB({}): ", orb->logname);
+    }
+    return result;
+}
 
 std::map<CORBA::Object *, std::function<void()>> exceptionHandler;
 void installSystemExceptionHandler(std::shared_ptr<CORBA::Object> object, std::function<void()> handler) { exceptionHandler[object.get()] = handler; }
@@ -85,13 +99,12 @@ void ORB::registerProtocol(detail::Protocol *protocol) {
 }
 
 detail::Connection * ORB::getConnection(string host, uint16_t port) {
-    // println("ORB::getConnection(\"{}\", {}) <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<", host, port);
-
     // if (host == "::1" || host == "127.0.0.1") {
     //     host = "localhost";
     // }
     auto conn = connections.find(host.c_str(), port);
     if (conn) {
+        println("{}ORB::getConnection(\"{}\", {}) found {}", prefix(this), host, port, conn->str());
         return conn;
     }
     // for (auto &conn : connections) {
@@ -103,18 +116,34 @@ detail::Connection * ORB::getConnection(string host, uint16_t port) {
     //     }
     // }
     for (auto &proto : protocols) {
+        // no listen, use fake hostname and port
+        if (proto->local.host.empty()) {
+            // up() called without listen
+            uuid_t uuid;
+#ifdef _UUID_STRING_T
+            uuid_string_t uuid_str;
+#else
+            char uuid_str[UUID_STR_LEN];
+#endif
+            uuid_generate_random(uuid);
+            uuid_unparse_lower(uuid, uuid_str);
+
+            proto->local.host = uuid_str;
+            proto->local.port = CORBA_LOC_PORT;
+        }
+
         if (debug) {
             if (connections.size() == 0) {
-                println("ORB : Creating new connection to {}:{} as no others exist", host, port);
+                println("{}Creating new connection to {}:{} as no others exist", prefix(this), host, port);
             } else {
-                println("ORB : Creating new connection to {}:{}, as none found to", host, port);
+                println("{}Creating new connection to {}:{}, as none found to", prefix(this), host, port);
             }
             // for (auto conn : connections) {
             //     println("ORB : active connection {}", conn->str());
             // }
         }
         auto connection = proto->connect(host.c_str(), port);
-        println("CREATED CONNECTION {}", connection->str());
+        println("{}created {}", prefix(this), connection->str());
         connections.insert(connection);
         return connection.get();
     }
@@ -258,10 +287,10 @@ void ORB::bind(const std::string &id, std::shared_ptr<CORBA::Skeleton> const obj
 }
 
 void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t size) {
-    // if (debug) {
-    //     println("ORB::socketRcvd()");
-    //     hexdump(buffer, size);
-    // }
+    if (debug) {
+        println("{}socketRcvd(connection={}, buffer, size={})", prefix(this), connection->str(), size);
+        // hexdump(buffer, size);
+    }
     CDRDecoder data((const char *)buffer, size);
     GIOPDecoder decoder(data);
     decoder.connection = connection;
@@ -330,14 +359,14 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
                 // std::cerr << "CALL SERVANT" << std::endl;
                 servant->second->_call(request->operation, decoder, *encoder)
                     .thenOrCatch(
-                        [encoder, connection, responseExpected, requestId] {  // FIXME: the references objects won't be available
+                        [this, encoder, connection, responseExpected, requestId] {  // FIXME: the references objects won't be available
                             // println("SERVANT RETURNED");
                             if (responseExpected) {
                                 // println("SERVANT WANTS RESPONSE");
                                 auto length = encoder->buffer.offset;
                                 encoder->setGIOPHeader(MessageType::REPLY);
                                 encoder->setReplyHeader(requestId, ReplyStatus::NO_EXCEPTION);
-                                // println("ORB::socketRcvd(): send REPLY via connection->send(...)");
+                                println("{}send REPLY via connection {}", prefix(this), connection->str());
                                 // hexdump(encoder->buffer.data(), length);
                                 connection->send(move(encoder->buffer._data));
                             }

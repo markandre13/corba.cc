@@ -7,7 +7,7 @@
 
 struct HostAndPort {
         std::string host;
-        uint16_t port;
+        uint16_t port = 0;
         inline std::string str() const { return std::format("[{}]:{}", host, port); }
 };
 

@@ -85,7 +85,6 @@ class ConnectionPool {
 
     public:
         inline void insert(std::shared_ptr<Connection> conn) { 
-            println("pool insert {}", conn->str());
             connections.insert(conn);
         }
         inline void erase(std::shared_ptr<Connection> conn) { connections.erase(conn); }

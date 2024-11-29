@@ -15,12 +15,12 @@
 #include <utility>
 
 #include "../src/corba/exception.hh"
-#include "../src/corba/orb.hh"
 #include "../src/corba/giop.hh"
 #include "../src/corba/net/stream2packet.hh"
 #include "../src/corba/net/tcp/connection.hh"
 #include "../src/corba/net/tcp/protocol.hh"
 #include "../src/corba/net/util/socket.hh"
+#include "../src/corba/orb.hh"
 #include "util.hh"
 
 template <typename T>
@@ -35,11 +35,6 @@ bool operator==(const std::span<T> &lhs, const std::span<T> &rhs) {
 }
 
 #include "kaffeeklatsch.hh"
-
-#define CORBA_IIOP_PORT 683
-#define CORBA_IIOP_SSL_PORT 684
-#define CORBA_MANAGEMENT_AGENT_PORT 1050
-#define CORBA_LOC_PORT 2809
 
 /*
 scenarios
@@ -124,8 +119,8 @@ static void libev_write_cb(struct ev_loop *loop, struct ev_io *watcher, int reve
 //         TcpConnection *connection;
 // };
 
-}
-}
+}  // namespace detail
+}  // namespace CORBA
 
 unique_ptr<vector<char>> str2vec(const char *data) {
     auto vec = make_unique<vector<char>>();
@@ -324,11 +319,11 @@ kaffeeklatsch_spec([] {
             it("creates a connection", [] {
                 struct ev_loop *loop = EV_DEFAULT;
                 auto client = make_unique<TcpProtocol>(loop);
-                auto clientConn = client->connect("mark13.org", CORBA_IIOP_PORT);
+                auto clientConn = client->connect("mark13.org", 2809);
 
                 // THEN the connection is for the given remote host and port
                 expect(clientConn->remote.host).to.equal("mark13.org");
-                expect(clientConn->remote.port).to.equal(CORBA_IIOP_PORT);
+                expect(clientConn->remote.port).to.equal(2809);
                 // THEN the connection is idle
                 expect(clientConn->state).to.equal(ConnectionState::IDLE);
             });
@@ -598,6 +593,8 @@ string prefix(TcpConnection *conn) {
 }
 
 void TcpProtocol::listen(const char *host, unsigned port) {
+    local.host = host;
+    local.port = port;
     auto sockets = create_listen_socket(host, port);
     if (sockets.size() == 0) {
         println("{}TcpProtocol::listen(): {}:{}: {}", prefix(this), host, port, strerror(errno));
@@ -681,7 +678,7 @@ TcpConnection::~TcpConnection() {
 }
 
 void TcpConnection::canWrite() {
-    println("{}TcpConnection::canWrite(): send buffer size = {}, fd = {}", prefix(this), sendBuffer.size(), fd);
+    println("{}TcpConnection::canWrite(): sendbuffer size = {}, fd = {}", prefix(this), sendBuffer.size(), fd);
     stopWriteHandler();
 
     // https://stackoverflow.com/questions/17769964/linux-sockets-non-blocking-connect
@@ -718,7 +715,7 @@ void TcpConnection::canWrite() {
         ssize_t n = ::send(fd, data + bytesSend, nbytes - bytesSend, 0);
 
         if (n >= 0) {
-            println("{}canWrite(): sendbuffer size {}: send {} bytes at {} of out {}", prefix(this), sendBuffer.size(), n, bytesSend, nbytes - bytesSend);
+            println("{}TcpConnection::canWrite(): sendbuffer size {}: send {} bytes at {} of out {}", prefix(this), sendBuffer.size(), n, bytesSend, nbytes - bytesSend);
         } else {
             if (errno == EPIPE) {
                 println("{}TcpConnection::canWrite(): broken connection -> IDLE", prefix(this));
@@ -728,9 +725,9 @@ void TcpConnection::canWrite() {
                 fd = -1;
                 return;
             } else if (errno != EAGAIN) {
-                println("{}canWrite(): sendbuffer size {}: error: {} ({})", prefix(this), sendBuffer.size(), strerror(errno), errno);
+                println("{}TcpConnection::canWrite(): sendbuffer size {}: error: {} ({})", prefix(this), sendBuffer.size(), strerror(errno), errno);
             } else {
-                println("{}canWrite(): sendbuffer size {}: wait", prefix(this), sendBuffer.size());
+                println("{}TcpConnection::canWrite(): sendbuffer size {}: wait", prefix(this), sendBuffer.size());
             }
             break;
         }
@@ -746,12 +743,15 @@ void TcpConnection::canWrite() {
     }
 
     if (!sendBuffer.empty()) {
+        println("{}TcpConnection::canWrite(): sendbuffer size {}: register write handler to send more", prefix(this), sendBuffer.size());
         startWriteHandler();
+    } else {
+        println("{}TcpConnection::canWrite(): sendbuffer size {}: nothing more to send", prefix(this), sendBuffer.size());
     }
 }
 
 void TcpConnection::canRead() {
-    println("{}TcpConnection::canWrite()", prefix(this));
+    println("{}TcpConnection::canRead()", prefix(this));
     char buffer[8192];  // TODO: put GIOPStream2Packets in here!!!
     ssize_t nbytes = ::recv(fd, buffer, sizeof(buffer), 0);
     if (nbytes < 0) {
@@ -777,7 +777,7 @@ void TcpConnection::up() {
         return;
     }
 
-    println("{}TcpConnection::up(): -> {}", prefix(this), remote.str());
+    println("{}TcpConnection::up(): -> {}", prefix(this), str());
 
     fd = connect_to(remote.host.c_str(), remote.port);
     if (fd < 0) {
@@ -811,6 +811,7 @@ void libev_accept_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
     socklen_t addrlen = sizeof(addr);
     int fd = accept(watcher->fd, (struct sockaddr *)&addr, &addrlen);
 
+    set_non_block(fd);
     if (set_non_block(fd) == -1 || set_no_delay(fd) == -1) {
         puts("failed to setup");
         close(fd);
@@ -820,9 +821,9 @@ void libev_accept_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
     auto peer = getPeerName(fd);
     new TcpConnection(handler->protocol, peer.host.c_str(), peer.port);
     auto connection = make_shared<TcpConnection>(handler->protocol, peer.host.c_str(), peer.port);
-    println("{}accepted new connection {}", prefix(handler->protocol), connection->str());
-    handler->protocol->pool.insert(connection);
     connection->accept(fd);
+    handler->protocol->orb->connections.insert(connection);
+    println("{}accepted new connection {}", prefix(handler->protocol), connection->str());
 }
 
 // called by libev when data can be read
@@ -843,6 +844,8 @@ static void libev_write_cb(struct ev_loop *loop, struct ev_io *watcher, int reve
 
 void TcpConnection::stopReadHandler() {
     if (readHandler) {
+        println("{}stop read handler", prefix(this));
+
         ev_io_stop(protocol->loop, &readHandler->watcher);
         readHandler.reset();
     }
@@ -859,6 +862,7 @@ void TcpConnection::startReadHandler() {
     if (readHandler) {
         return;
     }
+    println("{}start read handler", prefix(this));
     readHandler = make_unique<read_handler_t>();
     readHandler->connection = this;
     ev_io_init(&readHandler->watcher, libev_write_cb, fd, EV_WRITE);
@@ -880,5 +884,5 @@ void TcpConnection::print() {
     // println("{}:{} -> {}:{}", protocol->localHost, protocol->localPort, localHost, localPort);
 }
 
-}
-}
+}  // namespace detail
+}  // namespace CORBA
