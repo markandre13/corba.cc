@@ -1,18 +1,23 @@
 #pragma once
 
-#include "util/socket.hh"
-#include "connection.hh"
-
 #include <ev.h>
+
 #include <memory>
 
+#include "connection.hh"
+#include "util/socket.hh"
+
 namespace CORBA {
+
+class ORB;
+
 namespace detail {
 
 class Connection;
 
 class Protocol {
     public:
+        ORB *orb = nullptr;
         struct ev_loop *loop;
         HostAndPort local;
 

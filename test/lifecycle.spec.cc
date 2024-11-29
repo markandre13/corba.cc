@@ -15,7 +15,9 @@
 #include <utility>
 
 #include "../src/corba/exception.hh"
+#include "../src/corba/orb.hh"
 #include "../src/corba/giop.hh"
+#include "../src/corba/net/stream2packet.hh"
 #include "../src/corba/net/tcp/connection.hh"
 #include "../src/corba/net/tcp/protocol.hh"
 #include "../src/corba/net/util/socket.hh"
@@ -133,79 +135,8 @@ unique_ptr<vector<char>> str2vec(const char *data) {
 
 #define DBG(CMD)
 
-class GIOPStream2Packets {
-    public:
-        size_t receiveBufferSize = 0x20000;
-        char *data = nullptr;
-        size_t size = 0;
-        size_t reserved = 0;
-
-        size_t offset = 0;
-        size_t messageSize = 0;
-
-        GIOPStream2Packets(size_t receiveBufferSize = 0x20000) : receiveBufferSize(receiveBufferSize) {}
-        ~GIOPStream2Packets() { free(data); }
-
-        // get read buffer
-        char *buffer() {
-            DBG(println("GIOPStream2Packets::buffer()");)
-            DBG(println("    enter                     : offset={}, size={}, reserved={}, messageSize={}", offset, size, reserved, messageSize);)
-            if (reserved - size < receiveBufferSize) {
-                reserved += receiveBufferSize;
-                data = (char *)realloc(data, reserved);
-                DBG(println("    reserved additional memory: offset={}, size={}, reserved={}, messageSize={}", offset, size, reserved, messageSize);)
-            }
-            return data + size;
-        }
-        inline size_t length() { return reserved - size; }
-
-        // ad
-        inline void received(size_t nbytes) {
-            DBG(println("GIOPStream2Packets::received({})", nbytes);)
-            size += nbytes;
-            DBG(println("    received more data        : offset={}, size={}, reserved={}, messageSize={}", offset, size, reserved, messageSize);)
-        }
-
-        std::span<char> message() {
-            DBG(println("GIOPStream2Packets::message()");)
-            DBG(println("    get message               : offset={}, size={}, reserved={}, messageSize={}", offset, size, reserved, messageSize);)
-            if (messageSize == 0 && size - offset >= 16) {
-                CORBA::CDRDecoder cdr(data + offset, size - offset);
-                CORBA::GIOPDecoder giop(cdr);
-                giop.scanGIOPHeader();
-                messageSize = giop.m_length + 12;
-                DBG(println("    got message size          : offset={}, size={}, reserved={}, messageSize={}", offset, size, reserved, messageSize);)
-            }
-            if (messageSize == 0) {
-                DBG(println("    no more messages          : offset={}, size={}, reserved={}, messageSize={}", offset, size, reserved, messageSize);)
-                return {};
-            }
-            if (messageSize != 0 && size - offset < messageSize) {
-                // incomplete message at buffer end, move to front of buffer
-                DBG(println("    no more messages, move    : offset={}, size={}, reserved={}, messageSize={}", offset, size, reserved, messageSize);)
-                if (offset > 0) {
-                    DBG(println("      move(0, {}, {})", offset, size - offset);)
-                    memmove(data, data + offset, size - offset);
-                }
-                size -= offset;
-                offset = 0;
-                DBG(println("    moved                     : offset={}, size={}, reserved={}, messageSize={}", offset, size, reserved, messageSize);)
-                return {};
-            }
-            span result(data + offset, data + offset + messageSize);
-            offset += messageSize;
-            messageSize = 0;
-            if (offset == size) {
-                offset = size = 0;
-                DBG(println("    offset reached end, reset : offset={}, size={}, reserved={}, messageSize={}", offset, size, reserved, messageSize);)
-            }
-            DBG(println("    return message            : offset={}, size={}, reserved={}, messageSize={}", offset, size, reserved, messageSize);)
-            return result;
-        }
-};
-
 kaffeeklatsch_spec([] {
-    fdescribe("networking", [] {
+    describe("networking", [] {
         describe("ConnectionPool", [] {
             it("insert, find, erase", [] {
                 auto pool = make_unique<CORBA::detail::ConnectionPool>();
@@ -650,13 +581,30 @@ namespace detail {
 
 TcpProtocol::~TcpProtocol() { shutdown(); }
 
+string prefix(TcpProtocol *proto) {
+    string result;
+    if (proto->orb && proto->orb->logname) {
+        result += format("ORB({}): ", proto->orb->logname);
+    }
+    return result;
+}
+
+string prefix(TcpConnection *conn) {
+    string result;
+    if (conn->protocol && conn->protocol->orb && conn->protocol->orb->logname) {
+        result += format("ORB({}): TCP({}): ", conn->protocol->orb->logname, conn->str());
+    }
+    return result;
+}
+
 void TcpProtocol::listen(const char *host, unsigned port) {
     auto sockets = create_listen_socket(host, port);
     if (sockets.size() == 0) {
-        println("TcpProtocol::listen(): {}:{}: {}", host, port, strerror(errno));
+        println("{}TcpProtocol::listen(): {}:{}: {}", prefix(this), host, port, strerror(errno));
         throw CORBA::INITIALIZE(INITIALIZE_TransportError, CORBA::CompletionStatus::YES);
     }
     for (auto socket : sockets) {
+        println("{}TcpProtocol::listen(): on {}", prefix(this), getLocalName(socket).str());
         listeners.push_back(make_unique<listen_handler_t>());
         auto &handler = listeners.back();
         handler->protocol = this;
@@ -677,7 +625,7 @@ void TcpProtocol::shutdown() {
 shared_ptr<Connection> TcpProtocol::connect(const char *host, unsigned port) { return make_shared<TcpConnection>(this, host, port); }
 
 void TcpConnection::send(unique_ptr<vector<char>> &&buffer) {
-    // println("TcpConnection::send(): {} bytes", buffer->size());
+    println("{}TcpConnection::send(): {} bytes", prefix(this), buffer->size());
     sendBuffer.push_back(move(buffer));
     switch (state) {
         case ConnectionState::IDLE:
@@ -690,7 +638,10 @@ void TcpConnection::send(unique_ptr<vector<char>> &&buffer) {
 }
 
 void TcpConnection::recv(void *buffer, size_t nbytes) {
-    // println("TcpConnection::recv(): {} bytes", nbytes);
+    println("{}TcpConnection::recv(): {} bytes", prefix(this), nbytes);
+    if (protocol && protocol->orb) {
+        protocol->orb->socketRcvd(this, buffer, nbytes);
+    }
     if (receiver) {
         receiver(buffer, nbytes);
     }
@@ -730,7 +681,7 @@ TcpConnection::~TcpConnection() {
 }
 
 void TcpConnection::canWrite() {
-    println("TcpConnection::canWrite(): send buffer size = {}, fd = {}", sendBuffer.size(), fd);
+    println("{}TcpConnection::canWrite(): send buffer size = {}, fd = {}", prefix(this), sendBuffer.size(), fd);
     stopWriteHandler();
 
     // https://stackoverflow.com/questions/17769964/linux-sockets-non-blocking-connect
@@ -745,9 +696,9 @@ void TcpConnection::canWrite() {
         socklen_t len = sizeof(addr);
         if (getpeername(fd, (sockaddr *)&addr, &len) != 0) {
             if (errno == EINVAL) {
-                println("TcpConnection::canWrite(): INPROGRESS -> IDLE (not connected)");
+                println("{}TcpConnection::canWrite(): INPROGRESS -> IDLE (not connected)", prefix(this));
             } else {
-                println("TcpConnection::canWrite(): INPROGRESS -> IDLE ({} ({}))", strerror(errno), errno);
+                println("{}TcpConnection::canWrite(): INPROGRESS -> IDLE ({} ({}))", prefix(this), strerror(errno), errno);
             }
             // TODO: when bidirectional or there are packets to be send, go to PENDING instead of IDLE
             state = ConnectionState::IDLE;
@@ -755,7 +706,7 @@ void TcpConnection::canWrite() {
             fd = -1;
             return;
         } else {
-            println("TcpConnection::canWrite(): INPROGRESS -> ESTABLISHED");
+            println("{}TcpConnection::canWrite(): INPROGRESS -> ESTABLISHED", prefix(this));
             state = ConnectionState::ESTABLISHED;
         }
     }
@@ -767,19 +718,19 @@ void TcpConnection::canWrite() {
         ssize_t n = ::send(fd, data + bytesSend, nbytes - bytesSend, 0);
 
         if (n >= 0) {
-            println("canWrite(): sendbuffer size {}: send {} bytes at {} of out {}", sendBuffer.size(), n, bytesSend, nbytes - bytesSend);
+            println("{}canWrite(): sendbuffer size {}: send {} bytes at {} of out {}", prefix(this), sendBuffer.size(), n, bytesSend, nbytes - bytesSend);
         } else {
             if (errno == EPIPE) {
-                println("TcpConnection::canWrite(): broken connection -> IDLE");
+                println("{}TcpConnection::canWrite(): broken connection -> IDLE", prefix(this));
                 // TODO: when bidirectional or there are packets to be send, go to PENDING instead of IDLE
                 state = ConnectionState::IDLE;
                 close(fd);
                 fd = -1;
                 return;
             } else if (errno != EAGAIN) {
-                println("canWrite(): sendbuffer size {}: error: {} ({})", sendBuffer.size(), strerror(errno), errno);
+                println("{}canWrite(): sendbuffer size {}: error: {} ({})", prefix(this), sendBuffer.size(), strerror(errno), errno);
             } else {
-                println("canWrite(): sendbuffer size {}: wait", sendBuffer.size());
+                println("{}canWrite(): sendbuffer size {}: wait", prefix(this), sendBuffer.size());
             }
             break;
         }
@@ -800,11 +751,11 @@ void TcpConnection::canWrite() {
 }
 
 void TcpConnection::canRead() {
-    println("TcpConnection::canWrite()");
+    println("{}TcpConnection::canWrite()", prefix(this));
     char buffer[8192];  // TODO: put GIOPStream2Packets in here!!!
     ssize_t nbytes = ::recv(fd, buffer, sizeof(buffer), 0);
     if (nbytes < 0) {
-        println("TcpConnection::canRead(): {} ({})", strerror(errno), errno);
+        println("{}TcpConnection::canRead(): {} ({})", prefix(this), strerror(errno), errno);
         stopReadHandler();
         ::close(fd);
         fd = -1;
@@ -813,11 +764,11 @@ void TcpConnection::canRead() {
         state = ConnectionState::IDLE;
         return;
     }
-    println("TcpConnection::canRead(): state = {}", std::to_underlying(state));
+    println("{}TcpConnection::canRead(): state = {}", prefix(this), std::to_underlying(state));
     if (state == ConnectionState::INPROGRESS) {
         state = ConnectionState::ESTABLISHED;
     }
-    println("recv'd {} bytes", nbytes);
+    println("{}recv'd {} bytes", prefix(this), nbytes);
     recv(buffer, nbytes);
 }
 
@@ -826,20 +777,20 @@ void TcpConnection::up() {
         return;
     }
 
-    println("TcpConnection::up(): -> {}", remote.str());
+    println("{}TcpConnection::up(): -> {}", prefix(this), remote.str());
 
     fd = connect_to(remote.host.c_str(), remote.port);
     if (fd < 0) {
-        println("TcpConnection::up(): -> PENDING");
+        println("{}TcpConnection::up(): -> PENDING", prefix(this));
         state = ConnectionState::PENDING;
         throw runtime_error(format("TcpConnection()::up(): {}: {}", remote.str(), strerror(errno)));
     }
     if (errno == EINPROGRESS) {
-        println("TcpConnection::up(): -> INPROGRESS");
+        println("{}TcpConnection::up(): -> INPROGRESS", prefix(this));
         state = ConnectionState::INPROGRESS;
         startWriteHandler();
     } else {
-        println("TcpConnection::up(): -> ESTABLISHED");
+        println("{}TcpConnection::up(): -> ESTABLISHED", prefix(this));
         state = ConnectionState::ESTABLISHED;
     }
     startReadHandler();
@@ -854,11 +805,11 @@ void libev_accept_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
         return;
     }
 
+    auto handler = reinterpret_cast<listen_handler_t *>(watcher);
+
     struct sockaddr_storage addr;
     socklen_t addrlen = sizeof(addr);
     int fd = accept(watcher->fd, (struct sockaddr *)&addr, &addrlen);
-
-    println("ACCEPT LOCAL {}, REMOTE {}", getLocalName(fd).str(), getPeerName(fd).str());
 
     if (set_non_block(fd) == -1 || set_no_delay(fd) == -1) {
         puts("failed to setup");
@@ -866,11 +817,10 @@ void libev_accept_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
         return;
     }
 
-    auto handler = reinterpret_cast<listen_handler_t *>(watcher);
     auto peer = getPeerName(fd);
     new TcpConnection(handler->protocol, peer.host.c_str(), peer.port);
     auto connection = make_shared<TcpConnection>(handler->protocol, peer.host.c_str(), peer.port);
-    println("libev_accept_cb(): add {}:{} to pool", peer.host, peer.port);
+    println("{}accepted new connection {}", prefix(handler->protocol), connection->str());
     handler->protocol->pool.insert(connection);
     connection->accept(fd);
 }

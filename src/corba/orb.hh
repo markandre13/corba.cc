@@ -41,6 +41,8 @@ class ORB : public std::enable_shared_from_this<ORB> {
     public:
         bool debug = false;
         void dump();
+        const char * logname = nullptr;
+
     protected:
         NamingContextExtImpl * namingService = nullptr;
         // std::map<std::string, Skeleton*> initialReferences; // name to
@@ -50,17 +52,22 @@ class ORB : public std::enable_shared_from_this<ORB> {
 
         std::vector<detail::Protocol*> protocols;
     public:
-        ORB();
-
+        ORB(const char *logname = nullptr): logname(logname) {};
+        
         detail::ConnectionPool connections;
 
-        inline void registerProtocol(detail::Protocol *protocol) { protocols.push_back(protocol); }
-
+        void registerProtocol(detail::Protocol *protocol);
         detail::Connection * getConnection(std::string host, uint16_t port);
         // void addConnection(detail::Connection *connection) { connections.push_back(connection); }
         void socketRcvd(detail::Connection *connection, const void *buffer, size_t size);
         void close(detail::Connection *connection);
 
+        /**
+         * Returns an object for the provided CORBA URI.
+         * 
+         * "corbaname::127.0.0.1:9003#Backend" will contact the CORBA nameservice at
+         * 127.0.0.1:9003 and request an object registered by the name of "Backend".
+         */
         async<std::shared_ptr<Object>> stringToObject(const std::string &iorString);
 
         // register servant and create and assign a new objectKey

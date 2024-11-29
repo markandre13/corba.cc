@@ -39,8 +39,6 @@ void ORB::dump() {
     connections.print();
 }
 
-ORB::ORB() {}
-
 async<shared_ptr<Object>> ORB::stringToObject(const std::string &iorString) {
     // std::println("ORB::stringToObject(\"{}\"): enter", iorString);
     auto uri = decodeURI(iorString);
@@ -81,12 +79,17 @@ async<shared_ptr<Object>> ORB::stringToObject(const std::string &iorString) {
     throw runtime_error(format("ORB::stringToObject(\"{}\") failed", iorString));
 }
 
+void ORB::registerProtocol(detail::Protocol *protocol) { 
+    protocol->orb = this;
+    protocols.push_back(protocol);
+}
+
 detail::Connection * ORB::getConnection(string host, uint16_t port) {
     // println("ORB::getConnection(\"{}\", {}) <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<", host, port);
 
-    if (host == "::1" || host == "127.0.0.1") {
-        host = "localhost";
-    }
+    // if (host == "::1" || host == "127.0.0.1") {
+    //     host = "localhost";
+    // }
     auto conn = connections.find(host.c_str(), port);
     if (conn) {
         return conn;

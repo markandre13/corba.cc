@@ -36,11 +36,69 @@ std::string readString(const char *filename) {
 kaffeeklatsch_spec([] {
     describe("net", [] {
         describe("tcp", [] {
-            it("ORB", [] {
+            fit("ORB", [] {
                 struct ev_loop *loop = EV_DEFAULT;
-                auto orb = make_shared<CORBA::ORB>();
-                auto protocol = new CORBA::detail::TcpProtocol(loop);
-                orb->registerProtocol(protocol);
+
+                auto serverORB = make_shared<CORBA::ORB>("server");
+                serverORB->debug = true;
+                auto serverProto = new CORBA::detail::TcpProtocol(loop);
+                serverORB->registerProtocol(serverProto);
+                serverProto->listen("127.0.0.1", 9003);
+
+                auto backend = make_shared<Interface_impl>(serverORB);
+                serverORB->bind("Backend", backend);
+
+                std::exception_ptr eptr;
+
+                auto clientORB = make_shared<CORBA::ORB>("client");
+                clientORB->debug = true;
+
+                parallel(eptr, loop, [loop, clientORB] -> async<> {
+                    auto protocol = new CORBA::detail::TcpProtocol(loop);
+                    clientORB->registerProtocol(protocol);
+                    clientORB->debug = true;
+
+                    // protocol->attach(clientORB.get(), loop);
+
+                    println("CLIENT: resolve 'Backend'");
+                    auto object = co_await clientORB->stringToObject("corbaname::127.0.0.1:9003#Backend");
+                    auto backend = Interface::_narrow(object);
+                    println("CLIENT: call backend");
+
+                    auto frontend = make_shared<Peer_impl>(clientORB);
+                    co_await backend->setPeer(frontend);
+                    expect(co_await backend->callPeer("hello")).to.equal("hello to the world.");
+                });
+
+                println("START LOOP");
+                ev_run(loop, 0);
+
+                if (eptr) {
+                    std::rethrow_exception(eptr);
+                }
+
+                // expect(clientORB->connections.size()).to.equal(1);
+                // auto clientConn = clientORB->connections.front();
+                // println("CLIENT HAS ONE CONNECTION FROM {}:{} TO {}:{}", clientConn->localAddress(), clientConn->localPort(), clientConn->remoteAddress(),
+                //         clientConn->remotePort());
+                // expect(clientConn->remoteAddress()).to.equal("localhost");
+                // expect(clientConn->remotePort()).to.equal(9003);
+
+                // expect(clientConn->localAddress().c_str()).to.be.uuid();
+                // expect(clientConn->localPort()).to.be.not_().equal(0);
+
+                // // localAddress should be a UUID, localPort not 0 (a regex string matched would be nice...)
+
+                // // server should also have a connection
+                // expect(serverORB->connections.size()).to.equal(1);
+                // auto serverConn = serverORB->connections.front();
+                // println("SERVER HAS ONE CONNECTION FROM {}:{} TO {}:{}", serverConn->localAddress(), serverConn->localPort(), serverConn->remoteAddress(),
+                //         serverConn->remotePort());
+                // expect(serverConn->localAddress()).to.equal("localhost");
+                // expect(serverConn->localPort()).to.equal(9003);
+
+                // expect(clientConn->localAddress()).to.equal(serverConn->remoteAddress());
+                // expect(clientConn->localPort()).to.equal(serverConn->remotePort());
             });
 #if 0
             xit("call omni orb", [] {

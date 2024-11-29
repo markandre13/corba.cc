@@ -83,7 +83,6 @@ std::variant<IOR, CorbaLocation, CorbaName> decodeURI(const std::string &uri) {
     return UrlParser(uri).parse();
 }
 
-
 std::optional<unsigned> UrlLexer::number() {
     auto start = pos;
     while (isdigit(getc())) {
