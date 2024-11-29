@@ -58,8 +58,6 @@ kaffeeklatsch_spec([] {
                     clientORB->registerProtocol(protocol);
                     clientORB->debug = true;
 
-                    // protocol->attach(clientORB.get(), loop);
-
                     println("CLIENT: resolve 'Backend'");
                     auto object = co_await clientORB->stringToObject("corbaname::127.0.0.1:9003#Backend");
                     auto backend = Interface::_narrow(object);
@@ -68,6 +66,8 @@ kaffeeklatsch_spec([] {
                     auto frontend = make_shared<Peer_impl>(clientORB);
                     co_await backend->setPeer(frontend);
                     expect(co_await backend->callPeer("hello")).to.equal("hello to the world.");
+
+                    println("CLIENT: YOOOOOOOOOOOOOOOOOOOOOOOOOOO");                    
                 });
 
                 println("START LOOP");

@@ -655,12 +655,7 @@ void TcpConnection::accept(int client) {
     }
 
     fd = client;
-    readHandler = make_unique<read_handler_t>();
-    readHandler->connection = this;
-
-    ev_io_init(&readHandler->watcher, libev_read_cb, fd, EV_READ);
-    ev_io_start(protocol->loop, &readHandler->watcher);
-
+    startReadHandler();
     state = ConnectionState::ESTABLISHED;
 }
 
@@ -755,6 +750,10 @@ void TcpConnection::canRead() {
     char buffer[8192];  // TODO: put GIOPStream2Packets in here!!!
     ssize_t nbytes = ::recv(fd, buffer, sizeof(buffer), 0);
     if (nbytes < 0) {
+        if (errno == EAGAIN) {
+            println("{}TcpConnection::canRead(): {} (EGAIN)", prefix(this), strerror(errno));
+            return;
+        }
         println("{}TcpConnection::canRead(): {} ({})", prefix(this), strerror(errno), errno);
         stopReadHandler();
         ::close(fd);
@@ -769,7 +768,9 @@ void TcpConnection::canRead() {
         state = ConnectionState::ESTABLISHED;
     }
     println("{}recv'd {} bytes", prefix(this), nbytes);
-    recv(buffer, nbytes);
+    if (nbytes > 0) {
+        recv(buffer, nbytes);
+    }
 }
 
 void TcpConnection::up() {
@@ -865,7 +866,7 @@ void TcpConnection::startReadHandler() {
     println("{}start read handler", prefix(this));
     readHandler = make_unique<read_handler_t>();
     readHandler->connection = this;
-    ev_io_init(&readHandler->watcher, libev_write_cb, fd, EV_WRITE);
+    ev_io_init(&readHandler->watcher, libev_read_cb, fd, EV_WRITE);
     ev_io_start(protocol->loop, &readHandler->watcher);
 }
 

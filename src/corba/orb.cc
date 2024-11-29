@@ -291,6 +291,9 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
         println("{}socketRcvd(connection={}, buffer, size={})", prefix(this), connection->str(), size);
         // hexdump(buffer, size);
     }
+    if (size == 0) {
+        return;
+    }
     CDRDecoder data((const char *)buffer, size);
     GIOPDecoder decoder(data);
     decoder.connection = connection;
