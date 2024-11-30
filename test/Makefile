@@ -118,7 +118,9 @@ lifecycle.spec.o: ../upstream/async.cc/src/async.hh
 lifecycle.spec.o: ../src/corba/net/util/socket.hh
 lifecycle.spec.o: ../src/corba/net/connection.hh
 lifecycle.spec.o: ../src/corba/net/tcp/protocol.hh
-lifecycle.spec.o: ../src/corba/net/util/socket.hh util.hh
+lifecycle.spec.o: ../src/corba/net/util/socket.hh ../src/corba/orb.hh
+lifecycle.spec.o: ../src/corba/coroutine.hh ../src/corba/giop.hh
+lifecycle.spec.o: ../src/corba/net/connection.hh util.hh
 lifecycle.spec.o: ../src/corba/hexdump.hh ../src/corba/coroutine.hh
 net/tcp.spec.o: interface/interface_impl.hh interface/interface_skel.hh
 net/tcp.spec.o: ../src/corba/corba.hh ../src/corba/orb.hh
@@ -133,7 +135,10 @@ net/tcp.spec.o: ../src/corba/giop.hh ../src/corba/coroutine.hh
 net/tcp.spec.o: interface/interface.hh interface/interface_skel.hh
 net/tcp.spec.o: ../src/corba/corba.hh ../src/corba/net/tcp/protocol.hh
 net/tcp.spec.o: ../src/corba/net/protocol.hh ../src/corba/net/connection.hh
-net/tcp.spec.o: util.hh ../src/corba/hexdump.hh ../src/corba/coroutine.hh
+net/tcp.spec.o: ../src/corba/net/tcp/connection.hh
+net/tcp.spec.o: ../src/corba/net/tcp/protocol.hh
+net/tcp.spec.o: ../src/corba/net/connection.hh util.hh
+net/tcp.spec.o: ../src/corba/hexdump.hh ../src/corba/coroutine.hh
 interface/interface.o: ../src/corba/corba.hh ../src/corba/orb.hh
 interface/interface.o: ../src/corba/coroutine.hh
 interface/interface.o: ../upstream/async.cc/src/async.hh ../src/corba/giop.hh

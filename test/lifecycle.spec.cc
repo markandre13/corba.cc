@@ -131,7 +131,7 @@ unique_ptr<vector<char>> str2vec(const char *data) {
 #define DBG(CMD)
 
 kaffeeklatsch_spec([] {
-    describe("networking", [] {
+    fdescribe("networking", [] {
         describe("ConnectionPool", [] {
             it("insert, find, erase", [] {
                 auto pool = make_unique<CORBA::detail::ConnectionPool>();
@@ -645,16 +645,14 @@ void TcpConnection::recv(void *buffer, size_t nbytes) {
 }
 
 void TcpConnection::accept(int client) {
-    if (readHandler) {
-        println("TcpConnection::accept(int fd): we already have a handler");
-        stopReadHandler();
-    }
     if (fd != -1) {
-        println("TcpConnection::accept(int fd): fd is already set");
-        ::close(fd);
+        throw runtime_error("TcpConnection::accept(int fd): fd is already set");
     }
 
     fd = client;
+    ev_io_init(&read_watcher, libev_read_cb, fd, EV_READ);
+    ev_io_init(&write_watcher, libev_write_cb, fd, EV_WRITE);
+
     startReadHandler();
     state = ConnectionState::ESTABLISHED;
 }
@@ -664,10 +662,8 @@ TcpConnection::~TcpConnection() {
         auto loc = getLocalName(fd);
         auto peer = getPeerName(fd);
         println("TcpConnection::~TcpConnection(): {} -> {}", loc.str(), peer.str());
-    }
-    stopWriteHandler();
-    stopReadHandler();
-    if (fd != -1) {
+        stopWriteHandler();
+        stopReadHandler();
         ::close(fd);
     }
 }
@@ -710,7 +706,8 @@ void TcpConnection::canWrite() {
         ssize_t n = ::send(fd, data + bytesSend, nbytes - bytesSend, 0);
 
         if (n >= 0) {
-            println("{}TcpConnection::canWrite(): sendbuffer size {}: send {} bytes at {} of out {}", prefix(this), sendBuffer.size(), n, bytesSend, nbytes - bytesSend);
+            println("{}TcpConnection::canWrite(): sendbuffer size {}: send {} bytes at {} of out {}", prefix(this), sendBuffer.size(), n, bytesSend,
+                    nbytes - bytesSend);
         } else {
             if (errno == EPIPE) {
                 println("{}TcpConnection::canWrite(): broken connection -> IDLE", prefix(this));
@@ -786,6 +783,10 @@ void TcpConnection::up() {
         state = ConnectionState::PENDING;
         throw runtime_error(format("TcpConnection()::up(): {}: {}", remote.str(), strerror(errno)));
     }
+
+    ev_io_init(&read_watcher, libev_read_cb, fd, EV_READ);
+    ev_io_init(&write_watcher, libev_write_cb, fd, EV_WRITE);
+
     if (errno == EINPROGRESS) {
         println("{}TcpConnection::up(): -> INPROGRESS", prefix(this));
         state = ConnectionState::INPROGRESS;
@@ -827,57 +828,47 @@ void libev_accept_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
     println("{}accepted new connection {}", prefix(handler->protocol), connection->str());
 }
 
-// called by libev when data can be read
-void libev_read_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
-    if (EV_ERROR & revents) {
-        perror("libev_read_cb(): got invalid event");
-        return;
-    }
-    auto handler = reinterpret_cast<read_handler_t *>(watcher);
-    handler->connection->canRead();
+TcpConnection::TcpConnection(Protocol *protocol, const char *host, uint16_t port) : Connection(protocol, host, port) {
 }
 
-static void libev_write_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
-    ev_io_stop(loop, watcher);
-    auto handler = reinterpret_cast<write_handler_t *>(watcher);
-    handler->connection->canWrite();
+void libev_read_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
+    auto connection = reinterpret_cast<TcpConnection *>(reinterpret_cast<char*>(watcher) - offsetof(TcpConnection, read_watcher));
+    connection->canRead();
+}
+
+void libev_write_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
+    auto connection = reinterpret_cast<TcpConnection *>(reinterpret_cast<char*>(watcher) - offsetof(TcpConnection, write_watcher));
+    connection->canWrite();
 }
 
 void TcpConnection::stopReadHandler() {
-    if (readHandler) {
-        println("{}stop read handler", prefix(this));
-
-        ev_io_stop(protocol->loop, &readHandler->watcher);
-        readHandler.reset();
+    if (!ev_is_active(&read_watcher)) {
+        return;
     }
+    println("{}stop read handler", prefix(this));
+    ev_io_stop(protocol->loop, &read_watcher);
 }
 
 void TcpConnection::stopWriteHandler() {
-    if (writeHandler) {
-        ev_io_stop(protocol->loop, &writeHandler->watcher);
-        writeHandler.reset();
+    if (!ev_is_active(&write_watcher)) {
+        return;
     }
+    ev_io_stop(protocol->loop, &write_watcher);
 }
 
 void TcpConnection::startReadHandler() {
-    if (readHandler) {
+    if (ev_is_active(&read_watcher)) {
         return;
     }
     println("{}start read handler", prefix(this));
-    readHandler = make_unique<read_handler_t>();
-    readHandler->connection = this;
-    ev_io_init(&readHandler->watcher, libev_read_cb, fd, EV_WRITE);
-    ev_io_start(protocol->loop, &readHandler->watcher);
+    ev_io_start(protocol->loop, &read_watcher);
 }
 
 void TcpConnection::startWriteHandler() {
-    if (writeHandler) {
+    if (ev_is_active(&write_watcher)) {
         return;
     }
-    writeHandler = make_unique<write_handler_t>();
-    writeHandler->connection = this;
-    ev_io_init(&writeHandler->watcher, libev_write_cb, fd, EV_WRITE);
-    ev_io_start(protocol->loop, &writeHandler->watcher);
+    ev_io_start(protocol->loop, &write_watcher);
 }
 
 void TcpConnection::print() {

@@ -32,14 +32,17 @@ struct write_handler_t {
 
 class TcpConnection : public Connection {
         int fd = -1;
-        std::unique_ptr<read_handler_t> readHandler;
-        std::unique_ptr<write_handler_t> writeHandler;
+        // std::unique_ptr<read_handler_t> readHandler;
+        // std::unique_ptr<write_handler_t> writeHandler;
 
         std::list<std::unique_ptr<std::vector<char>>> sendBuffer;
         ssize_t bytesSend = 0;
 
     public:
-        TcpConnection(Protocol *protocol, const char *host, uint16_t port) : Connection(protocol, host, port) {}
+        ev_io read_watcher;
+        ev_io write_watcher;
+
+        TcpConnection(Protocol *protocol, const char *host, uint16_t port);
         ~TcpConnection();
 
         void accept(int fd);

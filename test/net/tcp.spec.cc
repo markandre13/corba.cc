@@ -9,6 +9,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <cstddef>
 
 #include <fstream>
 
@@ -16,6 +17,7 @@
 #include "../interface/interface_skel.hh"
 #include "../src/corba/corba.hh"
 #include "../src/corba/net/tcp/protocol.hh"
+#include "../src/corba/net/tcp/connection.hh"
 #include "../util.hh"
 #include "kaffeeklatsch.hh"
 
@@ -33,10 +35,13 @@ std::string readString(const char *filename) {
     return buffer;
 }
 
+void libev_read_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
+}
+
 kaffeeklatsch_spec([] {
     describe("net", [] {
         describe("tcp", [] {
-            fit("ORB", [] {
+            it("bi-directional iiop connection", [] {
                 struct ev_loop *loop = EV_DEFAULT;
 
                 auto serverORB = make_shared<CORBA::ORB>("server");
@@ -100,16 +105,16 @@ kaffeeklatsch_spec([] {
                 // expect(clientConn->localAddress()).to.equal(serverConn->remoteAddress());
                 // expect(clientConn->localPort()).to.equal(serverConn->remotePort());
             });
-#if 0
             xit("call omni orb", [] {
+                struct ev_loop *loop = EV_DEFAULT;
+
                 auto orb = make_shared<CORBA::ORB>();
-                auto protocol = new CORBA::net::TcpProtocol();
+                auto protocol = new CORBA::detail::TcpProtocol(loop);
                 orb->registerProtocol(protocol);
                 // orb->debug = true;
 
-                struct ev_loop *loop = EV_DEFAULT;
                 // BiDirIIOP does not work yet, so we must offer a server port for the server be able to call us
-                protocol->listen(orb.get(), loop, "192.168.178.24", 9003);
+                protocol->listen("192.168.178.24", 9003);
                 // protocol->attach(clientORB.get(), loop);
 
                 std::exception_ptr eptr;
@@ -123,7 +128,7 @@ kaffeeklatsch_spec([] {
                         println("resolve ior");
                         auto object = co_await orb->stringToObject(readString("IOR.txt"));
                         println("narrow server");
-                        auto server = co_await Server::_narrow(object);
+                        auto server = Server::_narrow(object);
                         // println("create client");
                         // auto client = make_shared<Client_impl>(clientORB);
                         println("register client");
@@ -142,93 +147,38 @@ kaffeeklatsch_spec([] {
                     }
                 }
             });
-            it("bi-directional iiop connection", [] {
-                // find all the system's ip addresses
-                // ifaddrs *addrs, *tmp;
-                // getifaddrs(&addrs);
-                // tmp = addrs;
-                // while (tmp) {
-                //     if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET) {
-                //         sockaddr_in *addr = reinterpret_cast<sockaddr_in *>(tmp->ifa_addr);
-                //         printf("%s %s:%u\n", tmp->ifa_name, inet_ntoa(addr->sin_addr), ntohs(addr->sin_port));
-                //     } else
-                //     if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET6) {
-                //         sockaddr_in6 *addr = reinterpret_cast<sockaddr_in6 *>(tmp->ifa_addr);
-                //         char buf[INET6_ADDRSTRLEN];
-                //         inet_ntop(tmp->ifa_addr->sa_family, &addr->sin6_addr, buf, sizeof(buf));
-                //         printf("%s %s:%u\n", tmp->ifa_name, buf, ntohs(addr->sin6_port));
-                //     } else {
-                //         printf("%s\n", tmp->ifa_name);
-                //     }
-                //     tmp = tmp->ifa_next;
-                // }
-                // freeifaddrs(addrs);
-                // return;
+            xit("find all the system's ip addresses", [] {
 
                 struct ev_loop *loop = EV_DEFAULT;
 
-                // start server & client on the same ev loop
-                auto serverORB = make_shared<CORBA::ORB>();
-                serverORB->debug = true;
-                auto protocol = new CORBA::net::TcpProtocol();
-                serverORB->registerProtocol(protocol);
-                protocol->listen(serverORB.get(), loop, "localhost", 9003);
+                auto orb = make_shared<CORBA::ORB>();
+                auto protocol = new CORBA::detail::TcpProtocol(loop);
+                orb->registerProtocol(protocol);
+                orb->debug = true;
 
-                auto backend = make_shared<Interface_impl>(serverORB);
-                serverORB->bind("Backend", backend);
+                protocol->listen("0.0.0.0", 9003);
 
-                std::exception_ptr eptr;
-
-                auto clientORB = make_shared<CORBA::ORB>();
-
-                parallel(eptr, loop, [loop, clientORB] -> async<> {
-                    auto protocol = new CORBA::net::TcpProtocol();
-                    clientORB->registerProtocol(protocol);
-                    clientORB->debug = true;
-
-                    protocol->attach(clientORB.get(), loop);
-
-                    println("CLIENT: resolve 'Backend'");
-                    auto object = co_await clientORB->stringToObject("corbaname::localhost:9003#Backend");
-                    auto backend = co_await Interface::_narrow(object);
-                    println("CLIENT: call backend");
-
-                    auto frontend = make_shared<Peer_impl>(clientORB);
-                    co_await backend->setPeer(frontend);
-                    expect(co_await backend->callPeer("hello")).to.equal("hello to the world.");
-                });
-
-                println("START LOOP");
-                ev_run(loop, 0);
-
-                if (eptr) {
-                    std::rethrow_exception(eptr);
+                ifaddrs *addrs, *tmp;
+                getifaddrs(&addrs);
+                tmp = addrs;
+                while (tmp) {
+                    if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET) {
+                        sockaddr_in *addr = reinterpret_cast<sockaddr_in *>(tmp->ifa_addr);
+                        printf("%s %s:%u\n", tmp->ifa_name, inet_ntoa(addr->sin_addr), ntohs(addr->sin_port));
+                    } else
+                    if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET6) {
+                        sockaddr_in6 *addr = reinterpret_cast<sockaddr_in6 *>(tmp->ifa_addr);
+                        char buf[INET6_ADDRSTRLEN];
+                        inet_ntop(tmp->ifa_addr->sa_family, &addr->sin6_addr, buf, sizeof(buf));
+                        printf("%s %s:%u\n", tmp->ifa_name, buf, ntohs(addr->sin6_port));
+                    } else {
+                        printf("%s\n", tmp->ifa_name);
+                    }
+                    tmp = tmp->ifa_next;
                 }
-
-                expect(clientORB->connections.size()).to.equal(1);
-                auto clientConn = clientORB->connections.front();
-                println("CLIENT HAS ONE CONNECTION FROM {}:{} TO {}:{}", clientConn->localAddress(), clientConn->localPort(), clientConn->remoteAddress(),
-                        clientConn->remotePort());
-                expect(clientConn->remoteAddress()).to.equal("localhost");
-                expect(clientConn->remotePort()).to.equal(9003);
-
-                expect(clientConn->localAddress().c_str()).to.be.uuid();
-                expect(clientConn->localPort()).to.be.not_().equal(0);
-
-                // localAddress should be a UUID, localPort not 0 (a regex string matched would be nice...)
-
-                // server should also have a connection
-                expect(serverORB->connections.size()).to.equal(1);
-                auto serverConn = serverORB->connections.front();
-                println("SERVER HAS ONE CONNECTION FROM {}:{} TO {}:{}", serverConn->localAddress(), serverConn->localPort(), serverConn->remoteAddress(),
-                        serverConn->remotePort());
-                expect(serverConn->localAddress()).to.equal("localhost");
-                expect(serverConn->localPort()).to.equal(9003);
-
-                expect(clientConn->localAddress()).to.equal(serverConn->remoteAddress());
-                expect(clientConn->localPort()).to.equal(serverConn->remotePort());
+                freeifaddrs(addrs);
+                // return;
             });
-#endif
         });
     });
 });

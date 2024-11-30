@@ -80,6 +80,10 @@
         "*.tcc": "cpp",
         "utility": "cpp",
         "thread": "cpp",
-        "span": "cpp"
+        "span": "cpp",
+        "__tree": "cpp",
+        "any": "cpp",
+        "random": "cpp",
+        "complex": "cpp"
     }
 }
