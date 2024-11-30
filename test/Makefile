@@ -224,6 +224,29 @@ util.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
 ../src/corba/net/stream2packet.o: ../src/corba/net/stream2packet.hh
 ../src/corba/net/stream2packet.o: ../src/corba/giop.hh ../src/corba/cdr.hh
 ../src/corba/net/stream2packet.o: ../src/corba/blob.hh
+../src/corba/net/tcp/protocol.o: ../src/corba/net/tcp/protocol.hh
+../src/corba/net/tcp/protocol.o: ../src/corba/net/protocol.hh
+../src/corba/net/tcp/protocol.o: ../src/corba/net/connection.hh
+../src/corba/net/tcp/protocol.o: ../src/corba/blob.hh
+../src/corba/net/tcp/protocol.o: ../src/corba/coroutine.hh
+../src/corba/net/tcp/protocol.o: ../upstream/async.cc/src/async.hh
+../src/corba/net/tcp/protocol.o: ../src/corba/net/util/socket.hh
+../src/corba/net/tcp/protocol.o: ../src/corba/orb.hh
+../src/corba/net/tcp/protocol.o: ../src/corba/coroutine.hh
+../src/corba/net/tcp/protocol.o: ../src/corba/giop.hh ../src/corba/cdr.hh
+../src/corba/net/tcp/protocol.o: ../src/corba/blob.hh
+../src/corba/net/tcp/protocol.o: ../src/corba/net/connection.hh
+../src/corba/net/tcp/protocol.o: ../src/corba/exception.hh
+../src/corba/net/tcp/connection.o: ../src/corba/net/connection.hh
+../src/corba/net/tcp/connection.o: ../src/corba/blob.hh
+../src/corba/net/tcp/connection.o: ../src/corba/coroutine.hh
+../src/corba/net/tcp/connection.o: ../upstream/async.cc/src/async.hh
+../src/corba/net/tcp/connection.o: ../src/corba/net/util/socket.hh
+../src/corba/net/tcp/connection.o: ../src/corba/orb.hh
+../src/corba/net/tcp/connection.o: ../src/corba/coroutine.hh
+../src/corba/net/tcp/connection.o: ../src/corba/giop.hh ../src/corba/cdr.hh
+../src/corba/net/tcp/connection.o: ../src/corba/blob.hh
+../src/corba/net/tcp/connection.o: ../src/corba/net/connection.hh
 ../src/corba/net/util/socket.o: ../src/corba/net/util/socket.hh
 ../src/corba/net/util/createAcceptKey.o: ../src/corba/net/util/createAcceptKey.hh
 ../upstream/kaffeeklatsch/src/kaffeeklatsch.o: ../upstream/kaffeeklatsch/src/kaffeeklatsch.hh
