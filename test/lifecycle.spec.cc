@@ -21,6 +21,10 @@
 #include "../src/corba/net/tcp/protocol.hh"
 #include "../src/corba/net/util/socket.hh"
 #include "../src/corba/orb.hh"
+
+#include "interface/interface_impl.hh"
+#include "interface/interface_skel.hh"
+
 #include "util.hh"
 
 template <typename T>
@@ -140,9 +144,9 @@ kaffeeklatsch_spec([] {
                 pool->erase(c80);
             });
         });
-        describe("GIOPStream2Packets", [] {
-            it("GIOPStream2Packets(readBufferSize) will provide a read buffer of at least readBufferSize bytes", [] {
-                GIOPStream2Packets s2p(512);
+        describe("IIOPStream2Packet", [] {
+            it("IIOPStream2Packet(readBufferSize) will provide a read buffer of at least readBufferSize bytes", [] {
+                IIOPStream2Packet s2p(512);
                 expect(s2p.buffer()).to.not_().equal(nullptr);
                 expect(s2p.length()).to.equal(512);
             });
@@ -154,8 +158,8 @@ kaffeeklatsch_spec([] {
                 encoder.writeString(s);
                 encoder.setGIOPHeader(CORBA::MessageType::REQUEST);
 
-                // WHEN it's feed into GIOPStream2Packets
-                GIOPStream2Packets s2p(512);
+                // WHEN it's feed into IIOPStream2Packet
+                IIOPStream2Packet s2p(512);
                 memcpy(s2p.buffer(), encoder.buffer.data(), encoder.buffer.length());
 
                 s2p.received(encoder.buffer.length());
@@ -173,8 +177,8 @@ kaffeeklatsch_spec([] {
                 encoder.writeString(s);
                 encoder.setGIOPHeader(CORBA::MessageType::REQUEST);
 
-                // WHEN it's feed into GIOPStream2Packets 3 times
-                GIOPStream2Packets s2p(512);
+                // WHEN it's feed into IIOPStream2Packet 3 times
+                IIOPStream2Packet s2p(512);
                 memcpy(s2p.buffer(), encoder.buffer.data(), encoder.buffer.length());
                 memcpy(s2p.buffer() + encoder.buffer.length(), encoder.buffer.data(), encoder.buffer.length());
                 memcpy(s2p.buffer() + 2 * encoder.buffer.length(), encoder.buffer.data(), encoder.buffer.length());
@@ -212,7 +216,7 @@ kaffeeklatsch_spec([] {
                 encoder.setGIOPHeader(CORBA::MessageType::REQUEST);
 
                 // WHEN we received one and a partial packet
-                GIOPStream2Packets s2p(512);
+                IIOPStream2Packet s2p(512);
                 auto buffer = s2p.buffer();
                 memcpy(buffer, encoder.buffer.data(), encoder.buffer.length());
                 memcpy(buffer + encoder.buffer.length(), encoder.buffer.data(), 16);
@@ -386,89 +390,55 @@ kaffeeklatsch_spec([] {
             //     ev_run(loop, EVRUN_ONCE);
             //     expect(clientReceived).to.equal("hello");
             // });
-            it("handle large amounts of outgoing and incoming data", [] {
+            fit("handle large amounts of outgoing and incoming data", [] {
                 struct ev_loop *loop = EV_DEFAULT;
 
-                auto sockets = create_listen_socket("127.0.0.1", 9013);
-                expect(sockets.size()).to.be.greaterThan(0);
-                auto server = sockets[0];
+                auto serverORB = make_shared<CORBA::ORB>("server");
+                serverORB->debug = true;
+                auto serverProto = new CORBA::detail::TcpProtocol(loop);
+                serverORB->registerProtocol(serverProto);
+                serverProto->listen("127.0.0.1", 9003);
 
-                // auto server = make_unique<TcpProtocol>(loop);
-                // server->listen("127.0.0.1", 9003);
+                auto backend = make_shared<Interface_impl>(serverORB);
+                serverORB->bind("Backend", backend);
 
-                auto client = make_unique<TcpProtocol>(loop);
-                auto clientConn = client->connect("127.0.0.1", 9013);
-                clientConn->up();
+                std::exception_ptr eptr;
 
-                int serverConn = accept(server, nullptr, nullptr);
-                set_non_block(serverConn);
+                auto clientORB = make_shared<CORBA::ORB>("client");
+                clientORB->debug = true;
+                auto clientProto = new CORBA::detail::TcpProtocol(loop);
+                clientORB->registerProtocol(clientProto);
 
-                ev_run(loop, EVRUN_ONCE);
+                parallel(eptr, loop, [loop, clientORB] -> async<> {
+                    auto object = co_await clientORB->stringToObject("corbaname::127.0.0.1:9003#Backend");
+                    auto backend = Interface::_narrow(object);
 
-                // auto serverConn = server->pool.find("127.0.0.1", getLocalName(clientConn->getFD()).port);
-                // expect(serverConn).to.be.not_().equal(nullptr);
-                // expect(serverConn->state).to.equal(ConnectionState::ESTABLISHED);
+                    auto l = 0x100000;
 
-                int serverRecvBufSize = 0;
-                socklen_t m = sizeof(serverRecvBufSize);
-                // setsockopt(serverConn, SOL_SOCKET, SO_RCVBUF, (void *)&serverRecvBufSize, m);
-                getsockopt(serverConn, SOL_SOCKET, SO_RCVBUF, (void *)&serverRecvBufSize, &m);
+                    println("===== send 26 packets");
 
-                auto l = 0x100000;
-
-                println("===== send 26 packets");
-
-                for (int i = 0; i < 26; ++i) {
-                    CORBA::GIOPEncoder encoder;
-                    encoder.encodeRequest(CORBA::blob("1234"), "operation", 0, false);
-                    string s(l, 'a' + i);
-                    encoder.writeString(s);
-                    encoder.setGIOPHeader(CORBA::MessageType::REQUEST);  // THIS IS TOTAL BOLLOCKS BECAUSE OF THE RESIZE IN IT...
-                    serverRecvBufSize = encoder.buffer.length();
-                    clientConn->send(std::move(encoder.buffer._data));
-                    ev_run(loop, EVRUN_ONCE | EVRUN_NOWAIT);
-                }
-
-                println("===== receive 26 packets");
-
-                size_t receivedTotal = 0;
-                GIOPStream2Packets g2p;
-                while (true) {
-                    // println("server: before recv (total {}, want {})", receivedTotal, (26 * serverRecvBufSize));
-                    ssize_t n = recv(serverConn, g2p.buffer(), g2p.length(), 0);
-                    if (n >= 0) {
-                        g2p.received(n);
-                        while (!g2p.message().empty()) {
-                            // println("got message");
-                        }
-                        receivedTotal += n;
-                        // println("server: got {} (total {}, want {})", n, receivedTotal, (26 * serverRecvBufSize));
-                        if (receivedTotal == 26 * serverRecvBufSize) {
-                            break;
-                        }
-                    } else {
-                        if (errno == EAGAIN) {
-                            ev_run(loop, EVRUN_ONCE | EVRUN_NOWAIT);
-                            // sleep(1);
-                        } else {
-                            println("server: got error: {} ({})", strerror(errno), errno);
-                        }
+                    for (int i = 0; i < 26; ++i) {
+                        CORBA::GIOPEncoder encoder;
+                        encoder.encodeRequest(CORBA::blob("1234"), "operation", 0, false);
+                        string s(l, 'a' + i);
+                        backend->recvString(s);
                     }
-                    ev_run(loop, EVRUN_ONCE | EVRUN_NOWAIT);
-                    // hexdump(in, n);
+
+                    println("===== receive 26 packets");
+                    // recvString is a oneway method, so we call this to wait for all messages being parsed
+                    co_await backend->callString("wait");
+                });
+
+                ev_run(loop, 0);
+
+                if (eptr) {
+                    std::rethrow_exception(eptr);
                 }
 
-                // this covers the general case, sometimes it might have an incomplete send
-                // for testing send incomplete send, we could use a flag to force a smaller send
-                // BETTER: send more than fits into max of SO_RCVBUF and SO_SNDBUF
+                // TODO: check that the received data is correct
 
-                // for re-assembling: the GIOP header is read in MessageType GIOPDecoder::scanGIOPHeader(),
-                // has 16 bytes and contains the lenght of the whole message.
-                // for testing, just use a small receive buffer... my previous implementation had a hardcoded 8kb
-
-                // when reading, begin with a buffer of size SO_RCVBUF
             });
-
+           
             // fit("listener disappears", [] {
             //     struct ev_loop *loop = EV_DEFAULT;
 

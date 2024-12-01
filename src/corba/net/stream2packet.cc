@@ -12,8 +12,8 @@ namespace detail {
 
 #define DBG(CMD)
 
-char *GIOPStream2Packets::buffer() {
-    DBG(println("GIOPStream2Packets::buffer()");)
+char *IIOPStream2Packet::buffer() {
+    DBG(println("IIOPStream2Packet::buffer()");)
     DBG(println("    enter                     : offset={}, size={}, reserved={}, messageSize={}", offset, size, reserved, messageSize);)
     if (reserved - size < receiveBufferSize) {
         reserved += receiveBufferSize;
@@ -23,8 +23,8 @@ char *GIOPStream2Packets::buffer() {
     return data + size;
 }
 
-std::span<char> GIOPStream2Packets::message() {
-    DBG(println("GIOPStream2Packets::message()");)
+std::span<char> IIOPStream2Packet::message() {
+    DBG(println("IIOPStream2Packet::message()");)
     DBG(println("    get message               : offset={}, size={}, reserved={}, messageSize={}", offset, size, reserved, messageSize);)
     if (messageSize == 0 && size - offset >= 16) {
         CORBA::CDRDecoder cdr(data + offset, size - offset);

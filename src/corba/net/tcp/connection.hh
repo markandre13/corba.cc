@@ -2,6 +2,7 @@
 
 #include "protocol.hh"
 #include "../connection.hh"
+#include "../stream2packet.hh"
 
 #include <memory>
 #include <vector>
@@ -14,9 +15,6 @@ class Stub;
 class GIOPDecoder;
 
 namespace detail {
-
-// class read_handler_t;
-// class write_handler_t;
 
 class TcpConnection;
 
@@ -31,16 +29,21 @@ struct write_handler_t {
 };
 
 class TcpConnection : public Connection {
+        // file descriptor handling
         int fd = -1;
-        // std::unique_ptr<read_handler_t> readHandler;
-        // std::unique_ptr<write_handler_t> writeHandler;
+        ev_io read_watcher;
+        ev_io write_watcher;
+        static void libev_read_cb(struct ev_loop *loop, struct ev_io *watcher, int revents);
+        static void libev_write_cb(struct ev_loop *loop, struct ev_io *watcher, int revents);
 
+        // stream to packet
+        IIOPStream2Packet stream2packet;
+
+        // packet to stream
         std::list<std::unique_ptr<std::vector<char>>> sendBuffer;
         ssize_t bytesSend = 0;
 
     public:
-        ev_io read_watcher;
-        ev_io write_watcher;
 
         TcpConnection(Protocol *protocol, const char *host, uint16_t port);
         ~TcpConnection();
@@ -53,6 +56,7 @@ class TcpConnection : public Connection {
 
         void up() override;
         void send(std::unique_ptr<std::vector<char>> &&) override;
+        
         void recv(void *buffer, size_t nbyte);
 
         void print();

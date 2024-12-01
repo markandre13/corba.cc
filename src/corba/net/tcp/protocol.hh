@@ -10,8 +10,6 @@ class GIOPDecoder;
 
 namespace detail {
 
-// class listen_handler_t;
-
 class TcpProtocol;
 
 struct listen_handler_t {
@@ -20,9 +18,6 @@ struct listen_handler_t {
 };
 
 class TcpProtocol : public Protocol {
-    // public:
-    //     ConnectionPool pool; // REMOVE ME??? Use one in ORB instead???
-
     private:
         friend class TcpConnection;
 

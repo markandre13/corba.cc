@@ -13,7 +13,7 @@ namespace detail {
 /**
  * Am internal helper class to convert a byte stream into CORBA IIOP packets.
  */
-class GIOPStream2Packets {
+class IIOPStream2Packet {
     public:
         size_t receiveBufferSize = 0x20000;
         char *data = nullptr;
@@ -23,8 +23,8 @@ class GIOPStream2Packets {
         size_t offset = 0;
         size_t messageSize = 0;
 
-        GIOPStream2Packets(size_t receiveBufferSize = 0x20000) : receiveBufferSize(receiveBufferSize) {}
-        ~GIOPStream2Packets() { free(data); }
+        IIOPStream2Packet(size_t receiveBufferSize = 0x20000) : receiveBufferSize(receiveBufferSize) {}
+        ~IIOPStream2Packet() { free(data); }
 
         /**
          * get buffer for next read operation
@@ -40,7 +40,7 @@ class GIOPStream2Packets {
          * inform about how many bytes have been read into buffer
          */
         inline void received(size_t nbytes) {
-            DBG(println("GIOPStream2Packets::received({})", nbytes);)
+            DBG(println("IIOPStream2Packet::received({})", nbytes);)
             size += nbytes;
             DBG(println("    received more data        : offset={}, size={}, reserved={}, messageSize={}", offset, size, reserved, messageSize);)
         }

@@ -30,6 +30,9 @@ class Interface_impl : public Interface_skel {
         CORBA::async<double> callDouble(double value) override { co_return value; }
 
         CORBA::async<std::string> callString(const std::string_view &value) override { co_return std::string(value); }
+        void recvString(const std::string_view &value) override { 
+            std::println("Interface::recvString({} characters of '{}')", value.size(), value[0]);
+        }
         CORBA::async<CORBA::blob> callBlob(const CORBA::blob_view &value) override { co_return CORBA::blob(value); }
 
         CORBA::async<RGBA> callStruct(const RGBA &value) override { co_return value; }

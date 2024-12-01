@@ -10,9 +10,6 @@ using namespace std;
 namespace CORBA {
 namespace detail {
 
-static void libev_read_cb(struct ev_loop *loop, struct ev_io *watcher, int revents);
-static void libev_write_cb(struct ev_loop *loop, struct ev_io *watcher, int revents);
-
 static string prefix(TcpConnection *conn) {
     string result;
     if (conn->protocol && conn->protocol->orb && conn->protocol->orb->logname) {
@@ -144,8 +141,9 @@ void TcpConnection::canWrite() {
 
 void TcpConnection::canRead() {
     println("{}TcpConnection::canRead()", prefix(this));
-    char buffer[8192];  // TODO: put GIOPStream2Packets in here!!!
-    ssize_t nbytes = ::recv(fd, buffer, sizeof(buffer), 0);
+    ssize_t nbytes = ::recv(fd, stream2packet.buffer(), stream2packet.length(), 0);
+    // char buffer[8192];  // TODO: put IIOPStream2Packet in here!!!
+    // ssize_t nbytes = ::recv(fd, buffer, sizeof(buffer), 0);
     if (nbytes < 0) {
         if (errno == EAGAIN) {
             println("{}TcpConnection::canRead(): {} (EGAIN)", prefix(this), strerror(errno));
@@ -166,7 +164,14 @@ void TcpConnection::canRead() {
     }
     println("{}recv'd {} bytes", prefix(this), nbytes);
     if (nbytes > 0) {
-        recv(buffer, nbytes);
+        stream2packet.received(nbytes);
+        while(true) {
+            auto msg = stream2packet.message();
+            if (msg.empty()) {
+                break;
+            }
+            recv(msg.data(), msg.size());
+        }
     }
 }
 
@@ -201,12 +206,12 @@ void TcpConnection::up() {
 TcpConnection::TcpConnection(Protocol *protocol, const char *host, uint16_t port) : Connection(protocol, host, port) {
 }
 
-void libev_read_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
+void TcpConnection::libev_read_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
     auto connection = reinterpret_cast<TcpConnection *>(reinterpret_cast<char*>(watcher) - offsetof(TcpConnection, read_watcher));
     connection->canRead();
 }
 
-void libev_write_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
+void TcpConnection::libev_write_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
     auto connection = reinterpret_cast<TcpConnection *>(reinterpret_cast<char*>(watcher) - offsetof(TcpConnection, write_watcher));
     connection->canWrite();
 }

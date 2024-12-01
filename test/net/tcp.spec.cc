@@ -57,11 +57,10 @@ kaffeeklatsch_spec([] {
 
                 auto clientORB = make_shared<CORBA::ORB>("client");
                 clientORB->debug = true;
+                auto clientProto = new CORBA::detail::TcpProtocol(loop);
+                clientORB->registerProtocol(clientProto);
 
-                parallel(eptr, loop, [loop, clientORB] -> async<> {
-                    auto protocol = new CORBA::detail::TcpProtocol(loop);
-                    clientORB->registerProtocol(protocol);
-                    clientORB->debug = true;
+                parallel(eptr, loop, [clientORB] -> async<> {
 
                     println("CLIENT: resolve 'Backend'");
                     auto object = co_await clientORB->stringToObject("corbaname::127.0.0.1:9003#Backend");

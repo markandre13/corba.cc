@@ -28,6 +28,7 @@ interface Interface {
     double callDouble(in double value);
 
     string callString(in string value);
+    oneway void recvString(in string value); 
     sequence<octet> callBlob(in sequence<octet> value);
 
     RGBA callStruct(in RGBA rgba);

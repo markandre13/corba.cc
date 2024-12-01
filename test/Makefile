@@ -84,7 +84,7 @@ valgrind:
 clean:
 	rm -f $(OBJ) $(IDL_GEN) $(APP)
 
-$(APP): $(OBJ)
+$(APP): $(OBJ) 
 	@echo "linking..."
 	$(CXX) $(LFLAGS) $(LIB) $(OBJ) -o $(APP)
 
@@ -117,11 +117,19 @@ lifecycle.spec.o: ../src/corba/blob.hh ../src/corba/coroutine.hh
 lifecycle.spec.o: ../upstream/async.cc/src/async.hh
 lifecycle.spec.o: ../src/corba/net/util/socket.hh
 lifecycle.spec.o: ../src/corba/net/connection.hh
+lifecycle.spec.o: ../src/corba/net/stream2packet.hh
 lifecycle.spec.o: ../src/corba/net/tcp/protocol.hh
 lifecycle.spec.o: ../src/corba/net/util/socket.hh ../src/corba/orb.hh
 lifecycle.spec.o: ../src/corba/coroutine.hh ../src/corba/giop.hh
-lifecycle.spec.o: ../src/corba/net/connection.hh util.hh
-lifecycle.spec.o: ../src/corba/hexdump.hh ../src/corba/coroutine.hh
+lifecycle.spec.o: ../src/corba/net/connection.hh interface/interface_impl.hh
+lifecycle.spec.o: interface/interface_skel.hh ../src/corba/corba.hh
+lifecycle.spec.o: ../src/corba/orb.hh ../src/corba/skeleton.hh
+lifecycle.spec.o: ../src/corba/object.hh ../src/corba/stub.hh
+lifecycle.spec.o: ../src/corba/ior.hh ../src/corba/exception.hh
+lifecycle.spec.o: ../src/corba/orb.hh ../src/corba/giop.hh
+lifecycle.spec.o: ../src/corba/coroutine.hh interface/interface.hh
+lifecycle.spec.o: interface/interface_skel.hh util.hh ../src/corba/hexdump.hh
+lifecycle.spec.o: ../src/corba/coroutine.hh
 net/tcp.spec.o: interface/interface_impl.hh interface/interface_skel.hh
 net/tcp.spec.o: ../src/corba/corba.hh ../src/corba/orb.hh
 net/tcp.spec.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
@@ -137,7 +145,8 @@ net/tcp.spec.o: ../src/corba/corba.hh ../src/corba/net/tcp/protocol.hh
 net/tcp.spec.o: ../src/corba/net/protocol.hh ../src/corba/net/connection.hh
 net/tcp.spec.o: ../src/corba/net/tcp/connection.hh
 net/tcp.spec.o: ../src/corba/net/tcp/protocol.hh
-net/tcp.spec.o: ../src/corba/net/connection.hh util.hh
+net/tcp.spec.o: ../src/corba/net/connection.hh
+net/tcp.spec.o: ../src/corba/net/stream2packet.hh util.hh
 net/tcp.spec.o: ../src/corba/hexdump.hh ../src/corba/coroutine.hh
 interface/interface.o: ../src/corba/corba.hh ../src/corba/orb.hh
 interface/interface.o: ../src/corba/coroutine.hh
