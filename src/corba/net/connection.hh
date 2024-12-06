@@ -44,9 +44,7 @@ class Connection {
         friend class CORBA::ORB;
 
         /**
-         * for suspending coroutines via
-         *   co_await interlock.suspend(requestId)
-         *
+         * for suspending coroutines via co_await interlock.suspend(requestId)
          */
         interlock<uint32_t, GIOPDecoder *> interlock;
 
@@ -60,6 +58,7 @@ class Connection {
         HostAndPort remote;
 
         Connection(Protocol *protocol, const char *host, uint16_t port) : protocol(protocol), remote(HostAndPort{host, port}) {}
+        virtual ~Connection();
 
         ConnectionState state = ConnectionState::IDLE;
 
@@ -84,9 +83,7 @@ class ConnectionPool {
         std::set<std::shared_ptr<Connection>> connections;
 
     public:
-        inline void insert(std::shared_ptr<Connection> conn) { 
-            connections.insert(conn);
-        }
+        inline void insert(std::shared_ptr<Connection> conn) { connections.insert(conn); }
         inline void erase(std::shared_ptr<Connection> conn) { connections.erase(conn); }
         inline void clear() { connections.clear(); }
         inline size_t size() const { return connections.size(); }

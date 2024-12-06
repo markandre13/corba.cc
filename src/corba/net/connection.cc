@@ -5,6 +5,8 @@ namespace CORBA {
 
 namespace detail {
 
+Connection::~Connection() {}
+
 std::string Connection::str() const { 
     if (protocol) {
         return protocol->local.str() + " -> " + remote.str();

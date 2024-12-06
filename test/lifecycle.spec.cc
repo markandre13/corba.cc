@@ -21,10 +21,8 @@
 #include "../src/corba/net/tcp/protocol.hh"
 #include "../src/corba/net/util/socket.hh"
 #include "../src/corba/orb.hh"
-
 #include "interface/interface_impl.hh"
 #include "interface/interface_skel.hh"
-
 #include "util.hh"
 
 template <typename T>
@@ -322,75 +320,7 @@ kaffeeklatsch_spec([] {
                 // expect(system("/sbin/iptables -v -L INPUT")).to.equal(0);
             });
 
-            // it("listener, no data transmitted: IDLE -> INPROGRESS -> ESTABLISHED", [] {
-            //     struct ev_loop *loop = EV_DEFAULT;
-
-            //     // GIVEN a listening server
-            //     auto server = make_unique<TcpProtocol>(loop);
-            //     server->listen("127.0.0.1", 9003);
-
-            //     // GIVEN a client
-            //     auto client = make_unique<TcpProtocol>(loop);
-            //     auto clientConn = client->connect("127.0.0.1", 9003);
-
-            //     // WHEN the client is asked to connect
-            //     clientConn->up();
-
-            //     // THEN the connection is in state INPROGRESS
-            //     expect(clientConn->state).to.equal(ConnectionState::INPROGRESS);
-
-            //     // WHEN the server accepts the connection
-            //     ev_run(loop, EVRUN_ONCE);
-
-            //     // THEN both server and client connections are in state ESTABLISHED
-            //     expect(clientConn->state).to.equal(ConnectionState::ESTABLISHED);
-
-            //     TcpConnection *serverConn = nullptr;
-            //     while (serverConn == nullptr) {
-            //         ev_run(loop, EVRUN_ONCE | EVRUN_NOWAIT);
-            //         serverConn = server->pool.find("127.0.0.1", getLocalName(clientConn->getFD()).port);
-            //     }
-            //     expect(serverConn->state).to.equal(ConnectionState::ESTABLISHED);
-            // });
-
-            // xit("when connections are established, data can be transmitted in both directions", [] {
-            //     struct ev_loop *loop = EV_DEFAULT;
-
-            //     auto server = make_unique<TcpProtocol>(loop);
-            //     server->listen("localhost", 9003);
-
-            //     auto client = make_unique<TcpProtocol>(loop);
-            //     auto clientConn = client->connect("localhost", 9003);
-            //     clientConn->up();
-
-            //     ev_run(loop, EVRUN_ONCE);
-            //     expect(clientConn->state).to.equal(ConnectionState::ESTABLISHED);
-
-            //     auto serverConn = server->pool.find("::1", getLocalName(clientConn->getFD()).port);
-            //     expect(serverConn).to.be.not_().equal(nullptr);
-            //     expect(serverConn->state).to.equal(ConnectionState::ESTABLISHED);
-
-            //     string serverReceived;
-            //     serverConn->receiver = [&](void *buffer, size_t nbytes) {
-            //         serverReceived.assign((char *)buffer, nbytes);
-            //     };
-            //     clientConn->send(str2vec("hello"));
-
-            //     expect(clientConn->state).to.equal(ConnectionState::ESTABLISHED);
-
-            //     ev_run(loop, EVRUN_ONCE);
-            //     expect(serverReceived).to.equal("hello");
-
-            //     string clientReceived;
-            //     clientConn->receiver = [&](void *buffer, size_t nbytes) {
-            //         clientReceived.assign((char *)buffer, nbytes);
-            //     };
-
-            //     serverConn->send(str2vec("hello"));
-            //     ev_run(loop, EVRUN_ONCE);
-            //     expect(clientReceived).to.equal("hello");
-            // });
-            fit("handle large amounts of outgoing and incoming data", [] {
+            it("handle large amounts of outgoing and incoming data", [] {
                 struct ev_loop *loop = EV_DEFAULT;
 
                 auto serverORB = make_shared<CORBA::ORB>("server");
@@ -436,58 +366,79 @@ kaffeeklatsch_spec([] {
                 }
 
                 // TODO: check that the received data is correct
-
             });
-           
-            // fit("listener disappears", [] {
-            //     struct ev_loop *loop = EV_DEFAULT;
 
-            //     // GIVEN a listening server
-            //     auto server = make_unique<TcpProtocol>(loop);
-            //     server->listen("127.0.0.1", 9003);
+            fit("listener disappears", [] {
+                struct ev_loop *loop = EV_DEFAULT;
 
-            //     // GIVEN a client
-            //     auto client = make_unique<TcpProtocol>(loop);
-            //     auto clientConn = client->connect("127.0.0.1", 9003);
+                auto serverORB = make_shared<CORBA::ORB>("server");
+                serverORB->debug = true;
+                auto serverProto = new CORBA::detail::TcpProtocol(loop);
+                serverORB->registerProtocol(serverProto);
+                serverProto->listen("127.0.0.1", 9003);
 
-            //     // WHEN the client is asked to connect
-            //     clientConn->up();
-            //     ev_run(loop, EVRUN_ONCE);
-            //     expect(clientConn->state).to.equal(ConnectionState::ESTABLISHED);
+                auto backend = make_shared<Interface_impl>(serverORB);
+                serverORB->bind("Backend", backend);
 
-            //     TcpConnection *serverConn = nullptr;
-            //     while (serverConn == nullptr) {
-            //         ev_run(loop, EVRUN_ONCE | EVRUN_NOWAIT);
-            //         serverConn = server->pool.find("127.0.0.1", getLocalName(clientConn->getFD()).port);
-            //     }
-            //     expect(serverConn->state).to.equal(ConnectionState::ESTABLISHED);
+                std::exception_ptr eptr;
 
-            //     println("=======================================");
+                auto clientORB = make_shared<CORBA::ORB>("client");
+                clientORB->debug = true;
+                auto clientProto = new CORBA::detail::TcpProtocol(loop);
+                clientORB->registerProtocol(clientProto);
 
-            //     // i guess, unless we try to send and fail or don't get a reply in time, we won't notice...
+                parallel(eptr, loop, [&] -> async<> {
+                    auto object = co_await clientORB->stringToObject("corbaname::127.0.0.1:9003#Backend");
+                    auto backend = Interface::_narrow(object);
 
-            //     ignore_sig_pipe();
+                    co_await backend->callString("one");
 
-            //     server.reset();
-            //     // ev_run(loop, EVRUN_ONCE);
+                    println("======================== close 1st server orb");
+                    serverORB.reset();
+                    println("=============================================");
 
-            //     for (int i = 0; i < 5; ++i) {
-            //         sleep(1);
-            //         clientConn->send(str2vec("hello"));
-            //         ev_run(loop, EVRUN_ONCE | EVRUN_NOWAIT);
-            //     }
-            //     println("=======================================");
+                    auto serverORB2 = make_shared<CORBA::ORB>("server");
+                    serverORB2->debug = true;
+                    auto serverProto2 = new CORBA::detail::TcpProtocol(loop);
+                    serverORB2->registerProtocol(serverProto2);
+                    serverProto2->listen("127.0.0.1", 9003);
 
-            //     server = make_unique<TcpProtocol>(loop);
-            //     server->listen("127.0.0.1", 9003);
-            //     for (int i = 0; i < 10; ++i) {
-            //         sleep(1);
-            //         clientConn->send(str2vec("hello"));
-            //         ev_run(loop, EVRUN_ONCE | EVRUN_NOWAIT);
-            //     }
+                    co_await backend->callString("two");
+                });
 
-            //     println("=======================================");
-            // });
+                ev_run(loop, 0);
+
+                if (eptr) {
+                    std::rethrow_exception(eptr);
+                }
+            });
+
+            // scenarios to test:
+            // * what happens when we have a drop rule?
+            //   * before the connection comes up
+            //   * when the connection is idle
+            //   * when we try to send
+            // * other rules than the drop rule
+
+            // what exceptions are thrown when?
+
+            // https://users.cs.northwestern.edu/~agupta/cs340/project2/TCPIP_State_Transition_Diagram.pdf
+            // SYN
+            // ACK
+            // FIN: last packet from sender
+            // RST: reset
+
+            // how a TCP connection is opened
+            // SYN ->
+            // <- SYN-ACK
+            // ACK ->
+            
+            // how a TCP connection is closed
+            // FIN ->
+            // <- ACK
+            // <- FIN
+            // -> ACK
+
 
             it("listener disappears, comes back again");
 
