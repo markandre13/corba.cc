@@ -320,7 +320,7 @@ kaffeeklatsch_spec([] {
                 // expect(system("/sbin/iptables -v -L INPUT")).to.equal(0);
             });
 
-            it("handle large amounts of outgoing and incoming data", [] {
+            fit("handle large amounts of outgoing and incoming data", [] {
                 struct ev_loop *loop = EV_DEFAULT;
 
                 auto serverORB = make_shared<CORBA::ORB>("server");
@@ -368,7 +368,7 @@ kaffeeklatsch_spec([] {
                 // TODO: check that the received data is correct
             });
 
-            fit("listener disappears", [] {
+            it("listener disappears", [] {
                 struct ev_loop *loop = EV_DEFAULT;
 
                 auto serverORB = make_shared<CORBA::ORB>("server");

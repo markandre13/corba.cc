@@ -1,0 +1,4 @@
+interface Basic {
+    void ping();
+    oneway void pong();
+};

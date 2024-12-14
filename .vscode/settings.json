@@ -84,6 +84,17 @@
         "__tree": "cpp",
         "any": "cpp",
         "random": "cpp",
-        "complex": "cpp"
+        "complex": "cpp",
+        "condition_variable": "cpp",
+        "coroutine": "cpp",
+        "iterator": "cpp",
+        "memory_resource": "cpp",
+        "numeric": "cpp",
+        "fstream": "cpp",
+        "iomanip": "cpp",
+        "numbers": "cpp",
+        "semaphore": "cpp",
+        "stop_token": "cpp",
+        "text_encoding": "cpp"
     }
 }
