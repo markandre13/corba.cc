@@ -2,15 +2,24 @@ APP=tests
 
 MEM=-fsanitize=address -fsanitize=leak
 
+# brew install llvm libev nettle wslay
+
+# sudo /bin/bash
+# cd /Library/Developer/CommandLineTools/SDKs
+# ln -s /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.sdk
+
 # macOS
 ifeq ($(shell uname -s),Darwin)
-CXX=/usr/local/opt/llvm/bin/clang++
+LLVM_DIR=$(shell for x in /opt/homebrew/opt/llvm /usr/local/opt/llvm ; do if test -d $$x ; then echo $$x ; break ; fi ; done)
+CXX=$(LLVM_DIR)/bin/clang++
 OS_CFLAGS=\
-	-I/usr/local/opt/llvm/include/c++ \
+	-I$(LLVM_DIR)/include/c++ \
+	-I/opt/homebrew/include \
 	-I/usr/local/include
 OS_LFLAGS=\
-	-L/usr/local/opt/llvm/lib/c++ \
-	-Wl,-rpath,/usr/local/opt/llvm/lib/c++ \
+	-L$(LLVM_DIR)/lib/c++ \
+	-Wl,-rpath,$(LLVM_DIR)/lib/c++ \
+	-L/opt/homebrew/lib/ \
 	-L/usr/local/lib
 endif
 
