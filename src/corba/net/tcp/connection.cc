@@ -92,8 +92,10 @@ void TcpConnection::canWrite() {
             fd = -1;
             return;
         } else {
-            println("{}TcpConnection::canWrite(): INPROGRESS -> ESTABLISHED", prefix(this));
-            state = ConnectionState::ESTABLISHED;
+            // NOTE: this only means that we can write to the operating system's buffer, not that data
+            //       will be send to the remote peer
+            // println("{}TcpConnection::canWrite(): INPROGRESS -> ESTABLISHED", prefix(this));
+            // state = ConnectionState::ESTABLISHED;
         }
     }
 
@@ -167,6 +169,7 @@ void TcpConnection::canRead() {
     println("{}TcpConnection::canRead(): state = {}", prefix(this), std::to_underlying(state));
     if (state == ConnectionState::INPROGRESS) {
         state = ConnectionState::ESTABLISHED;
+        stopTimer();
     }
     println("{}recv'd {} bytes", prefix(this), nbytes);
     if (nbytes > 0) {
@@ -195,8 +198,10 @@ void TcpConnection::up() {
         throw runtime_error(format("TcpConnection()::up(): {}: {}", remote.str(), strerror(errno)));
     }
 
+    // TODO: move these into the constructor?
     ev_io_init(&read_watcher, libev_read_cb, fd, EV_READ);
     ev_io_init(&write_watcher, libev_write_cb, fd, EV_WRITE);
+    startTimer();
 
     if (errno == EINPROGRESS) {
         println("{}TcpConnection::up(): -> INPROGRESS", prefix(this));
@@ -220,6 +225,11 @@ void TcpConnection::libev_read_cb(struct ev_loop *loop, struct ev_io *watcher, i
 void TcpConnection::libev_write_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
     auto connection = reinterpret_cast<TcpConnection *>(reinterpret_cast<char*>(watcher) - offsetof(TcpConnection, write_watcher));
     connection->canWrite();
+}
+
+void TcpConnection::libev_timer_cb(struct ev_loop *loop, struct ev_timer *watcher, int revents) {
+    auto connection = reinterpret_cast<TcpConnection *>(reinterpret_cast<char*>(watcher) - offsetof(TcpConnection, timer_watcher));
+    connection->timer();
 }
 
 void TcpConnection::stopReadHandler() {
@@ -250,6 +260,29 @@ void TcpConnection::startWriteHandler() {
         return;
     }
     ev_io_start(protocol->loop, &write_watcher);
+}
+
+void TcpConnection::startTimer() {
+    println("startTimer");
+    ev_timer_init(&timer_watcher, libev_timer_cb, 1, 0.);
+    ev_timer_start(protocol->loop, &timer_watcher);
+}
+void TcpConnection::stopTimer() {
+    println("stopTimer");
+    ev_timer_stop(protocol->loop, &timer_watcher);
+}
+void TcpConnection::timer() {
+    println("timer {}", std::to_underlying(state));
+    if (state == ConnectionState::INPROGRESS) {
+        println("INPROGRESS -> TIMEOUT");
+        stopReadHandler();
+        ::close(fd);
+        fd = -1;
+        state = ConnectionState::IDLE;
+        while(!interlock.empty()) {
+            interlock.resume(interlock.begin()->first, make_exception_ptr(TIMEOUT(0, CORBA::CompletionStatus::NO)));
+        }
+    }
 }
 
 void TcpConnection::print() {

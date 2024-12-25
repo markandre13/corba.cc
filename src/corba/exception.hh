@@ -116,7 +116,13 @@ class OBJECT_NOT_EXIST : public SystemException {
         OBJECT_NOT_EXIST(uint32_t minor, CompletionStatus completed) : SystemException(minor, completed) {}
         const char *_rep_id() const noexcept override { return "IDL:omg.org/CORBA/OBJECT_NOT_EXIST:1.0"; }
 };
-// TIMEOUT
+
+class TIMEOUT : public SystemException {
+    public:
+        TIMEOUT(uint32_t minor, CompletionStatus completed) : SystemException(minor, completed) {}
+        const char *_rep_id() const noexcept override { return "IDL:omg.org/CORBA/TIMEOUT:1.0"; }
+};
+
 // TRANSACTION_ROLLEDBACK
 
 /**

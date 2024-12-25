@@ -31,7 +31,7 @@ enum class ConnectionState {
      */
     IDLE,
     /**
-     * The connection needs to be establish but attempt to connect to the remote host has been made yet.
+     * The connection needs to be establish but no attempt to connect to the remote host has been made yet.
      */
     PENDING,
     /**

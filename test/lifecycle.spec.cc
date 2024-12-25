@@ -414,7 +414,7 @@ kaffeeklatsch_spec([] {
                 }
             });
 
-            it("throw TRANSIENT exception when initial connection to peer fails", [] {
+            fit("throw TRANSIENT exception when initial connection to peer fails", [] {
                 auto clientORB = make_shared<CORBA::ORB>("client");
                 clientORB->debug = true;
 
@@ -434,12 +434,39 @@ kaffeeklatsch_spec([] {
                     .to.throw_(CORBA::TRANSIENT(0, CORBA::CompletionStatus::YES));
             });
 
+            fit("throw TIMEOUT exception when initial connection to peer is not accepted in time", [] {
+                auto fds = create_listen_socket("127.0.0.1", 9003);
+
+                auto clientORB = make_shared<CORBA::ORB>("client");
+                clientORB->debug = true;
+
+                struct ev_loop *loop = EV_DEFAULT;
+                auto clientProto = new CORBA::detail::TcpProtocol(loop);
+                clientORB->registerProtocol(clientProto);
+
+                std::exception_ptr eptr;
+                parallel(eptr, loop, [&] -> async<> {
+                    auto object = co_await clientORB->stringToObject("corbaname::127.0.0.1:9003#Backend");
+                    auto backend = Interface::_narrow(object);
+                    co_await backend->callString("one");
+                });
+                ev_run(loop, 0);
+
+                expect([&] { std::rethrow_exception(eptr); })
+                    .to.throw_(CORBA::TIMEOUT(0, CORBA::CompletionStatus::YES));
+
+                for(auto &fd: fds) {
+                    close(fd);
+                }
+            });
+
             // scenarios to test:
             // * what happens when we have a drop rule?
             //   * before the connection comes up
             //   * when the connection is idle
             //   * when we try to send
             // * other rules than the drop rule
+            // * concurrent operations
 
             // what exceptions are thrown when?
 

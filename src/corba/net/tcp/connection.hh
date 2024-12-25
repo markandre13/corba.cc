@@ -16,25 +16,15 @@ class GIOPDecoder;
 
 namespace detail {
 
-class TcpConnection;
-
-struct read_handler_t {
-        ev_io watcher;
-        TcpConnection *connection;
-};
-
-struct write_handler_t {
-        ev_io watcher;
-        TcpConnection *connection;
-};
-
 class TcpConnection : public Connection {
         // file descriptor handling
         int fd = -1;
         ev_io read_watcher;
         ev_io write_watcher;
+        ev_timer timer_watcher;
         static void libev_read_cb(struct ev_loop *loop, struct ev_io *watcher, int revents);
         static void libev_write_cb(struct ev_loop *loop, struct ev_io *watcher, int revents);
+        static void libev_timer_cb(struct ev_loop *loop, struct ev_timer *watcher, int revents);
 
         // stream to packet
         IIOPStream2Packet stream2packet;
@@ -50,6 +40,7 @@ class TcpConnection : public Connection {
         void accept(int fd);
         void canWrite();
         void canRead();
+        void timer();
 
         std::function<void(void *buffer, size_t nbyte)> receiver;
 
@@ -66,6 +57,8 @@ class TcpConnection : public Connection {
         void stopReadHandler();
         void startWriteHandler();
         void stopWriteHandler();
+        void startTimer();
+        void stopTimer();
 };
 
 }  // namespace detail
