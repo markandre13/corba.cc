@@ -75,10 +75,10 @@ void libev_accept_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
     }
 
     auto peer = getPeerName(fd);
-    new TcpConnection(handler->protocol, peer.host.c_str(), peer.port);
     auto connection = make_shared<TcpConnection>(handler->protocol, peer.host.c_str(), peer.port);
-    connection->accept(fd);
     handler->protocol->orb->connections.insert(connection);
+    connection->accept(fd);
+
     println("{}accepted new connection {}", prefix(handler->protocol), connection->str());
 }
 

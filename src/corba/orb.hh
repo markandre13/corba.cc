@@ -53,6 +53,7 @@ class ORB : public std::enable_shared_from_this<ORB> {
         std::vector<detail::Protocol*> protocols;
     public:
         ORB(const char *logname = nullptr): logname(logname) {};
+        ~ORB();
         
         detail::ConnectionPool connections;
 

@@ -56,6 +56,7 @@ void TcpConnection::accept(int client) {
 }
 
 TcpConnection::~TcpConnection() {
+    stopTimer();
     if (fd != -1) {
         auto loc = getLocalName(fd);
         auto peer = getPeerName(fd);
@@ -263,12 +264,20 @@ void TcpConnection::startWriteHandler() {
 }
 
 void TcpConnection::startTimer() {
+    if (timer_active) {
+        return;
+    }
     println("startTimer");
+    timer_active = true;
     ev_timer_init(&timer_watcher, libev_timer_cb, 1, 0.);
     ev_timer_start(protocol->loop, &timer_watcher);
 }
 void TcpConnection::stopTimer() {
+    if (!timer_active) {
+        return;
+    }
     println("stopTimer");
+    timer_active = false;
     ev_timer_stop(protocol->loop, &timer_watcher);
 }
 void TcpConnection::timer() {

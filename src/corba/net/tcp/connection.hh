@@ -22,6 +22,7 @@ class TcpConnection : public Connection {
         ev_io read_watcher;
         ev_io write_watcher;
         ev_timer timer_watcher;
+        bool timer_active:1 = false;
         static void libev_read_cb(struct ev_loop *loop, struct ev_io *watcher, int revents);
         static void libev_write_cb(struct ev_loop *loop, struct ev_io *watcher, int revents);
         static void libev_timer_cb(struct ev_loop *loop, struct ev_timer *watcher, int revents);

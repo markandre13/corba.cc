@@ -320,7 +320,8 @@ kaffeeklatsch_spec([] {
                 // expect(system("/sbin/iptables -v -L INPUT")).to.equal(0);
             });
 
-            it("handle large amounts of outgoing and incoming data", [] {
+            fit("handle large amounts of outgoing and incoming data", [] {
+                {
                 struct ev_loop *loop = EV_DEFAULT;
 
                 auto serverORB = make_shared<CORBA::ORB>("server");
@@ -364,6 +365,8 @@ kaffeeklatsch_spec([] {
                 if (eptr) {
                     std::rethrow_exception(eptr);
                 }
+                }
+                println("====================================================================================");
 
                 // TODO: check that the received data is correct
             });
@@ -373,7 +376,7 @@ kaffeeklatsch_spec([] {
                 struct ev_loop *loop = EV_DEFAULT;
 
                 auto serverORB = make_shared<CORBA::ORB>("server");
-                serverORB->debug = true;
+                // serverORB->debug = true;
                 auto serverProto = new CORBA::detail::TcpProtocol(loop);
                 serverORB->registerProtocol(serverProto);
                 serverProto->listen("127.0.0.1", 9003);
@@ -414,9 +417,9 @@ kaffeeklatsch_spec([] {
                 }
             });
 
-            fit("throw TRANSIENT exception when initial connection to peer fails", [] {
+            it("throw TRANSIENT exception when initial connection to peer fails", [] {
                 auto clientORB = make_shared<CORBA::ORB>("client");
-                clientORB->debug = true;
+                // clientORB->debug = true;
 
                 struct ev_loop *loop = EV_DEFAULT;
                 auto clientProto = new CORBA::detail::TcpProtocol(loop);
@@ -430,6 +433,7 @@ kaffeeklatsch_spec([] {
                 });
                 ev_run(loop, 0);
 
+                expect(eptr).to.beTrue();
                 expect([&] { std::rethrow_exception(eptr); })
                     .to.throw_(CORBA::TRANSIENT(0, CORBA::CompletionStatus::YES));
             });
@@ -452,6 +456,7 @@ kaffeeklatsch_spec([] {
                 });
                 ev_run(loop, 0);
 
+                expect(eptr).to.beTrue();
                 expect([&] { std::rethrow_exception(eptr); })
                     .to.throw_(CORBA::TIMEOUT(0, CORBA::CompletionStatus::YES));
 

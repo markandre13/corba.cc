@@ -47,6 +47,16 @@ Object::~Object() {
     }
 }
 
+ORB::~ORB() {
+    if (debug) {
+        println("{}ORB::~ORB()", prefix(this));
+    }
+    connections.clear();
+    for(auto proto: protocols) {
+        delete proto;
+    }
+}
+
 void ORB::dump() {
     println("CORBA.CC DUMP");
     println("    CONNECTIONS: {}", connections.size());
