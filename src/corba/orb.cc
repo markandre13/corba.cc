@@ -184,11 +184,14 @@ async<GIOPDecoder *> ORB::_twowayCall(Stub *stub, const char *operation, std::fu
     if (debug) {
         println("ORB::_twowayCall(stub, \"{}\", ...) SUSPEND FOR REPLY", operation);
     }
-    GIOPDecoder *decoder = co_await stub->connection->interlock.suspend(requestId);
+    auto ret = co_await stub->connection->interlock.suspend(requestId);
+    if (std::holds_alternative<std::exception_ptr>(ret)) {
+        std::rethrow_exception(std::get<std::exception_ptr>(ret));
+    }
+    GIOPDecoder *decoder = std::get<GIOPDecoder*>(ret);
     if (debug) {
         println("ORB::_twowayCall(stub, \"{}\", ...) RESUME WITH REPLY", operation);
     }
-
     // move parts of this into a separate function so that it can be unit tested
     switch (decoder->replyStatus) {
         case ReplyStatus::NO_EXCEPTION:

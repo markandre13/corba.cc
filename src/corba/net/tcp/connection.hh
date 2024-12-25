@@ -44,7 +44,6 @@ class TcpConnection : public Connection {
         ssize_t bytesSend = 0;
 
     public:
-
         TcpConnection(Protocol *protocol, const char *host, uint16_t port);
         ~TcpConnection();
 

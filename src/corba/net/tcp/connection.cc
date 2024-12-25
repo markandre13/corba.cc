@@ -1,4 +1,5 @@
 #include "connection.hh"
+#include "../../exception.hh"
 #include "../../orb.hh"
 
 #include <unistd.h>
@@ -142,20 +143,25 @@ void TcpConnection::canWrite() {
 void TcpConnection::canRead() {
     println("{}TcpConnection::canRead()", prefix(this));
     ssize_t nbytes = ::recv(fd, stream2packet.buffer(), stream2packet.length(), 0);
-    // char buffer[8192];  // TODO: put IIOPStream2Packet in here!!!
-    // ssize_t nbytes = ::recv(fd, buffer, sizeof(buffer), 0);
     if (nbytes < 0) {
         if (errno == EAGAIN) {
             println("{}TcpConnection::canRead(): {} (EGAIN)", prefix(this), strerror(errno));
             return;
         }
-        println("{}TcpConnection::canRead(): {} ({})", prefix(this), strerror(errno), errno);
+        if (errno == EBADF) {
+            println("{}TcpConnection::canRead(): failed to connect to peer", prefix(this));
+        } else {
+            println("{}TcpConnection::canRead(): {} ({})", prefix(this), strerror(errno), errno);
+        }
         stopReadHandler();
         ::close(fd);
         fd = -1;
         // TODO: if there packets to be send, switch to pending
         // TODO: have one method to switch the state and perform the needed actions (e.g. handle timers)?
         state = ConnectionState::IDLE;
+        while(!interlock.empty()) {
+            interlock.resume(interlock.begin()->first, make_exception_ptr(TRANSIENT(0, CORBA::CompletionStatus::NO)));
+        }
         return;
     }
     println("{}TcpConnection::canRead(): state = {}", prefix(this), std::to_underlying(state));

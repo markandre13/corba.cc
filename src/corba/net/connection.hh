@@ -8,6 +8,8 @@
 #include <vector>
 #include <memory>
 #include <utility>
+#include <variant>
+#include <exception>
 
 #include "../blob.hh"
 #include "../coroutine.hh"
@@ -44,11 +46,12 @@ enum class ConnectionState {
 
 class Connection {
         friend class CORBA::ORB;
+    protected:
 
         /**
          * for suspending coroutines via co_await interlock.suspend(requestId)
          */
-        interlock<uint32_t, GIOPDecoder *> interlock;
+        interlock<uint32_t, std::variant<GIOPDecoder *, std::exception_ptr>> interlock;
 
         /**
          * counter to create new outgoing request ids

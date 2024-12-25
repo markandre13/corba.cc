@@ -4,6 +4,10 @@ MEM=-fsanitize=address -fsanitize=leak
 
 # brew install llvm libev nettle wslay
 
+# Download and install Command_Line_Tools_for_Xcode_15.3.dmg manually
+#   https://developer.apple.com/download/all/?q=Command%20Line%20Tools%20for%20Xcode
+# then link to to where brew's llvm expexts it as root:
+#
 # sudo /bin/bash
 # cd /Library/Developer/CommandLineTools/SDKs
 # ln -s /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.sdk
@@ -59,10 +63,10 @@ IDL_GEN=interface/interface.cc interface/interface.hh interface/interface_skel.h
 
 CORBA_PATH=../src
 CORBA_SRC=orb.cc ior.cc skeleton.cc stub.cc giop.cc cdr.cc url.cc \
-		naming.cc hexdump.cc \
-		net/connection.cc net/stream2packet.cc \
+	naming.cc hexdump.cc \
+	net/connection.cc net/stream2packet.cc \
         net/tcp/protocol.cc net/tcp/connection.cc \
-		net/util/socket.cc net/util/createAcceptKey.cc
+	net/util/socket.cc net/util/createAcceptKey.cc
 
 SRC = $(APP_SRC) \
 	  $(patsubst %.cc,$(CORBA_PATH)/corba/%.cc,$(CORBA_SRC)) \
