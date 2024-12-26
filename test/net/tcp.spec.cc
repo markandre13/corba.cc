@@ -50,7 +50,7 @@ kaffeeklatsch_spec([] {
                 serverORB->registerProtocol(serverProto);
                 serverProto->listen("127.0.0.1", 9003);
 
-                auto backend = make_shared<Interface_impl>(serverORB);
+                auto backend = make_shared<Interface_impl>();
                 serverORB->bind("Backend", backend);
 
                 std::exception_ptr eptr;
@@ -67,7 +67,8 @@ kaffeeklatsch_spec([] {
                     auto backend = Interface::_narrow(object);
                     println("CLIENT: call backend");
 
-                    auto frontend = make_shared<Peer_impl>(clientORB);
+                    auto frontend = make_shared<Peer_impl>();
+                    clientORB->activate_object(frontend);
                     co_await backend->setPeer(frontend);
                     expect(co_await backend->callPeer("hello")).to.equal("hello to the world.");
 
@@ -120,7 +121,8 @@ kaffeeklatsch_spec([] {
 
                 // client must be created outside of parallel() because it must live longer
                 println("create client");
-                auto client = make_shared<Client_impl>(orb);
+                auto client = make_shared<Client_impl>();
+                orb->activate_object(client);
 
                 parallel(eptr, loop, [orb, client] -> async<> {
                     try {

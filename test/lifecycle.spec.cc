@@ -106,7 +106,7 @@ unique_ptr<vector<char>> str2vec(const char *data) {
 }
 
 kaffeeklatsch_spec([] {
-    describe("networking", [] {
+    fdescribe("networking", [] {
         describe("ConnectionPool", [] {
             it("insert, find, erase", [] {
                 auto pool = make_unique<CORBA::detail::ConnectionPool>();
@@ -320,7 +320,7 @@ kaffeeklatsch_spec([] {
                 // expect(system("/sbin/iptables -v -L INPUT")).to.equal(0);
             });
 
-            it("handle large amounts of outgoing and incoming data", [] {
+            fit("handle large amounts of outgoing and incoming data", [] {
                 {
                 struct ev_loop *loop = EV_DEFAULT;
 
@@ -330,16 +330,14 @@ kaffeeklatsch_spec([] {
                 serverORB->registerProtocol(serverProto);
                 serverProto->listen("127.0.0.1", 9003);
 
-                auto backend = make_shared<Interface_impl>(serverORB);
-                serverORB->bind("Backend", backend);
-
-                std::exception_ptr eptr;
+                serverORB->bind("Backend", make_shared<Interface_impl>());
 
                 auto clientORB = make_shared<CORBA::ORB>("client");
                 clientORB->debug = true;
                 auto clientProto = new CORBA::detail::TcpProtocol(loop);
                 clientORB->registerProtocol(clientProto);
 
+                std::exception_ptr eptr;
                 parallel(eptr, loop, [loop, clientORB] -> async<> {
                     auto object = co_await clientORB->stringToObject("corbaname::127.0.0.1:9003#Backend");
                     auto backend = Interface::_narrow(object);
@@ -358,6 +356,7 @@ kaffeeklatsch_spec([] {
                     println("===== receive 26 packets");
                     // recvString is a oneway method, so we call this to wait for all messages being parsed
                     co_await backend->callString("wait");
+                    backend = nullptr;
                 });
 
                 ev_run(loop, 0);
@@ -365,8 +364,15 @@ kaffeeklatsch_spec([] {
                 if (eptr) {
                     std::rethrow_exception(eptr);
                 }
+
+                serverORB->shutdown();
+                clientORB->shutdown();
+                expect(serverORB.use_count()).to.equal(1);
+                expect(clientORB.use_count()).to.equal(1);
+
                 }
                 println("====================================================================================");
+
 
                 // TODO: check that the received data is correct
             });
@@ -381,7 +387,7 @@ kaffeeklatsch_spec([] {
                 serverORB->registerProtocol(serverProto);
                 serverProto->listen("127.0.0.1", 9003);
 
-                auto backend = make_shared<Interface_impl>(serverORB);
+                auto backend = make_shared<Interface_impl>();
                 serverORB->bind("Backend", backend);
 
                 std::exception_ptr eptr;

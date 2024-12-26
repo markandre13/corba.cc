@@ -32,7 +32,7 @@ using namespace CORBA;
 using namespace CORBA::detail;
 
 kaffeeklatsch_spec([] {
-    fdescribe("memory", [] {
+    describe("memory", [] {
         describe("ORB", [] {
             it("an ORB has a use count of one", [] {
                 auto orb = make_shared<CORBA::ORB>(); 
@@ -54,7 +54,7 @@ kaffeeklatsch_spec([] {
             });
             it("an ORB with a servant has a use count of two", [] {
                 auto orb = make_shared<CORBA::ORB>();
-                orb->activate_object(make_shared<Interface_impl>(orb));
+                orb->activate_object(make_shared<Interface_impl>());
 
                 expect(orb.use_count()).to.equal(2);
 
@@ -63,10 +63,7 @@ kaffeeklatsch_spec([] {
             });
             it("an ORB with servant and a name service has a use count of three", [] {
                 auto orb = make_shared<CORBA::ORB>();
-                auto backend = make_shared<Interface_impl>(orb);
-                orb->activate_object(backend);
-                orb->bind("backend", backend);
-                backend = nullptr;
+                orb->bind("backend", make_shared<Interface_impl>());
                 expect(orb.use_count()).to.equal(3);
 
                 orb->shutdown();
@@ -79,12 +76,8 @@ kaffeeklatsch_spec([] {
                 auto protocol = new CORBA::detail::TcpProtocol(loop);
                 orb->registerProtocol(protocol);
                 protocol->listen("127.0.0.1", 9003);
-                // protocol = nullptr;
 
-                auto backend = make_shared<Interface_impl>(orb);
-                orb->activate_object(backend);
-                orb->bind("backend", backend); // TODO: bind should include the activate_object
-                backend = nullptr;
+                orb->bind("backend", make_shared<Interface_impl>()); // TODO: bind should include the activate_object
                 expect(orb.use_count()).to.equal(3);
 
                 orb->shutdown();

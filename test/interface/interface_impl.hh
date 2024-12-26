@@ -6,7 +6,7 @@ class Interface_impl : public Interface_skel {
         std::string _rwattr;
 
     public:
-        Interface_impl(std::shared_ptr<CORBA::ORB> orb) : Interface_skel(orb), _rwattr("hello") {}
+        Interface_impl() : _rwattr("hello") {}
 
         virtual CORBA::async<std::string> roAttribute() override { co_return std::string("static"); }
         virtual CORBA::async<std::string> rwAttribute() override { co_return _rwattr; }
@@ -69,13 +69,11 @@ class Interface_impl : public Interface_skel {
 
 class Peer_impl : public Peer_skel {
     public:
-        Peer_impl(std::shared_ptr<CORBA::ORB> orb) : Peer_skel(orb) {}
         CORBA::async<std::string> callString(const std::string_view &value) override { co_return std::string(value) + " world"; }
 };
 
 class Client_impl : public Client_skel {
     public:
-        Client_impl(std::shared_ptr<CORBA::ORB> orb) : Client_skel(orb) {}
         CORBA::async<> ping() override {
             std::println("got ping");
             co_return;

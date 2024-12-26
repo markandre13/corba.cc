@@ -297,6 +297,9 @@ void ORB::activate_object_with_id(const std::string &objectKey, std::shared_ptr<
 }
 
 void ORB::bind(const std::string &id, std::shared_ptr<CORBA::Skeleton> const obj) {
+    if (!obj->get_ORB()) {
+        activate_object(obj);
+    }
     if (namingService == nullptr) {
         // println("ORB::bind(\"{}\"): CREATING NameService", id);
         namingService = make_shared<NamingContextExtImpl>();

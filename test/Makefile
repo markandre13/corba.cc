@@ -48,11 +48,12 @@ LFLAGS=$(OS_LFLAGS) $(MEM)
 LIB=-lev -lwslay -lnettle
 
 APP_SRC=cdr_decoder.spec.cc cdr_encoder.spec.cc giop.spec.cc  blob.spec.cc \
-	  lifecycle.spec.cc memory.spec.cc \
-	  net/tcp.spec.cc \
-	  interface/interface.cc \
-	  main.cc util.cc 
-	  
+	memory.spec.cc \
+	lifecycle.spec.cc \
+	net/tcp.spec.cc \
+	interface/interface.cc \
+	main.cc util.cc 
+
 #   interface/interface.cc \
 # fake.cc
 # interface/interface.spec.cc
