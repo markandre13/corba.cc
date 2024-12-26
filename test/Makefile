@@ -121,6 +121,27 @@ giop.spec.o: ../src/corba/giop.hh ../src/corba/cdr.hh ../src/corba/blob.hh
 giop.spec.o: util.hh ../src/corba/hexdump.hh ../src/corba/coroutine.hh
 giop.spec.o: ../upstream/async.cc/src/async.hh
 blob.spec.o: ../src/corba/blob.hh
+memory.spec.o: ../src/corba/exception.hh ../src/corba/giop.hh
+memory.spec.o: ../src/corba/cdr.hh ../src/corba/blob.hh
+memory.spec.o: ../src/corba/net/stream2packet.hh
+memory.spec.o: ../src/corba/net/tcp/connection.hh
+memory.spec.o: ../src/corba/net/tcp/protocol.hh ../src/corba/net/protocol.hh
+memory.spec.o: ../src/corba/net/connection.hh ../src/corba/blob.hh
+memory.spec.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
+memory.spec.o: ../src/corba/net/util/socket.hh ../src/corba/net/connection.hh
+memory.spec.o: ../src/corba/net/stream2packet.hh
+memory.spec.o: ../src/corba/net/tcp/protocol.hh
+memory.spec.o: ../src/corba/net/util/socket.hh ../src/corba/orb.hh
+memory.spec.o: ../src/corba/coroutine.hh ../src/corba/giop.hh
+memory.spec.o: ../src/corba/net/connection.hh interface/interface_impl.hh
+memory.spec.o: interface/interface_skel.hh ../src/corba/corba.hh
+memory.spec.o: ../src/corba/orb.hh ../src/corba/skeleton.hh
+memory.spec.o: ../src/corba/object.hh ../src/corba/stub.hh
+memory.spec.o: ../src/corba/ior.hh ../src/corba/exception.hh
+memory.spec.o: ../src/corba/orb.hh ../src/corba/giop.hh
+memory.spec.o: ../src/corba/coroutine.hh interface/interface.hh
+memory.spec.o: interface/interface_skel.hh util.hh ../src/corba/hexdump.hh
+memory.spec.o: ../src/corba/coroutine.hh
 lifecycle.spec.o: ../src/corba/exception.hh ../src/corba/giop.hh
 lifecycle.spec.o: ../src/corba/cdr.hh ../src/corba/blob.hh
 lifecycle.spec.o: ../src/corba/net/stream2packet.hh
@@ -144,27 +165,6 @@ lifecycle.spec.o: ../src/corba/orb.hh ../src/corba/giop.hh
 lifecycle.spec.o: ../src/corba/coroutine.hh interface/interface.hh
 lifecycle.spec.o: interface/interface_skel.hh util.hh ../src/corba/hexdump.hh
 lifecycle.spec.o: ../src/corba/coroutine.hh
-memory.spec.o: ../src/corba/exception.hh ../src/corba/giop.hh
-memory.spec.o: ../src/corba/cdr.hh ../src/corba/blob.hh
-memory.spec.o: ../src/corba/net/stream2packet.hh
-memory.spec.o: ../src/corba/net/tcp/connection.hh
-memory.spec.o: ../src/corba/net/tcp/protocol.hh ../src/corba/net/protocol.hh
-memory.spec.o: ../src/corba/net/connection.hh ../src/corba/blob.hh
-memory.spec.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
-memory.spec.o: ../src/corba/net/util/socket.hh ../src/corba/net/connection.hh
-memory.spec.o: ../src/corba/net/stream2packet.hh
-memory.spec.o: ../src/corba/net/tcp/protocol.hh
-memory.spec.o: ../src/corba/net/util/socket.hh ../src/corba/orb.hh
-memory.spec.o: ../src/corba/coroutine.hh ../src/corba/giop.hh
-memory.spec.o: ../src/corba/net/connection.hh interface/interface_impl.hh
-memory.spec.o: interface/interface_skel.hh ../src/corba/corba.hh
-memory.spec.o: ../src/corba/orb.hh ../src/corba/skeleton.hh
-memory.spec.o: ../src/corba/object.hh ../src/corba/stub.hh
-memory.spec.o: ../src/corba/ior.hh ../src/corba/exception.hh
-memory.spec.o: ../src/corba/orb.hh ../src/corba/giop.hh
-memory.spec.o: ../src/corba/coroutine.hh interface/interface.hh
-memory.spec.o: interface/interface_skel.hh util.hh ../src/corba/hexdump.hh
-memory.spec.o: ../src/corba/coroutine.hh
 net/tcp.spec.o: interface/interface_impl.hh interface/interface_skel.hh
 net/tcp.spec.o: ../src/corba/corba.hh ../src/corba/orb.hh
 net/tcp.spec.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
@@ -265,6 +265,8 @@ util.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
 ../src/corba/net/connection.o: ../src/corba/net/util/socket.hh
 ../src/corba/net/connection.o: ../src/corba/net/tcp/protocol.hh
 ../src/corba/net/connection.o: ../src/corba/net/protocol.hh
+../src/corba/net/connection.o: ../src/corba/stub.hh ../src/corba/object.hh
+../src/corba/net/connection.o: ../src/corba/blob.hh
 ../src/corba/net/stream2packet.o: ../src/corba/net/stream2packet.hh
 ../src/corba/net/stream2packet.o: ../src/corba/giop.hh ../src/corba/cdr.hh
 ../src/corba/net/stream2packet.o: ../src/corba/blob.hh

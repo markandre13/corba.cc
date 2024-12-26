@@ -1,11 +1,19 @@
 #include "connection.hh"
 #include "protocol.hh"
+#include "../stub.hh"
 
 namespace CORBA {
 
 namespace detail {
 
-Connection::~Connection() {}
+// TODO: this looks a bit dangerous. the stub is usually up in user space.
+//       what's the supposed behaviour when it disappears???
+Connection::~Connection() {
+    std::println("Connection::~Connection()");
+    while(!stubsById.empty()) {
+        delete stubsById.begin()->second;
+    }
+}
 Protocol::~Protocol() {}
 
 std::string Connection::str() const { 
