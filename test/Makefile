@@ -48,7 +48,7 @@ LFLAGS=$(OS_LFLAGS) $(MEM)
 LIB=-lev -lwslay -lnettle
 
 APP_SRC=cdr_decoder.spec.cc cdr_encoder.spec.cc giop.spec.cc  blob.spec.cc \
-	  lifecycle.spec.cc \
+	  lifecycle.spec.cc memory.spec.cc \
 	  net/tcp.spec.cc \
 	  interface/interface.cc \
 	  main.cc util.cc 
@@ -143,6 +143,27 @@ lifecycle.spec.o: ../src/corba/orb.hh ../src/corba/giop.hh
 lifecycle.spec.o: ../src/corba/coroutine.hh interface/interface.hh
 lifecycle.spec.o: interface/interface_skel.hh util.hh ../src/corba/hexdump.hh
 lifecycle.spec.o: ../src/corba/coroutine.hh
+memory.spec.o: ../src/corba/exception.hh ../src/corba/giop.hh
+memory.spec.o: ../src/corba/cdr.hh ../src/corba/blob.hh
+memory.spec.o: ../src/corba/net/stream2packet.hh
+memory.spec.o: ../src/corba/net/tcp/connection.hh
+memory.spec.o: ../src/corba/net/tcp/protocol.hh ../src/corba/net/protocol.hh
+memory.spec.o: ../src/corba/net/connection.hh ../src/corba/blob.hh
+memory.spec.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
+memory.spec.o: ../src/corba/net/util/socket.hh ../src/corba/net/connection.hh
+memory.spec.o: ../src/corba/net/stream2packet.hh
+memory.spec.o: ../src/corba/net/tcp/protocol.hh
+memory.spec.o: ../src/corba/net/util/socket.hh ../src/corba/orb.hh
+memory.spec.o: ../src/corba/coroutine.hh ../src/corba/giop.hh
+memory.spec.o: ../src/corba/net/connection.hh interface/interface_impl.hh
+memory.spec.o: interface/interface_skel.hh ../src/corba/corba.hh
+memory.spec.o: ../src/corba/orb.hh ../src/corba/skeleton.hh
+memory.spec.o: ../src/corba/object.hh ../src/corba/stub.hh
+memory.spec.o: ../src/corba/ior.hh ../src/corba/exception.hh
+memory.spec.o: ../src/corba/orb.hh ../src/corba/giop.hh
+memory.spec.o: ../src/corba/coroutine.hh interface/interface.hh
+memory.spec.o: interface/interface_skel.hh util.hh ../src/corba/hexdump.hh
+memory.spec.o: ../src/corba/coroutine.hh
 net/tcp.spec.o: interface/interface_impl.hh interface/interface_skel.hh
 net/tcp.spec.o: ../src/corba/corba.hh ../src/corba/orb.hh
 net/tcp.spec.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
@@ -264,6 +285,7 @@ util.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
 ../src/corba/net/tcp/connection.o: ../src/corba/coroutine.hh
 ../src/corba/net/tcp/connection.o: ../upstream/async.cc/src/async.hh
 ../src/corba/net/tcp/connection.o: ../src/corba/net/util/socket.hh
+../src/corba/net/tcp/connection.o: ../src/corba/exception.hh
 ../src/corba/net/tcp/connection.o: ../src/corba/orb.hh
 ../src/corba/net/tcp/connection.o: ../src/corba/coroutine.hh
 ../src/corba/net/tcp/connection.o: ../src/corba/giop.hh ../src/corba/cdr.hh

@@ -6,6 +6,7 @@ namespace CORBA {
 namespace detail {
 
 Connection::~Connection() {}
+Protocol::~Protocol() {}
 
 std::string Connection::str() const { 
     if (protocol) {

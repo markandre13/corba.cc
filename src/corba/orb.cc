@@ -51,10 +51,18 @@ ORB::~ORB() {
     if (debug) {
         println("{}ORB::~ORB()", prefix(this));
     }
+    shutdown();
+}
+
+void ORB::shutdown() {
+    servants.clear();
+    namingService = nullptr;
+
     connections.clear();
     for(auto proto: protocols) {
         delete proto;
     }
+    protocols.clear();
 }
 
 void ORB::dump() {
@@ -278,23 +286,22 @@ void ORB::onewayCall(Stub *stub, const char *operation, std::function<void(GIOPE
     }
 }
 
-blob_view ORB::registerServant(Skeleton *servant) {
-    // println("ORB::registerServant(servant)");
-    return registerServant(servant, format("OID:{:x}", ++servantIdCounter));
+void ORB::activate_object(std::shared_ptr<Skeleton> servant) {
+    activate_object_with_id(format("OID:{:x}", ++servantIdCounter), servant);
 }
 
-blob_view ORB::registerServant(Skeleton *servant, const string &objectKey) {
-    // println("ORB::registerServant(servant, \"{}\")", objectKey);
+void ORB::activate_object_with_id(const std::string &objectKey, std::shared_ptr<Skeleton> servant) {
+    servant->orb = shared_from_this();
     auto pos = servants.emplace(std::make_pair(blob(objectKey), servant));
-    servants[blob(objectKey)] = servant;
-    return blob_view(std::get<0>(pos)->first);
+    servant->objectKey = std::get<0>(pos)->first;
 }
 
 void ORB::bind(const std::string &id, std::shared_ptr<CORBA::Skeleton> const obj) {
     if (namingService == nullptr) {
         // println("ORB::bind(\"{}\"): CREATING NameService", id);
-        namingService = new NamingContextExtImpl(this->shared_from_this(), "NameService");
-        servants["NameService"] = namingService;
+        namingService = make_shared<NamingContextExtImpl>();
+        activate_object_with_id("NameService", namingService);
+        // servants["NameService"] = namingService;
     }
     namingService->bind(id, obj);
 }

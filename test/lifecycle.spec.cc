@@ -106,7 +106,7 @@ unique_ptr<vector<char>> str2vec(const char *data) {
 }
 
 kaffeeklatsch_spec([] {
-    fdescribe("networking", [] {
+    describe("networking", [] {
         describe("ConnectionPool", [] {
             it("insert, find, erase", [] {
                 auto pool = make_unique<CORBA::detail::ConnectionPool>();
@@ -320,7 +320,7 @@ kaffeeklatsch_spec([] {
                 // expect(system("/sbin/iptables -v -L INPUT")).to.equal(0);
             });
 
-            fit("handle large amounts of outgoing and incoming data", [] {
+            it("handle large amounts of outgoing and incoming data", [] {
                 {
                 struct ev_loop *loop = EV_DEFAULT;
 
@@ -438,7 +438,7 @@ kaffeeklatsch_spec([] {
                     .to.throw_(CORBA::TRANSIENT(0, CORBA::CompletionStatus::YES));
             });
 
-            fit("throw TIMEOUT exception when initial connection to peer is not accepted in time", [] {
+            it("throw TIMEOUT exception when initial connection to peer is not accepted in time", [] {
                 auto fds = create_listen_socket("127.0.0.1", 9003);
 
                 auto clientORB = make_shared<CORBA::ORB>("client");

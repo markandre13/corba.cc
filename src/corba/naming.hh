@@ -15,7 +15,10 @@ class NamingContextExtImpl : public Skeleton {
         std::map<std::string, std::shared_ptr<Object>> name2Object;
 
     public:
-        NamingContextExtImpl(std::shared_ptr<CORBA::ORB> orb, const std::string &objectKey) : Skeleton(orb, objectKey) {}
+        NamingContextExtImpl() : Skeleton() {}
+        ~NamingContextExtImpl() {
+            std::println("NamingContextExtImpl::~NamingContextExtImpl()");
+        }
         virtual std::string_view repository_id() const override;
 
         void bind(const std::string &name, std::shared_ptr<Object> servant);

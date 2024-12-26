@@ -44,9 +44,9 @@ class ORB : public std::enable_shared_from_this<ORB> {
         const char * logname = nullptr;
 
     protected:
-        NamingContextExtImpl * namingService = nullptr;
+        std::shared_ptr<NamingContextExtImpl> namingService;
         // std::map<std::string, Skeleton*> initialReferences; // name to
-        std::map<blob, Skeleton *> servants;  // objectId to skeleton
+        std::map<blob, std::shared_ptr<Skeleton>> servants;  // objectId to skeleton
 
         uint64_t servantIdCounter = 0;
 
@@ -54,6 +54,7 @@ class ORB : public std::enable_shared_from_this<ORB> {
     public:
         ORB(const char *logname = nullptr): logname(logname) {};
         ~ORB();
+        void shutdown();
         
         detail::ConnectionPool connections;
 
@@ -71,10 +72,9 @@ class ORB : public std::enable_shared_from_this<ORB> {
          */
         async<std::shared_ptr<Object>> stringToObject(const std::string &iorString);
 
-        // register servant and create and assign a new objectKey
-        blob_view registerServant(Skeleton *skeleton);
-        // register servant with the given objectKey
-        blob_view registerServant(Skeleton *skeleton, const std::string &objectKey);
+        // this is usually part of the POA but corba.cc doesn't have one (yet?)
+        void activate_object(std::shared_ptr<Skeleton> servant);
+        void activate_object_with_id(const std::string &objectKey, std::shared_ptr<Skeleton> servant);
 
         template <typename T>
         async<T> twowayCall(
