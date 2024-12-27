@@ -67,6 +67,7 @@ class Connection {
 
         ConnectionState state = ConnectionState::IDLE;
 
+        // stubs remove themselves from this list
         std::map<blob, Stub *> stubsById;
 
         std::mutex send_mutex;
@@ -92,7 +93,7 @@ class ConnectionPool {
         inline void erase(std::shared_ptr<Connection> conn) { connections.erase(conn); }
         inline void clear() { connections.clear(); }
         inline size_t size() const { return connections.size(); }
-        Connection *find(const char *host, uint16_t port) const;
+        std::shared_ptr<Connection> find(const char *host, uint16_t port) const;
         void print() const;
 };
 

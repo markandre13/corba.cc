@@ -85,24 +85,31 @@ async<shared_ptr<Object>> ORB::stringToObject(const std::string &iorString) {
         if (addr.proto == "iiop") {
             // get remote NameService (FIXME: what if it's us?)
             // std::println("ORB::stringToObject(\"{}\"): get connection to {}:{}", iorString, addr.host, addr.port);
-            CORBA::detail::Connection *nameConnection = getConnection(addr.host, addr.port);
+            auto nameConnection = getConnection(addr.host, addr.port);
             // std::println("ORB::stringToObject(\"{}\"): got connection to {}:{}", iorString, addr.host, addr.port);
-            auto it = nameConnection->stubsById.find(name.objectKey);
-            NamingContextExtStub *rootNamingContext;
-            if (it == nameConnection->stubsById.end()) {
-                // std::println("ORB::stringToObject(\"{}\"): creating NamingContextExtStub(orb, objectKey=\"{}\", connection)", iorString, name.objectKey);
-                rootNamingContext = new NamingContextExtStub(this->shared_from_this(), name.objectKey, nameConnection);
-                nameConnection->stubsById[name.objectKey] = rootNamingContext;
-            } else {
-                // std::println("ORB::stringToObject(\"{}\"): reusing NamingContextExtStub", iorString);
-                rootNamingContext = dynamic_cast<NamingContextExtStub *>(it->second);
-                if (rootNamingContext == nullptr) {
-                    throw runtime_error("Not a NamingContextExt");
-                }
-            }
-            // get object from remote NameServiceExt
-            // std::println("ORB::stringToObject(\"{}\"): calling resolve_str(\"{}\") on remote end", iorString, name.name);
+
+            // CorbaName.objectKey contains 'NameService'
+            // auto it = nameConnection->stubsById.find(name.objectKey);
+            // NamingContextExtStub *rootNamingContext;
+            // if (it == nameConnection->stubsById.end()) {
+            //     // there is no stub yet for the name service
+            //     auto ns = make_shared<NamingContextExtStub>(this->shared_from_this(), name.objectKey, nameConnection);
+            //     nameConnection->nameServiceStubs.push_back(ns);
+            //     nameConnection->stubsById[name.objectKey] = rootNamingContext;
+            //     rootNamingContext = ns.get();
+            // } else {
+            //     // std::println("ORB::stringToObject(\"{}\"): reusing NamingContextExtStub", iorString);
+            //     rootNamingContext = dynamic_cast<NamingContextExtStub *>(it->second);
+            //     if (rootNamingContext == nullptr) {
+            //         throw runtime_error("Not a NamingContextExt");
+            //     }
+            // }
+            // // get object from remote NameServiceExt
+            // // std::println("ORB::stringToObject(\"{}\"): calling resolve_str(\"{}\") on remote end", iorString, name.name);
+            // TODO: cache naming context
+            auto rootNamingContext = make_shared<NamingContextExtStub>(this->shared_from_this(), name.objectKey, nameConnection);
             auto reference = co_await rootNamingContext->resolve_str(name.name);
+            rootNamingContext = nullptr; // THIS ONE CRASHES IT...
             // std::println("ORB::stringToObject(\"{}\"): got reference", iorString);
             reference->set_ORB(this->shared_from_this());
             co_return dynamic_pointer_cast<Object, IOR>(reference);
@@ -116,7 +123,7 @@ void ORB::registerProtocol(detail::Protocol *protocol) {
     protocols.push_back(protocol);
 }
 
-detail::Connection * ORB::getConnection(string host, uint16_t port) {
+std::shared_ptr<detail::Connection> ORB::getConnection(string host, uint16_t port) {
     // if (host == "::1" || host == "127.0.0.1") {
     //     host = "localhost";
     // }
@@ -163,7 +170,7 @@ detail::Connection * ORB::getConnection(string host, uint16_t port) {
         auto connection = proto->connect(host.c_str(), port);
         println("{}created {}", prefix(this), connection->str());
         connections.insert(connection);
-        return connection.get();
+        return connection;
     }
     throw runtime_error(format("failed to allocate connection to {}:{}", host, port));
 }
@@ -179,7 +186,7 @@ async<GIOPDecoder *> ORB::_twowayCall(Stub *stub, const char *operation, std::fu
     // printf("CONNECTION %p %s:%u -> %s:%u requestId=%u\n", static_cast<void *>(stub->connection), stub->connection->localAddress().c_str(),
     //        stub->connection->localPort(), stub->connection->remoteAddress().c_str(), stub->connection->remotePort(), stub->connection->requestId);
 
-    GIOPEncoder encoder(stub->connection);
+    GIOPEncoder encoder(stub->connection.get());
     auto responseExpected = true;
     encoder.encodeRequest(stub->objectKey, operation, requestId, responseExpected);
     encode(encoder);
@@ -267,7 +274,7 @@ void ORB::onewayCall(Stub *stub, const char *operation, std::function<void(GIOPE
         throw runtime_error("ORB::onewayCall(): the stub has no connection");
     }
     auto requestId = stub->connection->requestId.fetch_add(2);
-    GIOPEncoder encoder(stub->connection);
+    GIOPEncoder encoder(stub->connection.get());
     auto responseExpected = false;
     encoder.encodeRequest(stub->objectKey, operation, requestId, responseExpected);
     encode(encoder);

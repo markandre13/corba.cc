@@ -14,12 +14,18 @@ class Connection;
 class Stub : public virtual Object {
         friend class ORB;
         std::shared_ptr<CORBA::ORB> orb;
-        blob objectKey;                  // objectKey used on the remote end of the connection
+        /**
+         * objectKey used on the remote end of the connection
+         */
+        blob objectKey;
     public:
-        detail::Connection *connection;  // connection to where the remote object lives
+        /**
+         * connection to where the remote object lives
+         */
+        std::shared_ptr<detail::Connection> connection; 
 
     public:
-        Stub(std::shared_ptr<CORBA::ORB> orb, const CORBA::blob_view &objectKey, detail::Connection *connection)
+        Stub(std::shared_ptr<CORBA::ORB> orb, const CORBA::blob_view &objectKey, std::shared_ptr<detail::Connection> connection)
             : orb(orb), objectKey(objectKey), connection(connection) {}
         virtual ~Stub() override;
         virtual blob_view get_object_key() const override { return objectKey; }

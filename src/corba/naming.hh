@@ -32,7 +32,7 @@ class NamingContextExtImpl : public Skeleton {
 
 class NamingContextExtStub : public Stub {
     public:
-        NamingContextExtStub(std::shared_ptr<CORBA::ORB> orb, const std::string &objectKey, detail::Connection *connection)
+        NamingContextExtStub(std::shared_ptr<CORBA::ORB> orb, const std::string &objectKey, std::shared_ptr<detail::Connection> connection)
             : Stub(orb, blob_view(objectKey), connection) {}
         virtual std::string_view repository_id() const override;
 

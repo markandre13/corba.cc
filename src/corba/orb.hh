@@ -59,7 +59,7 @@ class ORB : public std::enable_shared_from_this<ORB> {
         detail::ConnectionPool connections;
 
         void registerProtocol(detail::Protocol *protocol);
-        detail::Connection * getConnection(std::string host, uint16_t port);
+        std::shared_ptr<detail::Connection> getConnection(std::string host, uint16_t port);
         // void addConnection(detail::Connection *connection) { connections.push_back(connection); }
         void socketRcvd(detail::Connection *connection, const void *buffer, size_t size);
         void close(detail::Connection *connection);

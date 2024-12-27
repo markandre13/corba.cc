@@ -10,9 +10,14 @@ namespace detail {
 //       what's the supposed behaviour when it disappears???
 Connection::~Connection() {
     std::println("Connection::~Connection()");
-    while(!stubsById.empty()) {
-        delete stubsById.begin()->second;
+    // free stubs which are owned by the connection itself...
+    // nameServiceStubs.clear();
+    if (!stubsById.empty()) {
+        throw std::runtime_error(std::format("Connection::~Connection(): still has stubs at {}:{}", __FILE__, __LINE__));
     }
+    // while(!stubsById.empty()) {
+    //     delete stubsById.begin()->second;
+    // }
 }
 Protocol::~Protocol() {}
 
@@ -33,21 +38,15 @@ std::string Connection::str() const {
 //     return false;
 // };
 
-Connection *ConnectionPool::find(const char *host, uint16_t port) const {
+std::shared_ptr<Connection> ConnectionPool::find(const char *host, uint16_t port) const {
     for (auto &c : connections) {
         std::println("ConnectionPool::find(): {}:{} == {}:{} ?", host, port, c->remote.host, c->remote.port);
         if (c->remote.host == host && c->remote.port == port) {
-            return c.get();
+            return c;
         }
     }
     std::println("ConnectionPool::find(): {}:{} == empty", host, port);
-    return nullptr;
-    // auto conn = make_shared<TcpConnection>(nullptr, host, port);
-    // auto p = connections.find(conn);
-    // if (p == connections.end()) {
-    //     return nullptr;
-    // }
-    // return p->get();
+    return std::shared_ptr<Connection>();
 }
 
 void ConnectionPool::print() const {

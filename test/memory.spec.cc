@@ -31,8 +31,14 @@ using namespace kaffeeklatsch;
 using namespace CORBA;
 using namespace CORBA::detail;
 
+// dependencies for connection management
+//      ----- direction of creation ---->
+//      <---- direction of teardown -----
+//      <---- direction of ownership ----
+// impl <- conn <- orb ... <- orb <- conn <- stub
+
 kaffeeklatsch_spec([] {
-    describe("memory", [] {
+    fdescribe("memory", [] {
         describe("ORB", [] {
             it("an ORB has a use count of one", [] {
                 auto orb = make_shared<CORBA::ORB>(); 

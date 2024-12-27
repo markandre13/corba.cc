@@ -122,19 +122,19 @@ kaffeeklatsch_spec([] {
                 pool->insert(b81);
                 pool->insert(c80);
 
-                expect(pool->find("a", 80)).to.equal(a80.get());
-                expect(pool->find("b", 79)).to.equal(b79.get());
-                expect(pool->find("b", 80)).to.equal(b80.get());
-                expect(pool->find("b", 81)).to.equal(b81.get());
-                expect(pool->find("c", 80)).to.equal(c80.get());
+                expect(pool->find("a", 80).get()).to.equal(a80.get());
+                expect(pool->find("b", 79).get()).to.equal(b79.get());
+                expect(pool->find("b", 80).get()).to.equal(b80.get());
+                expect(pool->find("b", 81).get()).to.equal(b81.get());
+                expect(pool->find("c", 80).get()).to.equal(c80.get());
 
                 pool->erase(b80);
 
-                expect(pool->find("a", 80)).to.equal(a80.get());
-                expect(pool->find("b", 79)).to.equal(b79.get());
-                expect(pool->find("b", 80)).to.equal(nullptr);
-                expect(pool->find("b", 81)).to.equal(b81.get());
-                expect(pool->find("c", 80)).to.equal(c80.get());
+                expect(pool->find("a", 80).get()).to.equal(a80.get());
+                expect(pool->find("b", 79).get()).to.equal(b79.get());
+                expect(pool->find("b", 80).get()).to.equal(nullptr);
+                expect(pool->find("b", 81).get()).to.equal(b81.get());
+                expect(pool->find("c", 80).get()).to.equal(c80.get());
 
                 pool->erase(a80);
                 pool->erase(b79);
@@ -320,7 +320,8 @@ kaffeeklatsch_spec([] {
                 // expect(system("/sbin/iptables -v -L INPUT")).to.equal(0);
             });
 
-            fit("handle large amounts of outgoing and incoming data", [] {
+            it("handle large amounts of outgoing and incoming data", [] {
+                setbuf(stdout, nullptr);
                 {
                 struct ev_loop *loop = EV_DEFAULT;
 
@@ -338,9 +339,15 @@ kaffeeklatsch_spec([] {
                 clientORB->registerProtocol(clientProto);
 
                 std::exception_ptr eptr;
-                parallel(eptr, loop, [loop, clientORB] -> async<> {
+                parallel(eptr, loop, [clientORB] -> async<> {
+                    // expect(clientORB.use_count()).to.equal(1);
+                    println("clientORB.use_count() = {}: {}:{}", clientORB.use_count(), __FILE__, __LINE__);
+                    // this resolves the object id
                     auto object = co_await clientORB->stringToObject("corbaname::127.0.0.1:9003#Backend");
+                    println("clientORB.use_count() = {}: {}:{}", clientORB.use_count(), __FILE__, __LINE__);
+                    // this creates the stub
                     auto backend = Interface::_narrow(object);
+                    println("clientORB.use_count() = {}: {}:{}", clientORB.use_count(), __FILE__, __LINE__);
 
                     auto l = 0x100000;
 
