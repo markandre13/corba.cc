@@ -17,7 +17,7 @@ kaffeeklatsch_spec([] {
             auto serverProtocol = new FakeTcpProtocol(serverORB.get(), "backend.local", 2809);
             serverORB->registerProtocol(serverProtocol);
             // serverORB->debug = true;
-            auto backend = make_shared<Interface_impl>(serverORB);
+            auto backend = make_shared<Interface_impl>();
             serverORB->bind("Backend", backend);
 
             // CLIENT
@@ -30,7 +30,7 @@ kaffeeklatsch_spec([] {
 
             parallel(eptr, [&clientORB] -> async<> {
                 auto object = co_await clientORB->stringToObject("corbaname::backend.local:2809#Backend");
-                auto backend = co_await Interface::_narrow(object);
+                auto backend = Interface::_narrow(object);
 
                 expect(co_await backend->roAttribute()).to.equal("static");
                 expect(co_await backend->rwAttribute()).to.equal("hello");
@@ -90,7 +90,8 @@ kaffeeklatsch_spec([] {
                 // model changed to omniORB: (3) 2024-11-19 08:04:17.849586: sendChunk: to giop:tcp:192.168.178.105:51955 72 bytes
                 // omniORB: (0) 2024-11-19 08:04:17.849893: inputMessage: from giop:tcp:192.168.178.105:51955 24 bytes
 
-                auto frontend = make_shared<Peer_impl>(clientORB);
+                auto frontend = make_shared<Peer_impl>();
+                clientORB->activate_object(frontend);
                 co_await backend->setPeer(frontend);
                 expect(co_await backend->callPeer("hello")).to.equal("hello to the world.");
             });
@@ -109,7 +110,7 @@ kaffeeklatsch_spec([] {
             auto serverProtocol = new FakeTcpProtocol(serverORB.get(), "backend.local", 2809);
             serverORB->registerProtocol(serverProtocol);
             // serverORB->debug = true;
-            auto backend = make_shared<Interface_impl>(serverORB);
+            auto backend = make_shared<Interface_impl>();
             serverORB->bind("Backend", backend);
 
             // CLIENT
@@ -122,9 +123,10 @@ kaffeeklatsch_spec([] {
 
             parallel(eptr, [&clientORB] -> async<> {
                 auto object = co_await clientORB->stringToObject("corbaname::backend.local:2809#Backend");
-                auto backend = co_await Interface::_narrow(object);
+                auto backend = Interface::_narrow(object);
 
-                auto frontend = make_shared<Peer_impl>(clientORB);
+                auto frontend = make_shared<Peer_impl>();
+                clientORB->activate_object(frontend);
                 co_await backend->setPeer(frontend);
                 expect(co_await backend->callPeer("hello")).to.equal("hello to the world.");
             });

@@ -4,21 +4,21 @@
 
 using std::println;
 
-CORBA::async<std::shared_ptr<CORBA::detail::Connection>> FakeTcpProtocol::create(const ::CORBA::ORB *orb, const std::string &hostname, uint16_t port) {
+void FakeTcpProtocol::listen(const char *host, unsigned port) {}
+
+std::shared_ptr<CORBA::detail::Connection> FakeTcpProtocol::connect(const char *hostname, unsigned port) {
     // println("TcpFakeConnection::create(\"{}\", {})", hostname, port);
     auto conn = std::make_shared<TcpFakeConnection>(this, m_localAddress, m_localPort, hostname, port);
     // printf("TcpFakeConnection::create() -> %p %s:%u -> %s:%u requestId=%u\n", static_cast<void *>(conn), conn->localAddress().c_str(), conn->localPort(),
     //        conn->remoteAddress().c_str(), conn->remotePort(), conn->requestId);
     connections.push_back(conn);
-    co_return conn;
+    return conn;
 }
 
-CORBA::async<void> FakeTcpProtocol::close() { co_return; }
-
-void TcpFakeConnection::close() {}
-void TcpFakeConnection::send(void *buffer, size_t nbyte) {
+void TcpFakeConnection::up() {}
+void TcpFakeConnection::send(std::unique_ptr<std::vector<char>> &&data) {
     // println("TcpFakeConnection::send(...) from {}:{} to {}:{}", m_localAddress, m_localPort, m_remoteAddress, m_remotePort);
-    protocol->packets.emplace_back(FakePaket(this, buffer, nbyte));
+    protocol->packets.emplace_back(FakePaket(this, data->data(), data->size()));
 }
 
 bool transmit(std::vector<FakeTcpProtocol *> &protocols) {
