@@ -38,7 +38,7 @@ using namespace CORBA::detail;
 // impl <- conn <- orb ... <- orb <- conn <- stub
 
 kaffeeklatsch_spec([] {
-    fdescribe("memory", [] {
+    describe("memory", [] {
         describe("ORB", [] {
             it("an ORB has a use count of one", [] {
                 auto orb = make_shared<CORBA::ORB>(); 

@@ -51,6 +51,10 @@ APP_SRC=cdr_decoder.spec.cc cdr_encoder.spec.cc giop.spec.cc  blob.spec.cc \
 	memory.spec.cc \
 	lifecycle.spec.cc \
 	net/tcp.spec.cc \
+	blob.spec.cc \
+	cdr_decoder.spec.cc \
+	cdr_encoder.spec.cc \
+	giop.spec.cc \
 	interface/interface.cc \
 	main.cc util.cc 
 
@@ -58,8 +62,7 @@ APP_SRC=cdr_decoder.spec.cc cdr_encoder.spec.cc giop.spec.cc  blob.spec.cc \
 # fake.cc
 # interface/interface.spec.cc
 #		corba.spec.cc
-#	  net/ws.spec.cc net/tcp.spec.cc \
-
+#	  net/ws.spec.cc 
 IDL_GEN=interface/interface.cc interface/interface.hh interface/interface_skel.hh interface/interface_stub.hh
 
 CORBA_PATH=../src
@@ -183,6 +186,12 @@ net/tcp.spec.o: ../src/corba/net/tcp/protocol.hh
 net/tcp.spec.o: ../src/corba/net/connection.hh
 net/tcp.spec.o: ../src/corba/net/stream2packet.hh util.hh
 net/tcp.spec.o: ../src/corba/hexdump.hh ../src/corba/coroutine.hh
+blob.spec.o: ../src/corba/blob.hh
+cdr_decoder.spec.o: ../src/corba/cdr.hh ../src/corba/blob.hh
+cdr_encoder.spec.o: ../src/corba/cdr.hh ../src/corba/blob.hh
+giop.spec.o: ../src/corba/giop.hh ../src/corba/cdr.hh ../src/corba/blob.hh
+giop.spec.o: util.hh ../src/corba/hexdump.hh ../src/corba/coroutine.hh
+giop.spec.o: ../upstream/async.cc/src/async.hh
 interface/interface.o: ../src/corba/corba.hh ../src/corba/orb.hh
 interface/interface.o: ../src/corba/coroutine.hh
 interface/interface.o: ../upstream/async.cc/src/async.hh ../src/corba/giop.hh

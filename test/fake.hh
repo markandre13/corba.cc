@@ -16,7 +16,7 @@ struct FakePaket {
 struct FakeTcpProtocol : public CORBA::detail::Protocol {
         FakeTcpProtocol(CORBA::ORB *orb, const std::string &localAddress, uint16_t localPort) : m_orb(orb), m_localAddress(localAddress), m_localPort(localPort) {}
 
-        CORBA::async<CORBA::detail::Connection*> create(const CORBA::ORB *orb, const std::string &hostname, uint16_t port);
+        CORBA::async<std::shared_ptr<CORBA::detail::Connection>> create(const CORBA::ORB *orb, const std::string &hostname, uint16_t port);
         CORBA::async<void> close();
 
         CORBA::ORB *m_orb;
@@ -24,7 +24,7 @@ struct FakeTcpProtocol : public CORBA::detail::Protocol {
         uint16_t m_localPort;
 
         std::vector<FakePaket> packets;
-        std::vector<TcpFakeConnection*> connections;
+        std::vector<std::shared_ptr<TcpFakeConnection>> connections;
 };
 
 class TcpFakeConnection : public CORBA::detail::Connection {
@@ -35,8 +35,14 @@ class TcpFakeConnection : public CORBA::detail::Connection {
         uint16_t m_remotePort;
 
     public:
-        TcpFakeConnection(FakeTcpProtocol *protocol, const std::string &localAddress, uint16_t localPort, const std::string &remoteAddress, uint16_t remotePort)
-            : protocol(protocol), m_localAddress(localAddress), m_localPort(localPort), m_remoteAddress(remoteAddress), m_remotePort(remotePort) {}
+        TcpFakeConnection(
+                FakeTcpProtocol *protocol,
+                const std::string &localAddress,
+                uint16_t localPort,
+                const std::string &remoteAddress,
+                uint16_t remotePort)
+        : Connection(protocol, remoteAddress.c_str(), remotePort),
+        protocol(protocol), m_localAddress(localAddress), m_localPort(localPort), m_remoteAddress(remoteAddress), m_remotePort(remotePort) {}
 
         const std::string& localAddress() const { return m_localAddress; }
         uint16_t localPort() const { return m_localPort; }

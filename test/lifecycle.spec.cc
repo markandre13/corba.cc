@@ -106,7 +106,7 @@ unique_ptr<vector<char>> str2vec(const char *data) {
 }
 
 kaffeeklatsch_spec([] {
-    fdescribe("networking", [] {
+    describe("networking", [] {
         describe("ConnectionPool", [] {
             it("insert, find, erase", [] {
                 auto pool = make_unique<CORBA::detail::ConnectionPool>();
@@ -394,16 +394,14 @@ kaffeeklatsch_spec([] {
                 serverORB->registerProtocol(serverProto);
                 serverProto->listen("127.0.0.1", 9003);
 
-                auto backend = make_shared<Interface_impl>();
-                serverORB->bind("Backend", backend);
-
-                std::exception_ptr eptr;
+                serverORB->bind("Backend", make_shared<Interface_impl>());
 
                 auto clientORB = make_shared<CORBA::ORB>("client");
                 clientORB->debug = true;
                 auto clientProto = new CORBA::detail::TcpProtocol(loop);
                 clientORB->registerProtocol(clientProto);
 
+                std::exception_ptr eptr;
                 parallel(eptr, loop, [&] -> async<> {
                     auto object = co_await clientORB->stringToObject("corbaname::127.0.0.1:9003#Backend");
                     auto backend = Interface::_narrow(object);
@@ -411,7 +409,8 @@ kaffeeklatsch_spec([] {
                     co_await backend->callString("one");
 
                     println("======================== close 1st server orb");
-                    serverORB.reset();
+                    // this might crash because we're mixing async too much?
+                    serverORB->shutdown();
                     println("=============================================");
 
                     auto serverORB2 = make_shared<CORBA::ORB>("server");

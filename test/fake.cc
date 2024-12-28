@@ -4,9 +4,9 @@
 
 using std::println;
 
-CORBA::async<CORBA::detail::Connection *> FakeTcpProtocol::create(const ::CORBA::ORB *orb, const std::string &hostname, uint16_t port) {
+CORBA::async<std::shared_ptr<CORBA::detail::Connection>> FakeTcpProtocol::create(const ::CORBA::ORB *orb, const std::string &hostname, uint16_t port) {
     // println("TcpFakeConnection::create(\"{}\", {})", hostname, port);
-    auto conn = new TcpFakeConnection(this, m_localAddress, m_localPort, hostname, port);
+    auto conn = std::make_shared<TcpFakeConnection>(this, m_localAddress, m_localPort, hostname, port);
     // printf("TcpFakeConnection::create() -> %p %s:%u -> %s:%u requestId=%u\n", static_cast<void *>(conn), conn->localAddress().c_str(), conn->localPort(),
     //        conn->remoteAddress().c_str(), conn->remotePort(), conn->requestId);
     connections.push_back(conn);
@@ -29,7 +29,7 @@ bool transmit(std::vector<FakeTcpProtocol *> &protocols) {
             for (auto dst : protocols) {
                 if (dst->m_localAddress == packet.connection->remoteAddress() && dst->m_localPort == packet.connection->remotePort()) {
                     // println("found destination protocol {}:{}", dst->m_localAddress, dst->m_localPort);
-                    TcpFakeConnection *conn = nullptr;
+                    std::shared_ptr<TcpFakeConnection> conn;
                     for (auto c : dst->connections) {
                         // println("found a connection");
                         if (c->localAddress() == packet.connection->remoteAddress() && c->localPort() == packet.connection->remotePort() &&
@@ -40,16 +40,13 @@ bool transmit(std::vector<FakeTcpProtocol *> &protocols) {
                         }
                     }
                     if (conn == nullptr) {
-                        // println("found no connection on destination, fake listen/accept and create one");
-                        dst->m_orb->getConnection(packet.connection->localAddress(), packet.connection->localPort())
-                            .then([&](CORBA::detail::Connection *_conn) {
-                                conn = dynamic_cast<TcpFakeConnection *>(_conn);
-                            });
-                        // conn = dynamic_cast<TcpFakeConnection *>();
+                        conn = std::dynamic_pointer_cast<TcpFakeConnection>(
+                            dst->m_orb->getConnection(packet.connection->localAddress(), packet.connection->localPort())
+                        );
                     }
                     println("==================== transmit from {}:{} to {}:{} ====================", packet.connection->localAddress(),
                             packet.connection->localPort(), packet.connection->remoteAddress(), packet.connection->remotePort());
-                    dst->m_orb->socketRcvd(conn, packet.buffer.data(), packet.buffer.size());
+                    dst->m_orb->socketRcvd(conn.get(), packet.buffer.data(), packet.buffer.size());
                     src->packets.erase(src->packets.begin());
                     return true;
                 }
