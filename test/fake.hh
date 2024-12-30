@@ -24,6 +24,7 @@ struct FakeTcpProtocol : public CORBA::detail::Protocol {
         std::vector<std::shared_ptr<TcpFakeConnection>> connections;
 
         void listen(const char *host, unsigned port) override;
+        void shutdown() override;
         std::shared_ptr<CORBA::detail::Connection> connect(const char *hostname, unsigned port) override;
 };
 

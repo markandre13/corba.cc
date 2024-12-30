@@ -24,6 +24,7 @@ class Protocol {
         Protocol(struct ev_loop *loop) : loop(loop) {}
         virtual ~Protocol();
         virtual void listen(const char *host, unsigned port) = 0;
+        virtual void shutdown() = 0;
         virtual std::shared_ptr<Connection> connect(const char *host, unsigned port) = 0;
 };
 

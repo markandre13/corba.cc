@@ -14,6 +14,7 @@ std::shared_ptr<CORBA::detail::Connection> FakeTcpProtocol::connect(const char *
     connections.push_back(conn);
     return conn;
 }
+void FakeTcpProtocol::shutdown() {}
 
 void TcpFakeConnection::up() {}
 void TcpFakeConnection::send(std::unique_ptr<std::vector<char>> &&data) {

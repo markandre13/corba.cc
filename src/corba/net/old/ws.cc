@@ -415,8 +415,6 @@ ssize_t wslay_send_callback(wslay_event_context_ptr ctx, const uint8_t *data, si
         }
     }
     return r;
-
-    return r;
 }
 
 // called by wslay to read data from the socket

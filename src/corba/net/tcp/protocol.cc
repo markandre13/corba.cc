@@ -50,7 +50,9 @@ void TcpProtocol::shutdown() {
     listeners.clear();
 }
 
-shared_ptr<Connection> TcpProtocol::connect(const char *host, unsigned port) { return make_shared<TcpConnection>(this, host, port); }
+shared_ptr<Connection> TcpProtocol::connect(const char *host, unsigned port) { 
+    return make_shared<TcpConnection>(this, host, port); 
+}
 
 // called by libev when a client want's to connect
 void libev_accept_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {

@@ -26,10 +26,11 @@ class TcpProtocol : public Protocol {
     public:
         TcpProtocol(struct ev_loop *loop) : Protocol(loop) {}
         ~TcpProtocol();
+
         /** listen for incoming CORBA connections */
         void listen(const char *host = nullptr, unsigned port = 2809) override;
         /** shutdown listen socket */
-        void shutdown();
+        void shutdown() override;
 
         std::shared_ptr<Connection> connect(const char *host, unsigned port) override;
 };

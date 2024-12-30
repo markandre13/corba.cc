@@ -47,14 +47,13 @@ LFLAGS=$(OS_LFLAGS) $(MEM)
 
 LIB=-lev -lwslay -lnettle
 
-APP_SRC=cdr_decoder.spec.cc cdr_encoder.spec.cc giop.spec.cc  blob.spec.cc \
+APP_SRC=cdr_decoder.spec.cc \
+	cdr_encoder.spec.cc \
+	giop.spec.cc \
 	memory.spec.cc \
 	lifecycle.spec.cc \
 	net/tcp.spec.cc \
 	blob.spec.cc \
-	cdr_decoder.spec.cc \
-	cdr_encoder.spec.cc \
-	giop.spec.cc \
 	corba.spec.cc \
 	interface/interface.spec.cc \
 	interface/interface.cc \
@@ -72,7 +71,8 @@ CORBA_PATH=../src
 CORBA_SRC=orb.cc ior.cc skeleton.cc stub.cc giop.cc cdr.cc url.cc \
 	naming.cc hexdump.cc \
 	net/connection.cc net/stream2packet.cc \
-        net/tcp/protocol.cc net/tcp/connection.cc \
+	net/tcp/protocol.cc net/tcp/connection.cc \
+	net/ws/protocol.cc net/ws/connection.cc \
 	net/util/socket.cc net/util/createAcceptKey.cc
 
 SRC = $(APP_SRC) \
@@ -126,7 +126,6 @@ cdr_encoder.spec.o: ../src/corba/cdr.hh ../src/corba/blob.hh
 giop.spec.o: ../src/corba/giop.hh ../src/corba/cdr.hh ../src/corba/blob.hh
 giop.spec.o: util.hh ../src/corba/hexdump.hh ../src/corba/coroutine.hh
 giop.spec.o: ../upstream/async.cc/src/async.hh
-blob.spec.o: ../src/corba/blob.hh
 memory.spec.o: ../src/corba/exception.hh ../src/corba/giop.hh
 memory.spec.o: ../src/corba/cdr.hh ../src/corba/blob.hh
 memory.spec.o: ../src/corba/net/stream2packet.hh
@@ -190,11 +189,6 @@ net/tcp.spec.o: ../src/corba/net/connection.hh
 net/tcp.spec.o: ../src/corba/net/stream2packet.hh util.hh
 net/tcp.spec.o: ../src/corba/hexdump.hh ../src/corba/coroutine.hh
 blob.spec.o: ../src/corba/blob.hh
-cdr_decoder.spec.o: ../src/corba/cdr.hh ../src/corba/blob.hh
-cdr_encoder.spec.o: ../src/corba/cdr.hh ../src/corba/blob.hh
-giop.spec.o: ../src/corba/giop.hh ../src/corba/cdr.hh ../src/corba/blob.hh
-giop.spec.o: util.hh ../src/corba/hexdump.hh ../src/corba/coroutine.hh
-giop.spec.o: ../upstream/async.cc/src/async.hh
 corba.spec.o: fake.hh ../src/corba/blob.hh ../src/corba/net/protocol.hh
 corba.spec.o: ../src/corba/net/connection.hh ../src/corba/blob.hh
 corba.spec.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
@@ -341,6 +335,13 @@ util.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
 ../src/corba/net/tcp/connection.o: ../src/corba/giop.hh ../src/corba/cdr.hh
 ../src/corba/net/tcp/connection.o: ../src/corba/blob.hh
 ../src/corba/net/tcp/connection.o: ../src/corba/net/connection.hh
+../src/corba/net/ws/protocol.o: ../src/corba/net/tcp/protocol.hh
+../src/corba/net/ws/protocol.o: ../src/corba/net/protocol.hh
+../src/corba/net/ws/protocol.o: ../src/corba/net/connection.hh
+../src/corba/net/ws/protocol.o: ../src/corba/blob.hh
+../src/corba/net/ws/protocol.o: ../src/corba/coroutine.hh
+../src/corba/net/ws/protocol.o: ../upstream/async.cc/src/async.hh
+../src/corba/net/ws/protocol.o: ../src/corba/net/util/socket.hh
 ../src/corba/net/util/socket.o: ../src/corba/net/util/socket.hh
 ../src/corba/net/util/createAcceptKey.o: ../src/corba/net/util/createAcceptKey.hh
 ../upstream/kaffeeklatsch/src/kaffeeklatsch.o: ../upstream/kaffeeklatsch/src/kaffeeklatsch.hh
