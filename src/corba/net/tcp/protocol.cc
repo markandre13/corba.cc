@@ -50,8 +50,16 @@ void TcpProtocol::shutdown() {
     listeners.clear();
 }
 
-shared_ptr<Connection> TcpProtocol::connect(const char *host, unsigned port) { 
+shared_ptr<Connection> TcpProtocol::connectOutgoing(const char *host, unsigned port) { 
     return make_shared<TcpConnection>(this, host, port); 
+    // throw runtime_error("not implemented yet");
+}
+
+shared_ptr<Connection> TcpProtocol::connectIncoming(const char *host, unsigned port, int fd) { 
+    auto conn = make_shared<TcpConnection>(this, host, port);
+    conn->accept(fd);
+    return conn;
+    // throw runtime_error("not implemented yet");
 }
 
 // called by libev when a client want's to connect
@@ -77,9 +85,10 @@ void libev_accept_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
     }
 
     auto peer = getPeerName(fd);
-    auto connection = make_shared<TcpConnection>(handler->protocol, peer.host.c_str(), peer.port);
+    auto connection = handler->protocol->connectIncoming(peer.host.c_str(), peer.port, fd);
     handler->protocol->orb->connections.insert(connection);
-    connection->accept(fd);
+    // auto foo = dynamic_pointer_cast<TcpConnection>(connection);
+    // if (foo) foo->accept(fd);
 
     println("{}accepted new connection {}", prefix(handler->protocol), connection->str());
 }

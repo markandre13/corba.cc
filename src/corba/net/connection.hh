@@ -85,7 +85,7 @@ class Connection {
 // * if it's a client and it can not listen because of NAT, the client's host:port is send via IIOP
 class ConnectionPool {
         // FIXME: this needs to be a map, set
-        // std::set<shared_ptr<TcpConnection>, decltype(cmp)> connections;
+        // std::set<shared_ptr<Connection>, decltype(cmp)> connections;
         std::set<std::shared_ptr<Connection>> connections;
 
     public:

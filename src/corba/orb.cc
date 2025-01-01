@@ -167,7 +167,7 @@ std::shared_ptr<detail::Connection> ORB::getConnection(string host, uint16_t por
             //     println("ORB : active connection {}", conn->str());
             // }
         }
-        auto connection = proto->connect(host.c_str(), port);
+        auto connection = proto->connectOutgoing(host.c_str(), port);
         println("{}created {}", prefix(this), connection->str());
         connections.insert(connection);
         return connection;

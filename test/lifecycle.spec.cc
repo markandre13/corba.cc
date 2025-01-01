@@ -294,7 +294,7 @@ kaffeeklatsch_spec([] {
             it("creates a connection", [] {
                 struct ev_loop *loop = EV_DEFAULT;
                 auto client = make_unique<TcpProtocol>(loop);
-                auto clientConn = client->connect("mark13.org", 2809);
+                auto clientConn = client->connectOutgoing("mark13.org", 2809);
 
                 // THEN the connection is for the given remote host and port
                 expect(clientConn->remote.host).to.equal("mark13.org");
@@ -310,7 +310,7 @@ kaffeeklatsch_spec([] {
                 // expect(system("/sbin/iptables -A INPUT -p tcp --dport 9090 -j DROP")).to.equal(0);
                 struct ev_loop *loop = EV_DEFAULT;
                 auto client = make_unique<TcpProtocol>(loop);
-                auto clientConn = client->connect("127.0.0.1", 9090);
+                auto clientConn = client->connectOutgoing("127.0.0.1", 9090);
 
                 clientConn->up();
                 expect(clientConn->state).to.equal(ConnectionState::INPROGRESS);

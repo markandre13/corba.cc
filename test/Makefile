@@ -53,6 +53,7 @@ APP_SRC=cdr_decoder.spec.cc \
 	memory.spec.cc \
 	lifecycle.spec.cc \
 	net/tcp.spec.cc \
+	net/ws.spec.cc \
 	blob.spec.cc \
 	corba.spec.cc \
 	interface/interface.spec.cc \
@@ -60,11 +61,11 @@ APP_SRC=cdr_decoder.spec.cc \
 	fake.cc \
 	main.cc util.cc 
 
-#   interface/interface.cc \
-# fake.cc
-# interface/interface.spec.cc
-#		corba.spec.cc
-#	  net/ws.spec.cc 
+# APP_SRC=net/ws.spec.cc \
+# 	interface/interface.cc \
+# 	fake.cc \
+# 	main.cc util.cc 
+
 IDL_GEN=interface/interface.cc interface/interface.hh interface/interface_skel.hh interface/interface_stub.hh
 
 CORBA_PATH=../src
@@ -131,9 +132,9 @@ memory.spec.o: ../src/corba/cdr.hh ../src/corba/blob.hh
 memory.spec.o: ../src/corba/net/stream2packet.hh
 memory.spec.o: ../src/corba/net/tcp/connection.hh
 memory.spec.o: ../src/corba/net/tcp/protocol.hh ../src/corba/net/protocol.hh
+memory.spec.o: connection.hh ../src/corba/net/util/socket.hh
 memory.spec.o: ../src/corba/net/connection.hh ../src/corba/blob.hh
 memory.spec.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
-memory.spec.o: ../src/corba/net/util/socket.hh ../src/corba/net/connection.hh
 memory.spec.o: ../src/corba/net/stream2packet.hh
 memory.spec.o: ../src/corba/net/tcp/protocol.hh
 memory.spec.o: ../src/corba/net/util/socket.hh ../src/corba/orb.hh
@@ -152,11 +153,10 @@ lifecycle.spec.o: ../src/corba/cdr.hh ../src/corba/blob.hh
 lifecycle.spec.o: ../src/corba/net/stream2packet.hh
 lifecycle.spec.o: ../src/corba/net/tcp/connection.hh
 lifecycle.spec.o: ../src/corba/net/tcp/protocol.hh
-lifecycle.spec.o: ../src/corba/net/protocol.hh ../src/corba/net/connection.hh
-lifecycle.spec.o: ../src/corba/blob.hh ../src/corba/coroutine.hh
-lifecycle.spec.o: ../upstream/async.cc/src/async.hh
+lifecycle.spec.o: ../src/corba/net/protocol.hh connection.hh
 lifecycle.spec.o: ../src/corba/net/util/socket.hh
-lifecycle.spec.o: ../src/corba/net/connection.hh
+lifecycle.spec.o: ../src/corba/net/connection.hh ../src/corba/blob.hh
+lifecycle.spec.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
 lifecycle.spec.o: ../src/corba/net/stream2packet.hh
 lifecycle.spec.o: ../src/corba/net/tcp/protocol.hh
 lifecycle.spec.o: ../src/corba/net/util/socket.hh ../src/corba/orb.hh
@@ -182,37 +182,58 @@ net/tcp.spec.o: ../src/corba/exception.hh ../src/corba/orb.hh
 net/tcp.spec.o: ../src/corba/giop.hh ../src/corba/coroutine.hh
 net/tcp.spec.o: interface/interface.hh interface/interface_skel.hh
 net/tcp.spec.o: ../src/corba/corba.hh ../src/corba/net/tcp/protocol.hh
-net/tcp.spec.o: ../src/corba/net/protocol.hh ../src/corba/net/connection.hh
-net/tcp.spec.o: ../src/corba/net/tcp/connection.hh
+net/tcp.spec.o: ../src/corba/net/protocol.hh connection.hh
 net/tcp.spec.o: ../src/corba/net/tcp/protocol.hh
+net/tcp.spec.o: ../src/corba/net/tcp/connection.hh
 net/tcp.spec.o: ../src/corba/net/connection.hh
 net/tcp.spec.o: ../src/corba/net/stream2packet.hh util.hh
 net/tcp.spec.o: ../src/corba/hexdump.hh ../src/corba/coroutine.hh
+net/ws.spec.o: ../src/corba/net/ws/protocol.hh
+net/ws.spec.o: ../src/corba/net/tcp/protocol.hh ../src/corba/net/protocol.hh
+net/ws.spec.o: connection.hh ../src/corba/net/tcp/protocol.hh
+net/ws.spec.o: ../src/corba/net/util/socket.hh interface/interface_impl.hh
+net/ws.spec.o: interface/interface_skel.hh ../src/corba/corba.hh
+net/ws.spec.o: ../src/corba/orb.hh ../src/corba/coroutine.hh
+net/ws.spec.o: ../upstream/async.cc/src/async.hh ../src/corba/giop.hh
+net/ws.spec.o: ../src/corba/cdr.hh ../src/corba/blob.hh
+net/ws.spec.o: ../src/corba/net/connection.hh ../src/corba/blob.hh
+net/ws.spec.o: ../src/corba/coroutine.hh ../src/corba/skeleton.hh
+net/ws.spec.o: ../src/corba/object.hh ../src/corba/stub.hh
+net/ws.spec.o: ../src/corba/ior.hh ../src/corba/exception.hh
+net/ws.spec.o: ../src/corba/orb.hh ../src/corba/giop.hh
+net/ws.spec.o: ../src/corba/coroutine.hh interface/interface.hh
+net/ws.spec.o: interface/interface_skel.hh ../src/corba/corba.hh
+net/ws.spec.o: ../src/corba/net/ws/connection.hh
+net/ws.spec.o: ../src/corba/net/connection.hh
+net/ws.spec.o: ../src/corba/net/stream2packet.hh util.hh
+net/ws.spec.o: ../src/corba/hexdump.hh ../src/corba/coroutine.hh
 blob.spec.o: ../src/corba/blob.hh
 corba.spec.o: fake.hh ../src/corba/blob.hh ../src/corba/net/protocol.hh
-corba.spec.o: ../src/corba/net/connection.hh ../src/corba/blob.hh
+corba.spec.o: connection.hh ../src/corba/net/tcp/protocol.hh
+corba.spec.o: ../src/corba/net/protocol.hh ../src/corba/net/util/socket.hh
+corba.spec.o: ../src/corba/corba.hh ../src/corba/orb.hh
 corba.spec.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
-corba.spec.o: ../src/corba/net/util/socket.hh ../src/corba/corba.hh
-corba.spec.o: ../src/corba/orb.hh ../src/corba/coroutine.hh
 corba.spec.o: ../src/corba/giop.hh ../src/corba/cdr.hh ../src/corba/blob.hh
-corba.spec.o: ../src/corba/net/connection.hh ../src/corba/skeleton.hh
+corba.spec.o: ../src/corba/net/connection.hh ../src/corba/blob.hh
+corba.spec.o: ../src/corba/coroutine.hh ../src/corba/skeleton.hh
 corba.spec.o: ../src/corba/object.hh ../src/corba/stub.hh ../src/corba/ior.hh
 corba.spec.o: ../src/corba/exception.hh ../src/corba/orb.hh
 corba.spec.o: ../src/corba/net/protocol.hh ../src/corba/url.hh util.hh
 corba.spec.o: ../src/corba/hexdump.hh ../src/corba/coroutine.hh
 interface/interface.spec.o: fake.hh ../src/corba/blob.hh
+interface/interface.spec.o: ../src/corba/net/protocol.hh connection.hh
+interface/interface.spec.o: ../src/corba/net/tcp/protocol.hh
 interface/interface.spec.o: ../src/corba/net/protocol.hh
-interface/interface.spec.o: ../src/corba/net/connection.hh
-interface/interface.spec.o: ../src/corba/blob.hh ../src/corba/coroutine.hh
-interface/interface.spec.o: ../upstream/async.cc/src/async.hh
 interface/interface.spec.o: ../src/corba/net/util/socket.hh util.hh
 interface/interface.spec.o: ../src/corba/hexdump.hh ../src/corba/blob.hh
 interface/interface.spec.o: ../src/corba/coroutine.hh
+interface/interface.spec.o: ../upstream/async.cc/src/async.hh
 interface/interface.spec.o: interface/interface_impl.hh
 interface/interface.spec.o: interface/interface_skel.hh ../src/corba/corba.hh
 interface/interface.spec.o: ../src/corba/orb.hh ../src/corba/coroutine.hh
 interface/interface.spec.o: ../src/corba/giop.hh ../src/corba/cdr.hh
 interface/interface.spec.o: ../src/corba/net/connection.hh
+interface/interface.spec.o: ../src/corba/blob.hh ../src/corba/coroutine.hh
 interface/interface.spec.o: ../src/corba/skeleton.hh ../src/corba/object.hh
 interface/interface.spec.o: ../src/corba/stub.hh ../src/corba/ior.hh
 interface/interface.spec.o: ../src/corba/exception.hh ../src/corba/orb.hh
@@ -232,11 +253,13 @@ interface/interface.o: ../src/corba/giop.hh ../src/corba/coroutine.hh
 interface/interface.o: interface/interface.hh interface/interface_skel.hh
 interface/interface.o: interface/interface_stub.hh
 fake.o: fake.hh ../src/corba/blob.hh ../src/corba/net/protocol.hh
+fake.o: connection.hh ../src/corba/net/tcp/protocol.hh
+fake.o: ../src/corba/net/protocol.hh ../src/corba/net/util/socket.hh
+fake.o: ../src/corba/orb.hh ../src/corba/coroutine.hh
+fake.o: ../upstream/async.cc/src/async.hh ../src/corba/giop.hh
+fake.o: ../src/corba/cdr.hh ../src/corba/blob.hh
 fake.o: ../src/corba/net/connection.hh ../src/corba/blob.hh
-fake.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
-fake.o: ../src/corba/net/util/socket.hh ../src/corba/orb.hh
-fake.o: ../src/corba/coroutine.hh ../src/corba/giop.hh ../src/corba/cdr.hh
-fake.o: ../src/corba/blob.hh ../src/corba/net/connection.hh
+fake.o: ../src/corba/coroutine.hh
 util.o: util.hh ../src/corba/hexdump.hh ../src/corba/blob.hh
 util.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
 ../src/corba/orb.o: ../src/corba/orb.hh ../src/corba/coroutine.hh
@@ -248,8 +271,9 @@ util.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
 ../src/corba/orb.o: ../src/corba/object.hh ../src/corba/stub.hh
 ../src/corba/orb.o: ../src/corba/ior.hh ../src/corba/exception.hh
 ../src/corba/orb.o: ../src/corba/hexdump.hh ../src/corba/naming.hh
-../src/corba/orb.o: ../src/corba/net/protocol.hh
-../src/corba/orb.o: ../src/corba/net/connection.hh ../src/corba/url.hh
+../src/corba/orb.o: ../src/corba/net/protocol.hh connection.hh
+../src/corba/orb.o: ../src/corba/net/tcp/protocol.hh
+../src/corba/orb.o: ../src/corba/net/protocol.hh ../src/corba/url.hh
 ../src/corba/ior.o: ../src/corba/ior.hh ../src/corba/object.hh
 ../src/corba/ior.o: ../src/corba/blob.hh ../src/corba/giop.hh
 ../src/corba/ior.o: ../src/corba/cdr.hh
@@ -267,8 +291,9 @@ util.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
 ../src/corba/stub.o: ../src/corba/cdr.hh ../src/corba/net/connection.hh
 ../src/corba/stub.o: ../src/corba/blob.hh ../src/corba/coroutine.hh
 ../src/corba/stub.o: ../src/corba/net/util/socket.hh
+../src/corba/stub.o: ../src/corba/net/protocol.hh connection.hh
+../src/corba/stub.o: ../src/corba/net/tcp/protocol.hh
 ../src/corba/stub.o: ../src/corba/net/protocol.hh
-../src/corba/stub.o: ../src/corba/net/connection.hh
 ../src/corba/giop.o: ../src/corba/giop.hh ../src/corba/cdr.hh
 ../src/corba/giop.o: ../src/corba/blob.hh ../src/corba/corba.hh
 ../src/corba/giop.o: ../src/corba/orb.hh ../src/corba/coroutine.hh
@@ -279,7 +304,8 @@ util.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
 ../src/corba/giop.o: ../src/corba/object.hh ../src/corba/stub.hh
 ../src/corba/giop.o: ../src/corba/ior.hh ../src/corba/exception.hh
 ../src/corba/giop.o: ../src/corba/hexdump.hh ../src/corba/net/protocol.hh
-../src/corba/giop.o: ../src/corba/net/connection.hh
+../src/corba/giop.o: connection.hh ../src/corba/net/tcp/protocol.hh
+../src/corba/giop.o: ../src/corba/net/protocol.hh
 ../src/corba/cdr.o: ../src/corba/cdr.hh ../src/corba/blob.hh
 ../src/corba/url.o: ../src/corba/url.hh ../src/corba/cdr.hh
 ../src/corba/url.o: ../src/corba/blob.hh ../src/corba/giop.hh
@@ -300,48 +326,55 @@ util.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
 ../src/corba/naming.o: ../src/corba/blob.hh ../src/corba/coroutine.hh
 ../src/corba/naming.o: ../src/corba/net/util/socket.hh
 ../src/corba/naming.o: ../src/corba/hexdump.hh ../src/corba/ior.hh
-../src/corba/net/connection.o: ../src/corba/net/connection.hh
-../src/corba/net/connection.o: ../src/corba/blob.hh ../src/corba/coroutine.hh
-../src/corba/net/connection.o: ../upstream/async.cc/src/async.hh
-../src/corba/net/connection.o: ../src/corba/net/util/socket.hh
-../src/corba/net/connection.o: ../src/corba/net/tcp/protocol.hh
+../src/corba/net/connection.o: connection.hh ../src/corba/net/tcp/protocol.hh
 ../src/corba/net/connection.o: ../src/corba/net/protocol.hh
+../src/corba/net/connection.o: ../src/corba/net/util/socket.hh
 ../src/corba/net/connection.o: ../src/corba/stub.hh ../src/corba/object.hh
 ../src/corba/net/connection.o: ../src/corba/blob.hh
 ../src/corba/net/stream2packet.o: ../src/corba/net/stream2packet.hh
 ../src/corba/net/stream2packet.o: ../src/corba/giop.hh ../src/corba/cdr.hh
 ../src/corba/net/stream2packet.o: ../src/corba/blob.hh
 ../src/corba/net/tcp/protocol.o: ../src/corba/net/tcp/protocol.hh
-../src/corba/net/tcp/protocol.o: ../src/corba/net/protocol.hh
-../src/corba/net/tcp/protocol.o: ../src/corba/net/connection.hh
-../src/corba/net/tcp/protocol.o: ../src/corba/blob.hh
-../src/corba/net/tcp/protocol.o: ../src/corba/coroutine.hh
-../src/corba/net/tcp/protocol.o: ../upstream/async.cc/src/async.hh
+../src/corba/net/tcp/protocol.o: ../src/corba/net/protocol.hh connection.hh
 ../src/corba/net/tcp/protocol.o: ../src/corba/net/util/socket.hh
 ../src/corba/net/tcp/protocol.o: ../src/corba/orb.hh
 ../src/corba/net/tcp/protocol.o: ../src/corba/coroutine.hh
+../src/corba/net/tcp/protocol.o: ../upstream/async.cc/src/async.hh
 ../src/corba/net/tcp/protocol.o: ../src/corba/giop.hh ../src/corba/cdr.hh
 ../src/corba/net/tcp/protocol.o: ../src/corba/blob.hh
 ../src/corba/net/tcp/protocol.o: ../src/corba/net/connection.hh
+../src/corba/net/tcp/protocol.o: ../src/corba/blob.hh
+../src/corba/net/tcp/protocol.o: ../src/corba/coroutine.hh
 ../src/corba/net/tcp/protocol.o: ../src/corba/exception.hh
-../src/corba/net/tcp/connection.o: ../src/corba/net/connection.hh
-../src/corba/net/tcp/connection.o: ../src/corba/blob.hh
-../src/corba/net/tcp/connection.o: ../src/corba/coroutine.hh
-../src/corba/net/tcp/connection.o: ../upstream/async.cc/src/async.hh
+../src/corba/net/tcp/connection.o: connection.hh
+../src/corba/net/tcp/connection.o: ../src/corba/net/tcp/protocol.hh
+../src/corba/net/tcp/connection.o: ../src/corba/net/protocol.hh
 ../src/corba/net/tcp/connection.o: ../src/corba/net/util/socket.hh
 ../src/corba/net/tcp/connection.o: ../src/corba/exception.hh
 ../src/corba/net/tcp/connection.o: ../src/corba/orb.hh
 ../src/corba/net/tcp/connection.o: ../src/corba/coroutine.hh
+../src/corba/net/tcp/connection.o: ../upstream/async.cc/src/async.hh
 ../src/corba/net/tcp/connection.o: ../src/corba/giop.hh ../src/corba/cdr.hh
 ../src/corba/net/tcp/connection.o: ../src/corba/blob.hh
 ../src/corba/net/tcp/connection.o: ../src/corba/net/connection.hh
+../src/corba/net/tcp/connection.o: ../src/corba/blob.hh
+../src/corba/net/tcp/connection.o: ../src/corba/coroutine.hh
 ../src/corba/net/ws/protocol.o: ../src/corba/net/tcp/protocol.hh
-../src/corba/net/ws/protocol.o: ../src/corba/net/protocol.hh
-../src/corba/net/ws/protocol.o: ../src/corba/net/connection.hh
-../src/corba/net/ws/protocol.o: ../src/corba/blob.hh
-../src/corba/net/ws/protocol.o: ../src/corba/coroutine.hh
-../src/corba/net/ws/protocol.o: ../upstream/async.cc/src/async.hh
+../src/corba/net/ws/protocol.o: ../src/corba/net/protocol.hh connection.hh
 ../src/corba/net/ws/protocol.o: ../src/corba/net/util/socket.hh
+../src/corba/net/ws/connection.o: connection.hh
+../src/corba/net/ws/connection.o: ../src/corba/net/tcp/protocol.hh
+../src/corba/net/ws/connection.o: ../src/corba/net/protocol.hh
+../src/corba/net/ws/connection.o: ../src/corba/net/util/socket.hh
+../src/corba/net/ws/connection.o: ../src/corba/exception.hh
+../src/corba/net/ws/connection.o: ../src/corba/orb.hh
+../src/corba/net/ws/connection.o: ../src/corba/coroutine.hh
+../src/corba/net/ws/connection.o: ../upstream/async.cc/src/async.hh
+../src/corba/net/ws/connection.o: ../src/corba/giop.hh ../src/corba/cdr.hh
+../src/corba/net/ws/connection.o: ../src/corba/blob.hh
+../src/corba/net/ws/connection.o: ../src/corba/net/connection.hh
+../src/corba/net/ws/connection.o: ../src/corba/blob.hh
+../src/corba/net/ws/connection.o: ../src/corba/coroutine.hh
 ../src/corba/net/util/socket.o: ../src/corba/net/util/socket.hh
 ../src/corba/net/util/createAcceptKey.o: ../src/corba/net/util/createAcceptKey.hh
 ../upstream/kaffeeklatsch/src/kaffeeklatsch.o: ../upstream/kaffeeklatsch/src/kaffeeklatsch.hh

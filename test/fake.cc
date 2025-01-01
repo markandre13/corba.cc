@@ -6,7 +6,15 @@ using std::println;
 
 void FakeTcpProtocol::listen(const char *host, unsigned port) {}
 
-std::shared_ptr<CORBA::detail::Connection> FakeTcpProtocol::connect(const char *hostname, unsigned port) {
+std::shared_ptr<CORBA::detail::Connection> FakeTcpProtocol::connectOutgoing(const char *hostname, unsigned port) {
+    // println("TcpFakeConnection::create(\"{}\", {})", hostname, port);
+    auto conn = std::make_shared<TcpFakeConnection>(this, m_localAddress, m_localPort, hostname, port);
+    // printf("TcpFakeConnection::create() -> %p %s:%u -> %s:%u requestId=%u\n", static_cast<void *>(conn), conn->localAddress().c_str(), conn->localPort(),
+    //        conn->remoteAddress().c_str(), conn->remotePort(), conn->requestId);
+    connections.push_back(conn);
+    return conn;
+}
+std::shared_ptr<CORBA::detail::Connection> FakeTcpProtocol::connectIncoming(const char *hostname, unsigned port, int fd) {
     // println("TcpFakeConnection::create(\"{}\", {})", hostname, port);
     auto conn = std::make_shared<TcpFakeConnection>(this, m_localAddress, m_localPort, hostname, port);
     // printf("TcpFakeConnection::create() -> %p %s:%u -> %s:%u requestId=%u\n", static_cast<void *>(conn), conn->localAddress().c_str(), conn->localPort(),

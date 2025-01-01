@@ -25,7 +25,9 @@ class Protocol {
         virtual ~Protocol();
         virtual void listen(const char *host, unsigned port) = 0;
         virtual void shutdown() = 0;
-        virtual std::shared_ptr<Connection> connect(const char *host, unsigned port) = 0;
+
+        virtual std::shared_ptr<Connection> connectOutgoing(const char *host, unsigned port) = 0;
+        virtual std::shared_ptr<Connection> connectIncoming(const char *host, unsigned port, int fd) = 0;
 };
 
 }  // namespace detail

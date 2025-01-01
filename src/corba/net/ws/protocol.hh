@@ -8,7 +8,9 @@ namespace detail {
 
 class WsProtocol : public TcpProtocol {
     public:
-        std::shared_ptr<Connection> connect(const char *host, unsigned port) override;
+        WsProtocol(struct ev_loop *loop) : TcpProtocol(loop) {}
+        std::shared_ptr<Connection> connectOutgoing(const char *host, unsigned port) override;
+        std::shared_ptr<Connection> connectIncoming(const char *host, unsigned port, int fd) override;
 };
 
 }  // namespace detail

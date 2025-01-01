@@ -28,7 +28,7 @@ std::string Connection::str() const {
     return "null -> " + remote.str();
 }
 
-// auto cmp = [](TcpConnection *a, TcpConnection *b) {
+// auto cmp = [](Connection *a, Connection *b) {
 //     if (a->remote.port < b->remote.port) {
 //         return true;
 //     }

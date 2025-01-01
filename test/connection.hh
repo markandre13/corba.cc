@@ -21,6 +21,7 @@ namespace detail {
 enum class WsConnectionState { HTTP_SERVER, HTTP_CLIENT, WS };
 
 class WsConnection : public Connection {
+    public:
         // file descriptor handling
         int fd = -1;
         ev_io read_watcher;
@@ -31,11 +32,17 @@ class WsConnection : public Connection {
         static void libev_write_cb(struct ev_loop *loop, struct ev_io *watcher, int revents);
         static void libev_timer_cb(struct ev_loop *loop, struct ev_timer *watcher, int revents);
 
-        //------- THIS CRASHES IT
+        //-------
         WsConnectionState wsstate;
         std::string headers;
         std::string client_key;
         wslay_event_context_ptr ctx;
+
+        // packet to stream
+        std::list<std::unique_ptr<std::vector<char>>> sendBuffer;
+        ssize_t bytesSend = 0;
+
+        void httpClientSend();
 
     public:
         WsConnection(Protocol *protocol, const char *host, uint16_t port, WsConnectionState initialState);
