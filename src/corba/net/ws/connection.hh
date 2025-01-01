@@ -21,6 +21,7 @@ namespace detail {
 enum class WsConnectionState { HTTP_SERVER, HTTP_CLIENT, WS };
 
 class WsConnection : public Connection {
+    public:
         // file descriptor handling
         int fd = -1;
         ev_io read_watcher;
@@ -36,6 +37,11 @@ class WsConnection : public Connection {
         std::string headers;
         std::string client_key;
         wslay_event_context_ptr ctx;
+        std::list<std::unique_ptr<std::vector<char>>> sendBuffer;
+
+        void httpClientSend();
+        void httpServerRcvd();
+        void httpClientRcvd();
 
     public:
         WsConnection(Protocol *protocol, const char *host, uint16_t port, WsConnectionState initialState);
