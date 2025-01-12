@@ -61,11 +61,6 @@ APP_SRC=cdr_decoder.spec.cc \
 	fake.cc \
 	main.cc util.cc 
 
-# APP_SRC=net/ws.spec.cc \
-# 	interface/interface.cc \
-# 	fake.cc \
-# 	main.cc util.cc 
-
 IDL_GEN=interface/interface.cc interface/interface.hh interface/interface_skel.hh interface/interface_stub.hh
 
 CORBA_PATH=../src
@@ -93,11 +88,10 @@ OBJ = $(SRC:.cc=.o)
 all: $(APP)
 
 depend:
-	makedepend -I../src -Y $(SRC)
+	makedepend -I. -I../src -Y $(SRC)
 
 run:
-#	scp 192.168.178.105:omni-test3/IOR.txt .
-	DYLD_LIBRARY_PATH=$(MEDIAPIPE_CPP_DIR)/library ./$(APP) --reporter=info --report-timing --only=foo
+	./$(APP) --reporter=info --report-timing --only=foo
 
 valgrind:
 	valgrind --track-origins=yes --tool=memcheck --leak-check=full --num-callers=20 ./$(APP)
@@ -375,6 +369,7 @@ util.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
 ../src/corba/net/ws/connection.o: ../src/corba/net/connection.hh
 ../src/corba/net/ws/connection.o: ../src/corba/blob.hh
 ../src/corba/net/ws/connection.o: ../src/corba/coroutine.hh
+../src/corba/net/ws/connection.o: ../src/corba/net/util/createAcceptKey.hh
 ../src/corba/net/util/socket.o: ../src/corba/net/util/socket.hh
 ../src/corba/net/util/createAcceptKey.o: ../src/corba/net/util/createAcceptKey.hh
 ../upstream/kaffeeklatsch/src/kaffeeklatsch.o: ../upstream/kaffeeklatsch/src/kaffeeklatsch.hh

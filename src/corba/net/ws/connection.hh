@@ -42,6 +42,8 @@ class WsConnection : public Connection {
         void httpClientSend();
         void httpServerRcvd();
         void httpClientRcvd();
+        void startWSMode();
+        void flushSendBuffer();
 
     public:
         WsConnection(Protocol *protocol, const char *host, uint16_t port, WsConnectionState initialState);

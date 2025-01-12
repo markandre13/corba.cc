@@ -21,8 +21,17 @@ static int genmask_callback(wslay_event_context_ptr ctx, uint8_t *buf, size_t le
 
 static string prefix(WsConnection *conn) {
     string result;
+
+    std::time_t t = std::time(nullptr);
+    char mbstr[100];
+
+    std::time_t time = std::time({});
+    char timeString[std::size("yyyy-mm-ddThh:mm:ssZ")];
+    std::strftime(std::data(timeString), std::size(timeString), "%FT%TZ", std::gmtime(&time));
+    result += timeString;
+
     if (conn->protocol && conn->protocol->orb && conn->protocol->orb->logname) {
-        result += format("ORB({}): TCP({}): ", conn->protocol->orb->logname, conn->str());
+        result += format(" ORB({}): TCP({}): ", conn->protocol->orb->logname, conn->str());
     }
     return result;
 }
@@ -44,14 +53,26 @@ WsConnection::~WsConnection() {
 
 void WsConnection::send(unique_ptr<vector<char>> &&buffer) {
     println("{}WsConnection::send(): {} bytes", prefix(this), buffer->size());
+    auto size = buffer->size();
     sendBuffer.push_back(move(buffer));
     switch (state) {
         case ConnectionState::IDLE:
+            println("{}WsConnection::send(): IDLE, {} bytes", prefix(this), size);
             up();
             break;
-        case ConnectionState::ESTABLISHED:
-            startWriteHandler();
+        case ConnectionState::PENDING:
+            println("{}WsConnection::send(): PENDING, {} bytes", prefix(this), size);
             break;
+        case ConnectionState::INPROGRESS:
+            println("{}WsConnection::send(): INPROGRESS, {} bytes", prefix(this), size);
+            break;
+        case ConnectionState::ESTABLISHED:
+            println("{}WsConnection::send(): ESTABLISHED, {} bytes", prefix(this), size);
+            // startWriteHandler();
+            flushSendBuffer();
+            break;
+        default:
+            println("{}WsConnection::send(): ???, {} bytes", prefix(this), size);
     }
 }
 
@@ -142,7 +163,7 @@ void WsConnection::httpServerRcvd() {
         "\r\n"
         "\r\n";
     auto r = ::send(fd, reply.data(), reply.size(), 0);
-    if (r<0) {
+    if (r < 0) {
         perror("httpServerRcvd");
     }
 
@@ -160,8 +181,7 @@ void WsConnection::httpServerRcvd() {
     }
     // TODO: call wslay_event_context_free(...) when closing connection
 
-    headers.clear();
-    wsstate = WsConnectionState::WS;
+    startWSMode();
 
     println("{}:{}: {}: SERVER ESTABLISHED WS MODE", __FILE__, __LINE__, __PRETTY_FUNCTION__);
 }
@@ -220,19 +240,51 @@ void WsConnection::httpClientRcvd() {
     }
     // printf("HANDLER %p, CTX %p: @1\n", handler, handler->ctx);
 
-    headers.clear();
-    wsstate = WsConnectionState::WS;
     // handler->sig.resume();
 
+    startWSMode();
     println("{}:{}: {}: CLIENT ESTABLISHED WS MODE", __FILE__, __LINE__, __PRETTY_FUNCTION__);
 }
 
+void WsConnection::startWSMode() {
+    headers.clear();
+    wsstate = WsConnectionState::WS;
+    flushSendBuffer();
+}
+
+void WsConnection::flushSendBuffer() {
+    if (sendBuffer.empty()) {
+        return;
+    }
+    for (auto &buffer : sendBuffer) {
+        struct wslay_event_msg msgarg = {WSLAY_BINARY_FRAME, (const uint8_t *)buffer->data(), buffer->size()};
+        int r0 = wslay_event_queue_msg(ctx, &msgarg);
+    }
+    sendBuffer.clear();
+    startWriteHandler();
+}
+
 void WsConnection::canWrite() {
-    println("{}:{}: {}", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+    if (state == ConnectionState::INPROGRESS) {
+        println("{}WsConnection::canWrite(): INPROGRESS -> ESTABLISHED", prefix(this));
+        state = ConnectionState::ESTABLISHED;
+    }
     switch (wsstate) {
         case WsConnectionState::HTTP_CLIENT:
-            httpClientSend();
+            println("{}WsConnection::canWrite(): HTTP_CLIENT", prefix(this));
             stopWriteHandler();
+            httpClientSend();
+            break;
+        case WsConnectionState::HTTP_SERVER:
+            println("{}WsConnection::canWrite(): HTTP_SERVER", prefix(this));
+            break;
+        case WsConnectionState::WS:
+            println("{}WsConnection::canWrite(): WS", prefix(this));
+            stopWriteHandler();
+            wslay_event_send(ctx);
+            if (wslay_event_want_write(ctx)) {
+                startWriteHandler();
+            }
             break;
     }
 
@@ -312,17 +364,18 @@ void WsConnection::canWrite() {
 }
 
 void WsConnection::canRead() {
-    println("{}WsConnection::canRead()", prefix(this));
-
     switch (wsstate) {
         case WsConnectionState::HTTP_SERVER:
+            println("{}WsConnection::canRead(): HTTP_SERVER", prefix(this));
             httpServerRcvd();
             break;
         case WsConnectionState::HTTP_CLIENT:
+            println("{}WsConnection::canRead(): HTTP_CLIENT", prefix(this));
             httpClientRcvd();
             break;
         case WsConnectionState::WS:
-            println("{}:{}: {}: WS", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+            println("{}WsConnection::canRead(): WS", prefix(this));
+            wslay_event_recv(ctx);
             break;
     }
 
@@ -372,6 +425,7 @@ void WsConnection::up() {
         return;
     }
     fd = connect_to(remote.host.c_str(), remote.port);
+    int errorNumber = errno;
     if (fd < 0) {
         println("{}WsConnection::up(): -> PENDING", prefix(this));
         state = ConnectionState::PENDING;
@@ -383,7 +437,7 @@ void WsConnection::up() {
     ev_io_init(&write_watcher, libev_write_cb, fd, EV_WRITE);
     startTimer();
 
-    if (errno == EINPROGRESS) {
+    if (errorNumber == EINPROGRESS) {
         println("{}WsConnection::up(): -> INPROGRESS", prefix(this));
         state = ConnectionState::INPROGRESS;
         startWriteHandler();
@@ -413,7 +467,7 @@ void WsConnection::stopReadHandler() {
     if (!ev_is_active(&read_watcher)) {
         return;
     }
-    println("{}stop read handler", prefix(this));
+    println("{}WsConnection::stopReadHandler()", prefix(this));
     ev_io_stop(protocol->loop, &read_watcher);
 }
 
@@ -421,6 +475,7 @@ void WsConnection::stopWriteHandler() {
     if (!ev_is_active(&write_watcher)) {
         return;
     }
+    println("{}WsConnection::stopWriteHandler()", prefix(this));
     ev_io_stop(protocol->loop, &write_watcher);
 }
 
@@ -428,7 +483,7 @@ void WsConnection::startReadHandler() {
     if (ev_is_active(&read_watcher)) {
         return;
     }
-    println("{}start read handler", prefix(this));
+    println("{}WsConnection::startReadHandler()", prefix(this));
     ev_io_start(protocol->loop, &read_watcher);
 }
 
@@ -436,6 +491,7 @@ void WsConnection::startWriteHandler() {
     if (ev_is_active(&write_watcher)) {
         return;
     }
+    println("{}WsConnection::startWriteHandler()", prefix(this));
     ev_io_start(protocol->loop, &write_watcher);
 }
 
@@ -443,23 +499,23 @@ void WsConnection::startTimer() {
     if (timer_active) {
         return;
     }
-    println("startTimer");
+    println("{}WsConnection::startTimer()", prefix(this));
     timer_active = true;
-    ev_timer_init(&timer_watcher, libev_timer_cb, 1, 0.);
+    ev_timer_init(&timer_watcher, libev_timer_cb, 5, 0.);
     ev_timer_start(protocol->loop, &timer_watcher);
 }
 void WsConnection::stopTimer() {
     if (!timer_active) {
         return;
     }
-    println("stopTimer");
+    println("{}WsConnection::stopTimer()", prefix(this));
     timer_active = false;
     ev_timer_stop(protocol->loop, &timer_watcher);
 }
 void WsConnection::timer() {
-    println("timer {}", std::to_underlying(state));
+    println("{}WsConnection::timer(): {}", prefix(this), std::to_underlying(state));
     if (state == ConnectionState::INPROGRESS) {
-        println("INPROGRESS -> TIMEOUT");
+        println("{}WsConnection::timer(): INPROGRESS -> TIMEOUT", prefix(this));
         stopReadHandler();
         ::close(fd);
         fd = -1;
@@ -490,6 +546,9 @@ ssize_t wslay_send_callback(wslay_event_context_ptr ctx, const uint8_t *data, si
 
     ssize_t r;
     while ((r = send(handler->fd, (void *)data, len, sflags)) == -1 && errno == EINTR);
+    if (handler->protocol->orb->logname) {
+        println("wslay_send_callback {}: send {} bytes", handler->protocol->orb->logname, len);
+    }
     if (r == -1) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
             wslay_event_set_error(ctx, WSLAY_ERR_WOULDBLOCK);
@@ -502,7 +561,6 @@ ssize_t wslay_send_callback(wslay_event_context_ptr ctx, const uint8_t *data, si
 
 // called by wslay to read data from the socket
 ssize_t wslay_recv_callback(wslay_event_context_ptr ctx, uint8_t *data, size_t len, int flags, void *user_data) {
-
     // println("wslay_recv_callback");
 
     auto handler = reinterpret_cast<WsConnection *>(user_data);
@@ -536,7 +594,7 @@ ssize_t wslay_recv_callback(wslay_event_context_ptr ctx, uint8_t *data, size_t l
 }
 
 void wslay_msg_rcv_callback(wslay_event_context_ptr ctx, const struct wslay_event_on_msg_recv_arg *arg, void *user_data) {
-    // println("wslay_msg_rcv_callback: opcode {}, length {}", arg->opcode, arg->msg_length);
+    println("wslay_msg_rcv_callback: opcode {}, length {}", arg->opcode, arg->msg_length);
     auto handler = reinterpret_cast<WsConnection *>(user_data);
     switch (arg->opcode) {
         case WSLAY_BINARY_FRAME:

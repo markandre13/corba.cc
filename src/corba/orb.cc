@@ -31,8 +31,17 @@ namespace CORBA {
 
 string prefix(ORB *orb) {
     string result;
+
+    std::time_t t = std::time(nullptr);
+    char mbstr[100];
+
+    std::time_t time = std::time({});
+    char timeString[std::size("yyyy-mm-ddThh:mm:ssZ")];
+    std::strftime(std::data(timeString), std::size(timeString), "%FT%TZ", std::gmtime(&time));
+    result += timeString;
+
     if (orb->logname) {
-        result += format("ORB({}): ", orb->logname);
+        result += format(" ORB({}): ", orb->logname);
     }
     return result;
 }
