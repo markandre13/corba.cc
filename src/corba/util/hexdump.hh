@@ -2,7 +2,7 @@
 
 #include <string>
 #include <cstddef>
-#include "blob.hh"
+#include "../blob.hh"
 
 void _hexdump(const unsigned char *buffer, std::size_t nbytes);
 inline void hexdump(const unsigned char *buffer, std::size_t nbytes) { _hexdump(buffer, nbytes); }

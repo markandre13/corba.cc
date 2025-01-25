@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../src/corba/hexdump.hh"
+#include "../src/corba/util/hexdump.hh"
 #include "../src/corba/coroutine.hh"
 #include <functional>
 

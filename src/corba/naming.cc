@@ -1,6 +1,6 @@
 #include "naming.hh"
 #include "orb.hh"
-#include "hexdump.hh"
+#include "util/hexdump.hh"
 #include "giop.hh"
 #include "ior.hh"
 

@@ -65,7 +65,8 @@ IDL_GEN=interface/interface.cc interface/interface.hh interface/interface_skel.h
 
 CORBA_PATH=../src
 CORBA_SRC=orb.cc ior.cc skeleton.cc stub.cc giop.cc cdr.cc url.cc \
-	naming.cc hexdump.cc \
+	naming.cc \
+	util/hexdump.cc util/logger.cc \
 	net/connection.cc net/stream2packet.cc \
 	net/tcp/protocol.cc net/tcp/connection.cc \
 	net/ws/protocol.cc net/ws/connection.cc \
@@ -119,8 +120,8 @@ $(IDL_GEN): interface/interface.idl
 cdr_decoder.spec.o: ../src/corba/cdr.hh ../src/corba/blob.hh
 cdr_encoder.spec.o: ../src/corba/cdr.hh ../src/corba/blob.hh
 giop.spec.o: ../src/corba/giop.hh ../src/corba/cdr.hh ../src/corba/blob.hh
-giop.spec.o: util.hh ../src/corba/hexdump.hh ../src/corba/coroutine.hh
-giop.spec.o: ../upstream/async.cc/src/async.hh
+giop.spec.o: util.hh ../src/corba/util/hexdump.hh ../src/corba/blob.hh
+giop.spec.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
 memory.spec.o: ../src/corba/exception.hh ../src/corba/giop.hh
 memory.spec.o: ../src/corba/cdr.hh ../src/corba/blob.hh
 memory.spec.o: ../src/corba/net/stream2packet.hh
@@ -140,8 +141,8 @@ memory.spec.o: ../src/corba/object.hh ../src/corba/stub.hh
 memory.spec.o: ../src/corba/ior.hh ../src/corba/exception.hh
 memory.spec.o: ../src/corba/orb.hh ../src/corba/giop.hh
 memory.spec.o: ../src/corba/coroutine.hh interface/interface.hh
-memory.spec.o: interface/interface_skel.hh util.hh ../src/corba/hexdump.hh
-memory.spec.o: ../src/corba/coroutine.hh
+memory.spec.o: interface/interface_skel.hh util.hh
+memory.spec.o: ../src/corba/util/hexdump.hh ../src/corba/coroutine.hh
 lifecycle.spec.o: ../src/corba/exception.hh ../src/corba/giop.hh
 lifecycle.spec.o: ../src/corba/cdr.hh ../src/corba/blob.hh
 lifecycle.spec.o: ../src/corba/net/stream2packet.hh
@@ -162,8 +163,8 @@ lifecycle.spec.o: ../src/corba/object.hh ../src/corba/stub.hh
 lifecycle.spec.o: ../src/corba/ior.hh ../src/corba/exception.hh
 lifecycle.spec.o: ../src/corba/orb.hh ../src/corba/giop.hh
 lifecycle.spec.o: ../src/corba/coroutine.hh interface/interface.hh
-lifecycle.spec.o: interface/interface_skel.hh util.hh ../src/corba/hexdump.hh
-lifecycle.spec.o: ../src/corba/coroutine.hh
+lifecycle.spec.o: interface/interface_skel.hh util.hh
+lifecycle.spec.o: ../src/corba/util/hexdump.hh ../src/corba/coroutine.hh
 net/tcp.spec.o: interface/interface_impl.hh interface/interface_skel.hh
 net/tcp.spec.o: ../src/corba/corba.hh ../src/corba/orb.hh
 net/tcp.spec.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
@@ -181,26 +182,25 @@ net/tcp.spec.o: ../src/corba/net/tcp/protocol.hh
 net/tcp.spec.o: ../src/corba/net/tcp/connection.hh
 net/tcp.spec.o: ../src/corba/net/connection.hh
 net/tcp.spec.o: ../src/corba/net/stream2packet.hh util.hh
-net/tcp.spec.o: ../src/corba/hexdump.hh ../src/corba/coroutine.hh
-net/ws.spec.o: ../src/corba/net/ws/protocol.hh
-net/ws.spec.o: ../src/corba/net/tcp/protocol.hh ../src/corba/net/protocol.hh
-net/ws.spec.o: connection.hh ../src/corba/net/tcp/protocol.hh
-net/ws.spec.o: ../src/corba/net/util/socket.hh interface/interface_impl.hh
-net/ws.spec.o: interface/interface_skel.hh ../src/corba/corba.hh
-net/ws.spec.o: ../src/corba/orb.hh ../src/corba/coroutine.hh
-net/ws.spec.o: ../upstream/async.cc/src/async.hh ../src/corba/giop.hh
-net/ws.spec.o: ../src/corba/cdr.hh ../src/corba/blob.hh
+net/tcp.spec.o: ../src/corba/util/hexdump.hh ../src/corba/coroutine.hh
+net/ws.spec.o: interface/interface_impl.hh interface/interface_skel.hh
+net/ws.spec.o: ../src/corba/corba.hh ../src/corba/orb.hh
+net/ws.spec.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
+net/ws.spec.o: ../src/corba/giop.hh ../src/corba/cdr.hh ../src/corba/blob.hh
 net/ws.spec.o: ../src/corba/net/connection.hh ../src/corba/blob.hh
-net/ws.spec.o: ../src/corba/coroutine.hh ../src/corba/skeleton.hh
-net/ws.spec.o: ../src/corba/object.hh ../src/corba/stub.hh
-net/ws.spec.o: ../src/corba/ior.hh ../src/corba/exception.hh
-net/ws.spec.o: ../src/corba/orb.hh ../src/corba/giop.hh
-net/ws.spec.o: ../src/corba/coroutine.hh interface/interface.hh
-net/ws.spec.o: interface/interface_skel.hh ../src/corba/corba.hh
-net/ws.spec.o: ../src/corba/net/ws/connection.hh
-net/ws.spec.o: ../src/corba/net/connection.hh
-net/ws.spec.o: ../src/corba/net/stream2packet.hh util.hh
-net/ws.spec.o: ../src/corba/hexdump.hh ../src/corba/coroutine.hh
+net/ws.spec.o: ../src/corba/coroutine.hh ../src/corba/net/util/socket.hh
+net/ws.spec.o: ../src/corba/skeleton.hh ../src/corba/object.hh
+net/ws.spec.o: ../src/corba/stub.hh ../src/corba/ior.hh
+net/ws.spec.o: ../src/corba/exception.hh ../src/corba/orb.hh
+net/ws.spec.o: ../src/corba/giop.hh ../src/corba/coroutine.hh
+net/ws.spec.o: interface/interface.hh interface/interface_skel.hh
+net/ws.spec.o: ../src/corba/corba.hh ../src/corba/net/ws/connection.hh
+net/ws.spec.o: ../src/corba/net/tcp/protocol.hh ../src/corba/net/protocol.hh
+net/ws.spec.o: connection.hh ../src/corba/net/connection.hh
+net/ws.spec.o: ../src/corba/net/stream2packet.hh
+net/ws.spec.o: ../src/corba/net/ws/protocol.hh
+net/ws.spec.o: ../src/corba/net/tcp/protocol.hh ../src/corba/util/logger.hh
+net/ws.spec.o: util.hh ../src/corba/util/hexdump.hh ../src/corba/coroutine.hh
 blob.spec.o: ../src/corba/blob.hh
 corba.spec.o: fake.hh ../src/corba/blob.hh ../src/corba/net/protocol.hh
 corba.spec.o: connection.hh ../src/corba/net/tcp/protocol.hh
@@ -213,21 +213,22 @@ corba.spec.o: ../src/corba/coroutine.hh ../src/corba/skeleton.hh
 corba.spec.o: ../src/corba/object.hh ../src/corba/stub.hh ../src/corba/ior.hh
 corba.spec.o: ../src/corba/exception.hh ../src/corba/orb.hh
 corba.spec.o: ../src/corba/net/protocol.hh ../src/corba/url.hh util.hh
-corba.spec.o: ../src/corba/hexdump.hh ../src/corba/coroutine.hh
+corba.spec.o: ../src/corba/util/hexdump.hh ../src/corba/coroutine.hh
 interface/interface.spec.o: fake.hh ../src/corba/blob.hh
 interface/interface.spec.o: ../src/corba/net/protocol.hh connection.hh
 interface/interface.spec.o: ../src/corba/net/tcp/protocol.hh
 interface/interface.spec.o: ../src/corba/net/protocol.hh
 interface/interface.spec.o: ../src/corba/net/util/socket.hh util.hh
-interface/interface.spec.o: ../src/corba/hexdump.hh ../src/corba/blob.hh
+interface/interface.spec.o: ../src/corba/util/hexdump.hh ../src/corba/blob.hh
 interface/interface.spec.o: ../src/corba/coroutine.hh
 interface/interface.spec.o: ../upstream/async.cc/src/async.hh
 interface/interface.spec.o: interface/interface_impl.hh
 interface/interface.spec.o: interface/interface_skel.hh ../src/corba/corba.hh
 interface/interface.spec.o: ../src/corba/orb.hh ../src/corba/coroutine.hh
 interface/interface.spec.o: ../src/corba/giop.hh ../src/corba/cdr.hh
+interface/interface.spec.o: ../src/corba/blob.hh
 interface/interface.spec.o: ../src/corba/net/connection.hh
-interface/interface.spec.o: ../src/corba/blob.hh ../src/corba/coroutine.hh
+interface/interface.spec.o: ../src/corba/coroutine.hh
 interface/interface.spec.o: ../src/corba/skeleton.hh ../src/corba/object.hh
 interface/interface.spec.o: ../src/corba/stub.hh ../src/corba/ior.hh
 interface/interface.spec.o: ../src/corba/exception.hh ../src/corba/orb.hh
@@ -254,7 +255,7 @@ fake.o: ../upstream/async.cc/src/async.hh ../src/corba/giop.hh
 fake.o: ../src/corba/cdr.hh ../src/corba/blob.hh
 fake.o: ../src/corba/net/connection.hh ../src/corba/blob.hh
 fake.o: ../src/corba/coroutine.hh
-util.o: util.hh ../src/corba/hexdump.hh ../src/corba/blob.hh
+util.o: util.hh ../src/corba/util/hexdump.hh ../src/corba/blob.hh
 util.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
 ../src/corba/orb.o: ../src/corba/orb.hh ../src/corba/coroutine.hh
 ../src/corba/orb.o: ../upstream/async.cc/src/async.hh ../src/corba/giop.hh
@@ -264,10 +265,10 @@ util.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
 ../src/corba/orb.o: ../src/corba/corba.hh ../src/corba/skeleton.hh
 ../src/corba/orb.o: ../src/corba/object.hh ../src/corba/stub.hh
 ../src/corba/orb.o: ../src/corba/ior.hh ../src/corba/exception.hh
-../src/corba/orb.o: ../src/corba/hexdump.hh ../src/corba/naming.hh
-../src/corba/orb.o: ../src/corba/net/protocol.hh connection.hh
-../src/corba/orb.o: ../src/corba/net/tcp/protocol.hh
+../src/corba/orb.o: ../src/corba/naming.hh ../src/corba/net/protocol.hh
+../src/corba/orb.o: connection.hh ../src/corba/net/tcp/protocol.hh
 ../src/corba/orb.o: ../src/corba/net/protocol.hh ../src/corba/url.hh
+../src/corba/orb.o: ../src/corba/util/hexdump.hh
 ../src/corba/ior.o: ../src/corba/ior.hh ../src/corba/object.hh
 ../src/corba/ior.o: ../src/corba/blob.hh ../src/corba/giop.hh
 ../src/corba/ior.o: ../src/corba/cdr.hh
@@ -297,8 +298,9 @@ util.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
 ../src/corba/giop.o: ../src/corba/net/util/socket.hh ../src/corba/skeleton.hh
 ../src/corba/giop.o: ../src/corba/object.hh ../src/corba/stub.hh
 ../src/corba/giop.o: ../src/corba/ior.hh ../src/corba/exception.hh
-../src/corba/giop.o: ../src/corba/hexdump.hh ../src/corba/net/protocol.hh
-../src/corba/giop.o: connection.hh ../src/corba/net/tcp/protocol.hh
+../src/corba/giop.o: ../src/corba/util/hexdump.hh
+../src/corba/giop.o: ../src/corba/net/protocol.hh connection.hh
+../src/corba/giop.o: ../src/corba/net/tcp/protocol.hh
 ../src/corba/giop.o: ../src/corba/net/protocol.hh
 ../src/corba/cdr.o: ../src/corba/cdr.hh ../src/corba/blob.hh
 ../src/corba/url.o: ../src/corba/url.hh ../src/corba/cdr.hh
@@ -319,7 +321,8 @@ util.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
 ../src/corba/naming.o: ../src/corba/cdr.hh ../src/corba/net/connection.hh
 ../src/corba/naming.o: ../src/corba/blob.hh ../src/corba/coroutine.hh
 ../src/corba/naming.o: ../src/corba/net/util/socket.hh
-../src/corba/naming.o: ../src/corba/hexdump.hh ../src/corba/ior.hh
+../src/corba/naming.o: ../src/corba/util/hexdump.hh ../src/corba/ior.hh
+../src/corba/util/logger.o: ../src/corba/util/logger.hh
 ../src/corba/net/connection.o: connection.hh ../src/corba/net/tcp/protocol.hh
 ../src/corba/net/connection.o: ../src/corba/net/protocol.hh
 ../src/corba/net/connection.o: ../src/corba/net/util/socket.hh

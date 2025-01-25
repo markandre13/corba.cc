@@ -1,24 +1,26 @@
 #include "orb.hh"
 
+#include <uuid/uuid.h>
+
 #include <format>
 #include <iostream>
 #include <map>
 #include <print>
 #include <stdexcept>
 #include <string>
+#include <typeinfo>
 #include <utility>
 #include <variant>
-#include <typeinfo>
-#include <uuid/uuid.h>
 
 #include "cdr.hh"
 #include "corba.hh"
 #include "giop.hh"
-#include "hexdump.hh"
 #include "naming.hh"
-#include "net/protocol.hh"
 #include "net/connection.hh"
+#include "net/protocol.hh"
 #include "url.hh"
+#include "util/hexdump.hh"
+#include "util/logger.hh"
 
 #define CORBA_IIOP_PORT 683
 #define CORBA_IIOP_SSL_PORT 684
@@ -51,15 +53,13 @@ void installSystemExceptionHandler(std::shared_ptr<CORBA::Object> object, std::f
 Object::~Object() {
     auto h = exceptionHandler.find(this);
     if (h != exceptionHandler.end()) {
-        println("Object::~Object(): removing global exception handler");
+        Logger::debug("Object::~Object(): removing global exception handler");
         exceptionHandler.erase(h);
     }
 }
 
 ORB::~ORB() {
-    if (debug) {
-        println("{}ORB::~ORB()", prefix(this));
-    }
+    Logger::debug("{}ORB::~ORB()", prefix(this));
     shutdown();
 }
 
@@ -68,7 +68,7 @@ void ORB::shutdown() {
     namingService = nullptr;
 
     connections.clear();
-    for(auto proto: protocols) {
+    for (auto proto : protocols) {
         delete proto;
     }
     protocols.clear();
@@ -118,7 +118,7 @@ async<shared_ptr<Object>> ORB::stringToObject(const std::string &iorString) {
             // TODO: cache naming context
             auto rootNamingContext = make_shared<NamingContextExtStub>(this->shared_from_this(), name.objectKey, nameConnection);
             auto reference = co_await rootNamingContext->resolve_str(name.name);
-            rootNamingContext = nullptr; // THIS ONE CRASHES IT...
+            rootNamingContext = nullptr;  // THIS ONE CRASHES IT...
             // std::println("ORB::stringToObject(\"{}\"): got reference", iorString);
             reference->set_ORB(this->shared_from_this());
             co_return dynamic_pointer_cast<Object, IOR>(reference);
@@ -127,7 +127,7 @@ async<shared_ptr<Object>> ORB::stringToObject(const std::string &iorString) {
     throw runtime_error(format("ORB::stringToObject(\"{}\") failed", iorString));
 }
 
-void ORB::registerProtocol(detail::Protocol *protocol) { 
+void ORB::registerProtocol(detail::Protocol *protocol) {
     protocol->orb = this;
     protocols.push_back(protocol);
 }
@@ -138,7 +138,7 @@ std::shared_ptr<detail::Connection> ORB::getConnection(string host, uint16_t por
     // }
     auto conn = connections.find(host.c_str(), port);
     if (conn) {
-        println("{}ORB::getConnection(\"{}\", {}) found {}", prefix(this), host, port, conn->str());
+        Logger::debug("{}ORB::getConnection(\"{}\", {}) found {}", prefix(this), host, port, conn->str());
         return conn;
     }
     // for (auto &conn : connections) {
@@ -168,16 +168,16 @@ std::shared_ptr<detail::Connection> ORB::getConnection(string host, uint16_t por
 
         if (debug) {
             if (connections.size() == 0) {
-                println("{}Creating new connection to {}:{} as no others exist", prefix(this), host, port);
+                Logger::debug("{}Creating new connection to {}:{} as no others exist", prefix(this), host, port);
             } else {
-                println("{}Creating new connection to {}:{}, as none found to", prefix(this), host, port);
+                Logger::debug("{}Creating new connection to {}:{}, as none found to", prefix(this), host, port);
             }
             // for (auto conn : connections) {
             //     println("ORB : active connection {}", conn->str());
             // }
         }
         auto connection = proto->connectOutgoing(host.c_str(), port);
-        println("{}created {}", prefix(this), connection->str());
+        Logger::debug("{}created {}", prefix(this), connection->str());
         connections.insert(connection);
         return connection;
     }
@@ -187,7 +187,7 @@ std::shared_ptr<detail::Connection> ORB::getConnection(string host, uint16_t por
 void ORB::close(detail::Connection *connection) {}
 
 async<GIOPDecoder *> ORB::_twowayCall(Stub *stub, const char *operation, std::function<void(GIOPEncoder &)> encode) {
-    // println("ORB::_twowayCall(stub, \"{}\", ...) ENTER", operation);
+    // Logger::debug("ORB::_twowayCall(stub, \"{}\", ...) ENTER", operation);
     if (stub->connection == nullptr) {
         throw runtime_error("ORB::_twowayCall(): the stub has no connection");
     }
@@ -200,31 +200,29 @@ async<GIOPDecoder *> ORB::_twowayCall(Stub *stub, const char *operation, std::fu
     encoder.encodeRequest(stub->objectKey, operation, requestId, responseExpected);
     encode(encoder);
     encoder.setGIOPHeader(MessageType::REQUEST);  // THIS IS TOTAL BOLLOCKS BECAUSE OF THE RESIZE IN IT...
-    if (debug) {
-        println("ORB::_twowayCall(stub, \"{}\", ...) SEND REQUEST objectKey=\"{}\", operation=\"{}\", requestId={}", operation, stub->objectKey, operation,
-                requestId);
-    }
+    Logger::debug("ORB::_twowayCall(stub, \"{}\", ...) SEND REQUEST objectKey=\"{}\", operation=\"{}\", requestId={}", operation, stub->objectKey, operation,
+                  requestId);
     try {
         lock_guard guard(stub->connection->send_mutex);
         stub->connection->send(move(encoder.buffer._data));
     } catch (COMM_FAILURE &ex) {
         auto h = exceptionHandler.find(stub);
         if (h != exceptionHandler.end()) {
-            println("found a global exception handler for the object");
+            Logger::debug("found a global exception handler for the object");
             h->second();
             // TODO: the callback might drop the object's reference, which in turn should delete it from 'exceptionHandler'
         }
     }
     if (debug) {
-        println("ORB::_twowayCall(stub, \"{}\", ...) SUSPEND FOR REPLY", operation);
+        Logger::debug("ORB::_twowayCall(stub, \"{}\", ...) SUSPEND FOR REPLY", operation);
     }
     auto ret = co_await stub->connection->interlock.suspend(requestId);
     if (std::holds_alternative<std::exception_ptr>(ret)) {
         std::rethrow_exception(std::get<std::exception_ptr>(ret));
     }
-    GIOPDecoder *decoder = std::get<GIOPDecoder*>(ret);
+    GIOPDecoder *decoder = std::get<GIOPDecoder *>(ret);
     if (debug) {
-        println("ORB::_twowayCall(stub, \"{}\", ...) RESUME WITH REPLY", operation);
+        Logger::debug("ORB::_twowayCall(stub, \"{}\", ...) RESUME WITH REPLY", operation);
     }
     // move parts of this into a separate function so that it can be unit tested
     switch (decoder->replyStatus) {
@@ -262,19 +260,17 @@ async<GIOPDecoder *> ORB::_twowayCall(Stub *stub, const char *operation, std::fu
             } else if (exceptionId == "IDL:omg.org/CORBA/INITIALIZE:1.0") {
                 throw INITIALIZE(minorCodeValue, completionStatus);
             } else if (exceptionId == "IDL:mark13.org/CORBA/GENERIC:1.0") {
-                throw runtime_error(
-                    format("Remote CORBA exception from {}: {}", stub->connection->str(), decoder->readString()));
+                throw runtime_error(format("Remote CORBA exception from {}: {}", stub->connection->str(), decoder->readString()));
             } else {
-                throw runtime_error(
-                    format("CORBA System Exception {} from {}", exceptionId, stub->connection->str()));
+                throw runtime_error(format("CORBA System Exception {} from {}", exceptionId, stub->connection->str()));
             }
         } break;
         default:
             throw runtime_error(format("ReplyStatusType {} is not supported", (unsigned)decoder->replyStatus));
     }
-    if (debug) {
-        println("ORB::_twowayCall(stub, \"{}\", ...) RETURN", operation);
-    }
+
+    Logger::debug("ORB::_twowayCall(stub, \"{}\", ...) RETURN", operation);
+
     co_return decoder;
 }
 
@@ -295,16 +291,14 @@ void ORB::onewayCall(Stub *stub, const char *operation, std::function<void(GIOPE
     } catch (COMM_FAILURE &ex) {
         auto h = exceptionHandler.find(stub);
         if (h != exceptionHandler.end()) {
-            println("found a global exception handler for the object");
+            Logger::debug("found a global exception handler for the object");
             h->second();
             // TODO: the callback might drop the object's reference, which in turn should delete it from 'exceptionHandler'
         }
     }
 }
 
-void ORB::activate_object(std::shared_ptr<Skeleton> servant) {
-    activate_object_with_id(format("OID:{:x}", ++servantIdCounter), servant);
-}
+void ORB::activate_object(std::shared_ptr<Skeleton> servant) { activate_object_with_id(format("OID:{:x}", ++servantIdCounter), servant); }
 
 void ORB::activate_object_with_id(const std::string &objectKey, std::shared_ptr<Skeleton> servant) {
     servant->orb = shared_from_this();
@@ -317,7 +311,7 @@ void ORB::bind(const std::string &id, std::shared_ptr<CORBA::Skeleton> const obj
         activate_object(obj);
     }
     if (namingService == nullptr) {
-        // println("ORB::bind(\"{}\"): CREATING NameService", id);
+        // Logger::debug("ORB::bind(\"{}\"): CREATING NameService", id);
         namingService = make_shared<NamingContextExtImpl>();
         activate_object_with_id("NameService", namingService);
         // servants["NameService"] = namingService;
@@ -326,10 +320,7 @@ void ORB::bind(const std::string &id, std::shared_ptr<CORBA::Skeleton> const obj
 }
 
 void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t size) {
-    if (debug) {
-        println("{}socketRcvd(connection={}, buffer, size={})", prefix(this), connection->str(), size);
-        // hexdump(buffer, size);
-    }
+    Logger::debug("{}socketRcvd(connection={}, buffer, size={})", prefix(this), connection->str(), size);
     if (size == 0) {
         return;
     }
@@ -341,12 +332,11 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
         case MessageType::REQUEST: {
             // TODO: move this into a method
             auto request = decoder.scanRequestHeader();
-            if (debug) {
-                cout << "REQUEST(requestId=" << request->requestId << ", objectKey=" << request->objectKey << ", \"" << request->operation << "\")" << endl;
-            }
+            Logger::debug("REQUEST(requestId={}, objectKey={}, operation={})", request->requestId, request->objectKey, request->operation);
+
             auto servant = servants.find(request->objectKey);  // FIXME: avoid string copy
             if (servant == servants.end()) {
-                println("NO SERVANT FOUND");
+                Logger::error("NO SERVANT FOUND");
                 if (request->responseExpected) {
                     CORBA::GIOPEncoder encoder(connection);
                     encoder.majorVersion = decoder.majorVersion;
@@ -367,7 +357,7 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
             // NOTE: i can kill the server, client keeps running (will propably reconnect on demand)
 
             if (request->operation == "_is_a") {
-                println("OPERATION _is_a()");
+                Logger::debug("OPERATION _is_a()");
                 auto repositoryId = decoder.readStringView();
                 CORBA::GIOPEncoder encoder(connection);
                 encoder.majorVersion = decoder.majorVersion;
@@ -375,7 +365,7 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
                 encoder.skipReplyHeader();
 
                 auto result = (repositoryId.compare(servant->second->repository_id()) == 0);
-                println("    want \"{}\",\n    have \"{}\" -> {}", repositoryId, servant->second->repository_id(), result);
+                Logger::debug("    want \"{}\",\n    have \"{}\" -> {}", repositoryId, servant->second->repository_id(), result);
                 encoder.writeBoolean(repositoryId == servant->second->repository_id());
 
                 auto length = encoder.buffer.offset;
@@ -402,13 +392,13 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
                 servant->second->_call(request->operation, decoder, *encoder)
                     .thenOrCatch(
                         [this, encoder, connection, responseExpected, requestId] {  // FIXME: the references objects won't be available
-                            // println("SERVANT RETURNED");
+                            // Logger::debug("SERVANT RETURNED");
                             if (responseExpected) {
-                                // println("SERVANT WANTS RESPONSE");
+                                // Logger::debug("SERVANT WANTS RESPONSE");
                                 auto length = encoder->buffer.offset;
                                 encoder->setGIOPHeader(MessageType::REPLY);
                                 encoder->setReplyHeader(requestId, ReplyStatus::NO_EXCEPTION);
-                                println("{}send REPLY via connection {}", prefix(this), connection->str());
+                                Logger::debug("{}send REPLY via connection {}", prefix(this), connection->str());
                                 // hexdump(encoder->buffer.data(), length);
                                 connection->send(move(encoder->buffer._data));
                             }
@@ -418,11 +408,8 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
                                 // std::rethrow_exception(ex);
                                 std::rethrow_exception(eptr);
                             } catch (CORBA::UserException &ex) {
-                                println("CORBA::UserException while calling local servant {}::{}(...): {}", 
-                                    servant->second->repository_id(), 
-                                    request->operation,
-                                    ex.what()
-                                );
+                                Logger::debug("CORBA::UserException while calling local servant {}::{}(...): {}", servant->second->repository_id(),
+                                        request->operation, ex.what());
                                 if (responseExpected) {
                                     auto length = encoder->buffer.offset;
                                     encoder->setGIOPHeader(MessageType::REPLY);
@@ -430,12 +417,8 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
                                     connection->send(move(encoder->buffer._data));
                                 }
                             } catch (CORBA::SystemException &error) {
-                                println("{} while calling local servant {}::{}(...): {}",
-                                    error._rep_id(),
-                                    servant->second->repository_id(), 
-                                    request->operation,
-                                    error.what()
-                                );
+                                println("{} while calling local servant {}::{}(...): {}", error._rep_id(), servant->second->repository_id(), request->operation,
+                                        error.what());
                                 if (responseExpected) {
                                     encoder->writeString(error._rep_id());
                                     encoder->writeUlong(error.minor);
@@ -446,11 +429,8 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
                                     connection->send(move(encoder->buffer._data));
                                 }
                             } catch (std::exception &ex) {
-                                println("std::exception while calling local servant {}::{}(...): {}", 
-                                    servant->second->repository_id(), 
-                                    request->operation,
-                                    ex.what()
-                                );
+                                Logger::debug("std::exception while calling local servant {}::{}(...): {}", servant->second->repository_id(), request->operation,
+                                        ex.what());
                                 if (responseExpected) {
                                     encoder->writeString("IDL:mark13.org/CORBA/GENERIC:1.0");
                                     encoder->writeUlong(0);
@@ -462,31 +442,29 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
                                     connection->send(move(encoder->buffer._data));
                                 }
                             } catch (...) {
-                                println("SERVANT THREW EXCEPTION");
+                                Logger::error("SERVANT THREW EXCEPTION");
                             }
                         });
             } catch (std::out_of_range &e) {
                 if (request->responseExpected) {
                     // send reply
                 }
-                cerr << "OUT OF RANGE: " << e.what() << endl;
+                Logger::error("OUT OF RANGE: {}", e.what());
             } catch (std::exception &e) {
                 if (request->responseExpected) {
                     // send reply
                 }
-                cerr << "ORB::socketRcvd: EXCEPTION: " << e.what() << endl;
+                Logger::error("OUT OF EXCEPTION: {}", e.what());
             }
         } break;
 
         case MessageType::REPLY: {
             auto _data = decoder.scanReplyHeader();
-            if (debug) {
-                println("ORB::socketRcvd(): REPLY, resume requestId {}", _data->requestId);
-            }
+            Logger::debug("ORB::socketRcvd(): REPLY, resume requestId {}", _data->requestId);
             try {
                 connection->interlock.resume(_data->requestId, &decoder);
             } catch (...) {
-                println("ORB::socketRcvd(): unexpected reply to requestId {}", _data->requestId);
+                Logger::error("ORB::socketRcvd(): unexpected reply to requestId {}", _data->requestId);
             }
             break;
         } break;
@@ -505,10 +483,10 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
         } break;
 
         case MessageType::MESSAGE_ERROR: {
-            println("ORB::socketRcvd(): RECEIVED MESSAGE ERROR");
+            Logger::error("ORB::socketRcvd(): RECEIVED MESSAGE ERROR");
         } break;
         default:
-            cout << "ORB::socketRcvd(): GOT YET UNIMPLEMENTED REQUEST OF TYPE " << static_cast<unsigned>(type) << endl;
+            Logger::error("ORB::socketRcvd(): GOT YET UNIMPLEMENTED REQUEST OF TYPE {}", static_cast<unsigned>(type));
             break;
     }
 }

@@ -1,6 +1,7 @@
 #include "connection.hh"
 #include "../../exception.hh"
 #include "../../orb.hh"
+#include "../../util/logger.hh"
 
 #include <unistd.h>
 #include <arpa/inet.h>
@@ -20,7 +21,7 @@ static string prefix(TcpConnection *conn) {
 }
 
 void TcpConnection::send(unique_ptr<vector<char>> &&buffer) {
-    println("{}TcpConnection::send(): {} bytes", prefix(this), buffer->size());
+    Logger::debug("{}TcpConnection::send(): {} bytes", prefix(this), buffer->size());
     sendBuffer.push_back(move(buffer));
     switch (state) {
         case ConnectionState::IDLE:
@@ -33,7 +34,7 @@ void TcpConnection::send(unique_ptr<vector<char>> &&buffer) {
 }
 
 void TcpConnection::recv(void *buffer, size_t nbytes) {
-    println("{}TcpConnection::recv(): {} bytes", prefix(this), nbytes);
+    Logger::debug("{}TcpConnection::recv(): {} bytes", prefix(this), nbytes);
     if (protocol && protocol->orb) {
         protocol->orb->socketRcvd(this, buffer, nbytes);
     }
@@ -60,7 +61,7 @@ TcpConnection::~TcpConnection() {
     if (fd != -1) {
         auto loc = getLocalName(fd);
         auto peer = getPeerName(fd);
-        println("TcpConnection::~TcpConnection(): {} -> {}", loc.str(), peer.str());
+        Logger::debug("TcpConnection::~TcpConnection(): {} -> {}", loc.str(), peer.str());
         stopWriteHandler();
         stopReadHandler();
         ::close(fd);
@@ -68,7 +69,7 @@ TcpConnection::~TcpConnection() {
 }
 
 void TcpConnection::canWrite() {
-    println("{}TcpConnection::canWrite(): sendbuffer size = {}, fd = {}", prefix(this), sendBuffer.size(), fd);
+    Logger::debug("{}TcpConnection::canWrite(): sendbuffer size = {}, fd = {}", prefix(this), sendBuffer.size(), fd);
     stopWriteHandler();
 
     // https://stackoverflow.com/questions/17769964/linux-sockets-non-blocking-connect
@@ -83,9 +84,9 @@ void TcpConnection::canWrite() {
         socklen_t len = sizeof(addr);
         if (getpeername(fd, (sockaddr *)&addr, &len) != 0) {
             if (errno == EINVAL) {
-                println("{}TcpConnection::canWrite(): INPROGRESS -> IDLE (not connected)", prefix(this));
+                Logger::debug("{}TcpConnection::canWrite(): INPROGRESS -> IDLE (not connected)", prefix(this));
             } else {
-                println("{}TcpConnection::canWrite(): INPROGRESS -> IDLE ({} ({}))", prefix(this), strerror(errno), errno);
+                Logger::debug("{}TcpConnection::canWrite(): INPROGRESS -> IDLE ({} ({}))", prefix(this), strerror(errno), errno);
             }
             // TODO: when bidirectional or there are packets to be send, go to PENDING instead of IDLE
             state = ConnectionState::IDLE;
@@ -95,7 +96,7 @@ void TcpConnection::canWrite() {
         } else {
             // NOTE: this only means that we can write to the operating system's buffer, not that data
             //       will be send to the remote peer
-            // println("{}TcpConnection::canWrite(): INPROGRESS -> ESTABLISHED", prefix(this));
+            // Logger::debug("{}TcpConnection::canWrite(): INPROGRESS -> ESTABLISHED", prefix(this));
             // state = ConnectionState::ESTABLISHED;
         }
     }
@@ -107,26 +108,26 @@ void TcpConnection::canWrite() {
         ssize_t n = ::send(fd, data + bytesSend, nbytes - bytesSend, 0);
 
         if (n >= 0) {
-            println("{}TcpConnection::canWrite(): sendbuffer size {}: send {} bytes at {} of out {}", prefix(this), sendBuffer.size(), n, bytesSend,
+            Logger::debug("{}TcpConnection::canWrite(): sendbuffer size {}: send {} bytes at {} of out {}", prefix(this), sendBuffer.size(), n, bytesSend,
                     nbytes - bytesSend);
         } else {
             if (errno == EPIPE) {
-                println("{}TcpConnection::canWrite(): broken connection -> IDLE", prefix(this));
+                Logger::debug("{}TcpConnection::canWrite(): broken connection -> IDLE", prefix(this));
                 // TODO: when bidirectional or there are packets to be send, go to PENDING instead of IDLE
                 state = ConnectionState::IDLE;
                 close(fd);
                 fd = -1;
                 return;
             } else if (errno != EAGAIN) {
-                println("{}TcpConnection::canWrite(): sendbuffer size {}: error: {} ({})", prefix(this), sendBuffer.size(), strerror(errno), errno);
+                Logger::debug("{}TcpConnection::canWrite(): sendbuffer size {}: error: {} ({})", prefix(this), sendBuffer.size(), strerror(errno), errno);
             } else {
-                println("{}TcpConnection::canWrite(): sendbuffer size {}: wait", prefix(this), sendBuffer.size());
+                Logger::debug("{}TcpConnection::canWrite(): sendbuffer size {}: wait", prefix(this), sendBuffer.size());
             }
             break;
         }
 
         if (n != nbytes - bytesSend) {
-            // println("************************************************** incomplete send");
+            // Logger::debug("************************************************** incomplete send");
             bytesSend += n;
             break;
         } else {
@@ -136,25 +137,25 @@ void TcpConnection::canWrite() {
     }
 
     if (!sendBuffer.empty()) {
-        println("{}TcpConnection::canWrite(): sendbuffer size {}: register write handler to send more", prefix(this), sendBuffer.size());
+        Logger::debug("{}TcpConnection::canWrite(): sendbuffer size {}: register write handler to send more", prefix(this), sendBuffer.size());
         startWriteHandler();
     } else {
-        println("{}TcpConnection::canWrite(): sendbuffer size {}: nothing more to send", prefix(this), sendBuffer.size());
+        Logger::debug("{}TcpConnection::canWrite(): sendbuffer size {}: nothing more to send", prefix(this), sendBuffer.size());
     }
 }
 
 void TcpConnection::canRead() {
-    println("{}TcpConnection::canRead()", prefix(this));
+    Logger::debug("{}TcpConnection::canRead()", prefix(this));
     ssize_t nbytes = ::recv(fd, stream2packet.buffer(), stream2packet.length(), 0);
     if (nbytes < 0) {
         if (errno == EAGAIN) {
-            println("{}TcpConnection::canRead(): {} (EGAIN)", prefix(this), strerror(errno));
+            Logger::debug("{}TcpConnection::canRead(): {} (EGAIN)", prefix(this), strerror(errno));
             return;
         }
         if (errno == EBADF) {
-            println("{}TcpConnection::canRead(): failed to connect to peer", prefix(this));
+            Logger::debug("{}TcpConnection::canRead(): failed to connect to peer", prefix(this));
         } else {
-            println("{}TcpConnection::canRead(): {} ({})", prefix(this), strerror(errno), errno);
+            Logger::debug("{}TcpConnection::canRead(): {} ({})", prefix(this), strerror(errno), errno);
         }
         stopReadHandler();
         ::close(fd);
@@ -167,12 +168,12 @@ void TcpConnection::canRead() {
         }
         return;
     }
-    println("{}TcpConnection::canRead(): state = {}", prefix(this), std::to_underlying(state));
+    Logger::debug("{}TcpConnection::canRead(): state = {}", prefix(this), std::to_underlying(state));
     if (state == ConnectionState::INPROGRESS) {
         state = ConnectionState::ESTABLISHED;
         stopTimer();
     }
-    println("{}recv'd {} bytes", prefix(this), nbytes);
+    Logger::debug("{}recv'd {} bytes", prefix(this), nbytes);
     if (nbytes > 0) {
         stream2packet.received(nbytes);
         while(true) {
@@ -190,11 +191,11 @@ void TcpConnection::up() {
         return;
     }
 
-    println("{}TcpConnection::up(): -> {}", prefix(this), str());
+    Logger::debug("{}TcpConnection::up(): -> {}", prefix(this), str());
 
     fd = connect_to(remote.host.c_str(), remote.port);
     if (fd < 0) {
-        println("{}TcpConnection::up(): -> PENDING", prefix(this));
+        Logger::debug("{}TcpConnection::up(): -> PENDING", prefix(this));
         state = ConnectionState::PENDING;
         throw runtime_error(format("TcpConnection()::up(): {}: {}", remote.str(), strerror(errno)));
     }
@@ -205,11 +206,11 @@ void TcpConnection::up() {
     startTimer();
 
     if (errno == EINPROGRESS) {
-        println("{}TcpConnection::up(): -> INPROGRESS", prefix(this));
+        Logger::debug("{}TcpConnection::up(): -> INPROGRESS", prefix(this));
         state = ConnectionState::INPROGRESS;
         startWriteHandler();
     } else {
-        println("{}TcpConnection::up(): -> ESTABLISHED", prefix(this));
+        Logger::debug("{}TcpConnection::up(): -> ESTABLISHED", prefix(this));
         state = ConnectionState::ESTABLISHED;
     }
     startReadHandler();
@@ -237,7 +238,7 @@ void TcpConnection::stopReadHandler() {
     if (!ev_is_active(&read_watcher)) {
         return;
     }
-    println("{}stop read handler", prefix(this));
+    Logger::debug("{}stop read handler", prefix(this));
     ev_io_stop(protocol->loop, &read_watcher);
 }
 
@@ -252,7 +253,7 @@ void TcpConnection::startReadHandler() {
     if (ev_is_active(&read_watcher)) {
         return;
     }
-    println("{}start read handler", prefix(this));
+    Logger::debug("{}start read handler", prefix(this));
     ev_io_start(protocol->loop, &read_watcher);
 }
 
@@ -267,7 +268,7 @@ void TcpConnection::startTimer() {
     if (timer_active) {
         return;
     }
-    println("startTimer");
+    Logger::debug("startTimer");
     timer_active = true;
     ev_timer_init(&timer_watcher, libev_timer_cb, 1, 0.);
     ev_timer_start(protocol->loop, &timer_watcher);
@@ -276,14 +277,14 @@ void TcpConnection::stopTimer() {
     if (!timer_active) {
         return;
     }
-    println("stopTimer");
+    Logger::debug("stopTimer");
     timer_active = false;
     ev_timer_stop(protocol->loop, &timer_watcher);
 }
 void TcpConnection::timer() {
-    println("timer {}", std::to_underlying(state));
+    Logger::debug("timer {}", std::to_underlying(state));
     if (state == ConnectionState::INPROGRESS) {
-        println("INPROGRESS -> TIMEOUT");
+        Logger::debug("INPROGRESS -> TIMEOUT");
         stopReadHandler();
         ::close(fd);
         fd = -1;
@@ -295,8 +296,8 @@ void TcpConnection::timer() {
 }
 
 void TcpConnection::print() {
-    println(" -> {}", remote.str());
-    // println("{}:{} -> {}:{}", protocol->localHost, protocol->localPort, localHost, localPort);
+    Logger::debug(" -> {}", remote.str());
+    // Logger::debug("{}:{} -> {}:{}", protocol->localHost, protocol->localPort, localHost, localPort);
 }
 
 }  // namespace detail

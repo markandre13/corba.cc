@@ -95,6 +95,7 @@
         "numbers": "cpp",
         "semaphore": "cpp",
         "stop_token": "cpp",
-        "text_encoding": "cpp"
+        "text_encoding": "cpp",
+        "expected": "cpp"
     }
 }

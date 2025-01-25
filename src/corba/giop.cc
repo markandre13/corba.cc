@@ -8,7 +8,7 @@
 
 #include "blob.hh"
 #include "corba.hh"
-#include "hexdump.hh"
+#include "util/hexdump.hh"
 #include "orb.hh"
 #include "net/protocol.hh"
 

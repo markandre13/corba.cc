@@ -1,5 +1,3 @@
-#include "../src/corba/net/ws/protocol.hh"
-
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -14,8 +12,9 @@
 #include "../interface/interface_impl.hh"
 #include "../interface/interface_skel.hh"
 #include "../src/corba/corba.hh"
-#include "../src/corba/net/ws/protocol.hh"
 #include "../src/corba/net/ws/connection.hh"
+#include "../src/corba/net/ws/protocol.hh"
+#include "../src/corba/util/logger.hh"
 #include "../util.hh"
 #include "kaffeeklatsch.hh"
 
@@ -23,8 +22,51 @@ using namespace kaffeeklatsch;
 using namespace std;
 using CORBA::async;
 
+class SysLogger : public LogDestination {
+    protected:
+        /**
+         * \param option LOG_NOWAIT, LOG_ODELAY
+         * \param facility LOG_AUTH, LOG_DAEMON, LOG_KERN, ..., LOG_USER
+         */
+        SysLogger(const char *id, int option, int facility) { openlog(id, option, facility); }
+        virtual void log(int priority, const char *message) override { syslog(priority, "%s", message); }
+};
+
+struct LogEntry {
+        int level;
+        std::time_t time;
+        std::string message;
+
+        LogEntry(int level, std::time_t time, std::string message) : level(level), time(time), message(message) {}
+};
+
+class MemoryLogger : public LogDestination {
+    public:
+        vector<LogEntry> logs;
+        inline void clear() { logs.clear(); }
+
+    protected:
+        virtual void log(int priority, const char *message) override { logs.push_back(LogEntry(priority, std::time({}), message)); }
+};
+
+std::shared_ptr<MemoryLogger> logger;
+
 kaffeeklatsch_spec([] {
-    fdescribe("net", [] {
+    beforeAll([&] {
+        logger = make_shared<MemoryLogger>();
+        Logger::setDestination(logger);
+    });
+    beforeEach([&] {
+        logger->clear();
+    });
+    describe("log", [] {
+        fit("log", [] {
+            Logger::info("hello {} {}", 1, "you");
+            expect(logger->logs.size()).is.equal(1);
+            expect(logger->logs[0].message).is.equal("hello 1 you");  // TODO: timestamp, logger, etc. and do not place it into a string!!!
+        });
+    });
+    describe("net", [] {
         describe("websocket", [] {
             it("bi-directional iiop connection", [] {
                 struct ev_loop *loop = EV_DEFAULT;
@@ -46,7 +88,6 @@ kaffeeklatsch_spec([] {
                 clientORB->registerProtocol(clientProto);
 
                 parallel(eptr, loop, [clientORB] -> async<> {
-
                     println("CLIENT: resolve 'Backend'");
                     auto object = co_await clientORB->stringToObject("corbaname::127.0.0.1:9003#Backend");
                     auto backend = Interface::_narrow(object);
@@ -57,7 +98,7 @@ kaffeeklatsch_spec([] {
                     co_await backend->setPeer(frontend);
                     expect(co_await backend->callPeer("hello")).to.equal("hello to the world.");
 
-                    println("CLIENT: YOOOOOOOOOOOOOOOOOOOOOOOOOOO");                    
+                    println("CLIENT: YOOOOOOOOOOOOOOOOOOOOOOOOOOO");
                 });
 
                 println("START LOOP");
