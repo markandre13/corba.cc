@@ -22,33 +22,6 @@ using namespace kaffeeklatsch;
 using namespace std;
 using CORBA::async;
 
-class SysLogger : public LogDestination {
-    protected:
-        /**
-         * \param option LOG_NOWAIT, LOG_ODELAY
-         * \param facility LOG_AUTH, LOG_DAEMON, LOG_KERN, ..., LOG_USER
-         */
-        SysLogger(const char *id, int option, int facility) { openlog(id, option, facility); }
-        virtual void log(int priority, const char *message) override { syslog(priority, "%s", message); }
-};
-
-struct LogEntry {
-        int level;
-        std::time_t time;
-        std::string message;
-
-        LogEntry(int level, std::time_t time, std::string message) : level(level), time(time), message(message) {}
-};
-
-class MemoryLogger : public LogDestination {
-    public:
-        vector<LogEntry> logs;
-        inline void clear() { logs.clear(); }
-
-    protected:
-        virtual void log(int priority, const char *message) override { logs.push_back(LogEntry(priority, std::time({}), message)); }
-};
-
 std::shared_ptr<MemoryLogger> logger;
 
 kaffeeklatsch_spec([] {
@@ -60,7 +33,7 @@ kaffeeklatsch_spec([] {
         logger->clear();
     });
     describe("log", [] {
-        fit("log", [] {
+        it("log", [] {
             Logger::info("hello {} {}", 1, "you");
             expect(logger->logs.size()).is.equal(1);
             expect(logger->logs[0].message).is.equal("hello 1 you");  // TODO: timestamp, logger, etc. and do not place it into a string!!!
@@ -68,7 +41,7 @@ kaffeeklatsch_spec([] {
     });
     describe("net", [] {
         describe("websocket", [] {
-            it("bi-directional iiop connection", [] {
+            fit("bi-directional iiop connection", [] {
                 struct ev_loop *loop = EV_DEFAULT;
 
                 auto serverORB = make_shared<CORBA::ORB>("server");
@@ -106,6 +79,10 @@ kaffeeklatsch_spec([] {
 
                 if (eptr) {
                     std::rethrow_exception(eptr);
+                }
+
+                for(auto &s: logger->logs) {
+                    println("{}", s.toString());
                 }
             });
         });

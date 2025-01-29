@@ -268,7 +268,7 @@ util.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
 ../src/corba/orb.o: ../src/corba/naming.hh ../src/corba/net/protocol.hh
 ../src/corba/orb.o: connection.hh ../src/corba/net/tcp/protocol.hh
 ../src/corba/orb.o: ../src/corba/net/protocol.hh ../src/corba/url.hh
-../src/corba/orb.o: ../src/corba/util/hexdump.hh
+../src/corba/orb.o: ../src/corba/util/hexdump.hh ../src/corba/util/logger.hh
 ../src/corba/ior.o: ../src/corba/ior.hh ../src/corba/object.hh
 ../src/corba/ior.o: ../src/corba/blob.hh ../src/corba/giop.hh
 ../src/corba/ior.o: ../src/corba/cdr.hh
@@ -356,6 +356,7 @@ util.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
 ../src/corba/net/tcp/connection.o: ../src/corba/net/connection.hh
 ../src/corba/net/tcp/connection.o: ../src/corba/blob.hh
 ../src/corba/net/tcp/connection.o: ../src/corba/coroutine.hh
+../src/corba/net/tcp/connection.o: ../src/corba/util/logger.hh
 ../src/corba/net/ws/protocol.o: ../src/corba/net/tcp/protocol.hh
 ../src/corba/net/ws/protocol.o: ../src/corba/net/protocol.hh connection.hh
 ../src/corba/net/ws/protocol.o: ../src/corba/net/util/socket.hh
@@ -373,6 +374,7 @@ util.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
 ../src/corba/net/ws/connection.o: ../src/corba/blob.hh
 ../src/corba/net/ws/connection.o: ../src/corba/coroutine.hh
 ../src/corba/net/ws/connection.o: ../src/corba/net/util/createAcceptKey.hh
+../src/corba/net/ws/connection.o: ../src/corba/util/logger.hh
 ../src/corba/net/util/socket.o: ../src/corba/net/util/socket.hh
 ../src/corba/net/util/createAcceptKey.o: ../src/corba/net/util/createAcceptKey.hh
 ../upstream/kaffeeklatsch/src/kaffeeklatsch.o: ../upstream/kaffeeklatsch/src/kaffeeklatsch.hh

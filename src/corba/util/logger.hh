@@ -1,6 +1,9 @@
 #pragma once
 
 #include <syslog.h>
+#include <ctime>
+#include <string>
+#include <vector>
 #include <memory>
 #include <format>
 
@@ -15,6 +18,8 @@ class Logger {
         static int maxLevel;
 
     public:
+        // RFC 5424 The Syslog Protocol
+
         /** system is unusable */
         template <typename... Args>
         static inline void emerg(std::format_string<Args...> fmt, Args &&...args) {
@@ -59,4 +64,32 @@ class Logger {
 
     protected:
         static void log(int level, const char *message);
+};
+
+class SysLogger : public LogDestination {
+    protected:
+        /**
+         * \param option LOG_NOWAIT, LOG_ODELAY
+         * \param facility LOG_AUTH, LOG_DAEMON, LOG_KERN, ..., LOG_USER
+         */
+        SysLogger(const char *id, int option, int facility) { openlog(id, option, facility); }
+        virtual void log(int priority, const char *message) override;
+};
+
+struct LogEntry {
+        int priority;
+        std::time_t time;
+        std::string message;
+
+        LogEntry(int priority, std::time_t time, std::string message) : priority(priority), time(time), message(message) {}
+        std::string toString() const;
+};
+
+class MemoryLogger : public LogDestination {
+    public:
+        std::vector<LogEntry> logs;
+        inline void clear() { logs.clear(); }
+
+    protected:
+        virtual void log(int priority, const char *message) override;
 };
