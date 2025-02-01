@@ -2,6 +2,12 @@ interface Peer {
     string callString(in string value);
 };
 
+// use RemoteObject and test it with sequence to get the copy routines right...
+interface RemoteObject {
+    readonly attribute string id;
+    attribute string name;
+};
+
 struct RGBA {
     octet r, g, b;
     octet a;
@@ -55,6 +61,7 @@ interface Interface {
     // https://stackoverflow.com/questions/15704565/efficient-way-to-return-a-stdvector-in-c
     // see also 6.12 Mapping for Sequence types and 6.13 Mapping for Array Types
 
+    sequence<RemoteObject> getRemoteObjects();
 
     void setPeer(in Peer peer);
     string callPeer(in string value);

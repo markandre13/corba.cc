@@ -67,6 +67,18 @@ kaffeeklatsch_spec([] {
                 vector<RGBA> color{{.r = 255, .g = 192, .b = 128, .a = 64}, {.r = 0, .g = 128, .b = 255, .a = 255}};
                 expect(co_await backend->callSeqRGBA(color)).to.equal(color);
 
+                auto remoteObjects = co_await backend->getRemoteObjects();
+                expect(remoteObjects.size()).to.equal(3);
+                expect(co_await remoteObjects[0]->id()).to.equal("1");
+                expect(co_await remoteObjects[0]->name()).to.equal("alpha");
+                expect(co_await remoteObjects[1]->id()).to.equal("2");
+                expect(co_await remoteObjects[1]->name()).to.equal("bravo");
+                expect(co_await remoteObjects[2]->id()).to.equal("3");
+                expect(co_await remoteObjects[2]->name()).to.equal("charly");
+
+                co_await remoteObjects[1]->name("extra! extra!");
+                expect(co_await remoteObjects[1]->name()).to.equal("extra! extra!");
+
                 // omniORB does not establish the tcp connection during _narrow()!!!
                 //
                 // the connection handling implementation is minimal at the moment.

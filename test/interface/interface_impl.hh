@@ -2,11 +2,30 @@
 
 #include "interface_skel.hh"
 
-class Interface_impl : public Interface_skel {
-        std::string _rwattr;
+class RemoteObject_impl : public RemoteObject_skel {
+        std::string _id;
+        std::string _name;
 
     public:
-        Interface_impl() : _rwattr("hello") {}
+        RemoteObject_impl(const std::string id, const std::string name) : _id(id), _name(name) {}
+        CORBA::async<std::string> id() override { co_return _id; }
+        CORBA::async<std::string> name() override { co_return _name; }
+        CORBA::async<void> name(const std::string_view &name) override {
+            _name = name;
+            co_return;
+        }
+};
+
+class Interface_impl : public Interface_skel {
+        std::string _rwattr;
+        std::vector<std::shared_ptr<RemoteObject>> remoteObjects;
+
+    public:
+        Interface_impl() : _rwattr("hello") {
+            remoteObjects.push_back(std::make_shared<RemoteObject_impl>("1", "alpha"));
+            remoteObjects.push_back(std::make_shared<RemoteObject_impl>("2", "bravo"));
+            remoteObjects.push_back(std::make_shared<RemoteObject_impl>("3", "charly"));
+        }
 
         virtual CORBA::async<std::string> roAttribute() override { co_return std::string("static"); }
         virtual CORBA::async<std::string> rwAttribute() override { co_return _rwattr; }
@@ -30,9 +49,7 @@ class Interface_impl : public Interface_skel {
         CORBA::async<double> callDouble(double value) override { co_return value; }
 
         CORBA::async<std::string> callString(const std::string_view &value) override { co_return std::string(value); }
-        void recvString(const std::string_view &value) override { 
-            std::println("Interface::recvString({} characters of '{}')", value.size(), value[0]);
-        }
+        void recvString(const std::string_view &value) override { std::println("Interface::recvString({} characters of '{}')", value.size(), value[0]); }
         CORBA::async<CORBA::blob> callBlob(const CORBA::blob_view &value) override { co_return CORBA::blob(value); }
 
         CORBA::async<RGBA> callStruct(const RGBA &value) override { co_return value; }
@@ -61,6 +78,7 @@ class Interface_impl : public Interface_skel {
             this->peer = aPeer;
             co_return;
         }
+        CORBA::async<std::vector<std::shared_ptr<RemoteObject>>> getRemoteObjects() override { co_return std::vector<std::shared_ptr<RemoteObject>>(); }
         CORBA::async<std::string> callPeer(const std::string_view &value) override {
             auto s = co_await peer->callString(std::string(value) + " to the");
             co_return s + ".";

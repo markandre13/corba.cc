@@ -41,7 +41,7 @@ kaffeeklatsch_spec([] {
     });
     describe("net", [] {
         describe("websocket", [] {
-            fit("bi-directional iiop connection", [] {
+            it("bi-directional iiop connection", [] {
                 struct ev_loop *loop = EV_DEFAULT;
 
                 auto serverORB = make_shared<CORBA::ORB>("server");
