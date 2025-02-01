@@ -14,16 +14,17 @@ MEM=-fsanitize=address -fsanitize=leak
 
 # macOS
 ifeq ($(shell uname -s),Darwin)
-LLVM_DIR=$(shell for x in /opt/homebrew/opt/llvm /usr/local/opt/llvm ; do if test -d $$x ; then echo $$x ; break ; fi ; done)
+HOMEBREW_DIR=$(shell for x in /opt/homebrew/opt /usr/local/opt ; do if test -d $$x ; then echo $$x ; break ; fi ; done)
+LLVM_DIR=$(HOMEBREW_DIR)/llvm
 CXX=$(LLVM_DIR)/bin/clang++
 OS_CFLAGS=\
 	-I$(LLVM_DIR)/include/c++ \
-	-I/opt/homebrew/include \
+	-I$(HOMEBREW_DIR)/include \
 	-I/usr/local/include
 OS_LFLAGS=\
 	-L$(LLVM_DIR)/lib/c++ \
 	-Wl,-rpath,$(LLVM_DIR)/lib/c++ \
-	-L/opt/homebrew/lib/ \
+	-L$(HOMEBREW_DIR)/lib/ \
 	-L/usr/local/lib
 endif
 
