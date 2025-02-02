@@ -32,14 +32,28 @@ class SystemException : public Exception {
 // #define OMGMinorCode(x) (0x4f4d0000 | x)
 // #define OMNIORBMinorCode(x) (0x41540000 | x)
 
-// ACTIVITY_COMPLETED
-// ACTIVITY_REQUIRED
-// BAD_CONTEXT
-
 class BAD_INV_ORDER : public SystemException {
     public:
         BAD_INV_ORDER(uint32_t minor, CompletionStatus completed) : SystemException(minor, completed) {}
         const char *_rep_id() const noexcept override { return "IDL:omg.org/CORBA/BAD_INV_ORDER:1.0"; }
+};
+
+class ACTIVITY_COMPLETED : public SystemException {
+    public:
+        ACTIVITY_COMPLETED(uint32_t minor, CompletionStatus completed) : SystemException(minor, completed) {}
+        const char *_rep_id() const noexcept override { return "IDL:omg.org/CORBA/ACTIVITY_COMPLETED:1.0"; }
+};
+
+class ACTIVITY_REQUIRED : public SystemException {
+    public:
+        ACTIVITY_REQUIRED(uint32_t minor, CompletionStatus completed) : SystemException(minor, completed) {}
+        const char *_rep_id() const noexcept override { return "IDL:omg.org/CORBA/ACTIVITY_REQUIRED:1.0"; }
+};
+
+class BAD_CONTEXT : public SystemException {
+    public:
+        BAD_CONTEXT(uint32_t minor, CompletionStatus completed) : SystemException(minor, completed) {}
+        const char *_rep_id() const noexcept override { return "IDL:omg.org/CORBA/BAD_CONTEXT:1.0"; }
 };
 
 class BAD_OPERATION : public SystemException {
@@ -63,9 +77,23 @@ class BAD_TYPECODE : public SystemException {
         const char *_rep_id() const noexcept override { return "IDL:omg.org/CORBA/BAD_TYPECODE:1.0"; }
 };
 
-// CODESET_INCOMPATIBLE
-// DATA_CONVERSION
-// IMP_LIMIT
+class CODESET_INCOMPATIBLE : public SystemException {
+    public:
+        CODESET_INCOMPATIBLE(uint32_t minor, CompletionStatus completed) : SystemException(minor, completed) {}
+        const char *_rep_id() const noexcept override { return "IDL:omg.org/CORBA/CODESET_INCOMPATIBLE:1.0"; }
+};
+
+class DATA_CONVERSION : public SystemException {
+    public:
+        DATA_CONVERSION(uint32_t minor, CompletionStatus completed) : SystemException(minor, completed) {}
+        const char *_rep_id() const noexcept override { return "IDL:omg.org/CORBA/DATA_CONVERSION:1.0"; }
+};
+
+class IMP_LIMIT : public SystemException {
+    public:
+        IMP_LIMIT(uint32_t minor, CompletionStatus completed) : SystemException(minor, completed) {}
+        const char *_rep_id() const noexcept override { return "IDL:omg.org/CORBA/IMP_LIMIT:1.0"; }
+};
 
 /**
  * ORB initialization failure
@@ -78,11 +106,35 @@ class INITIALIZE : public SystemException {
 
 #define INITIALIZE_TransportError 0x4154000d
 
-// INTERNAL
-// INTF_REPOS
-// INVALID_ACTIVITY
-// INV_OBJREF
-// INV_POLICY
+class INTERNAL : public SystemException {
+    public:
+        INTERNAL(uint32_t minor, CompletionStatus completed) : SystemException(minor, completed) {}
+        const char *_rep_id() const noexcept override { return "IDL:omg.org/CORBA/INTERNAL:1.0"; }
+};
+
+class INTF_REPOS : public SystemException {
+    public:
+        INTF_REPOS(uint32_t minor, CompletionStatus completed) : SystemException(minor, completed) {}
+        const char *_rep_id() const noexcept override { return "IDL:omg.org/CORBA/INTF_REPOS:1.0"; }
+};
+
+class INVALID_ACTIVITY : public SystemException {
+    public:
+        INVALID_ACTIVITY(uint32_t minor, CompletionStatus completed) : SystemException(minor, completed) {}
+        const char *_rep_id() const noexcept override { return "IDL:omg.org/CORBA/INVALID_ACTIVITY:1.0"; }
+};
+
+class INV_OBJREF : public SystemException {
+    public:
+        INV_OBJREF(uint32_t minor, CompletionStatus completed) : SystemException(minor, completed) {}
+        const char *_rep_id() const noexcept override { return "IDL:omg.org/CORBA/INV_OBJREF:1.0"; }
+};
+
+class INV_POLICY : public SystemException {
+    public:
+        INV_POLICY(uint32_t minor, CompletionStatus completed) : SystemException(minor, completed) {}
+        const char *_rep_id() const noexcept override { return "IDL:omg.org/CORBA/INV_POLICY:1.0"; }
+};
 
 /**
  * Error marshaling parameter and/or result.
@@ -99,8 +151,17 @@ class NO_IMPLEMENT : public SystemException {
         const char *_rep_id() const noexcept override { return "IDL:omg.org/CORBA/NO_IMPLEMENT:1.0"; }
 };
 
-// NO_RESOURCES
-// NO_RESPONSE
+class NO_RESOURCES : public SystemException {
+    public:
+        NO_RESOURCES(uint32_t minor, CompletionStatus completed) : SystemException(minor, completed) {}
+        const char *_rep_id() const noexcept override { return "IDL:omg.org/CORBA/NO_RESOURCES:1.0"; }
+};
+
+class NO_RESPONSE : public SystemException {
+    public:
+        NO_RESPONSE(uint32_t minor, CompletionStatus completed) : SystemException(minor, completed) {}
+        const char *_rep_id() const noexcept override { return "IDL:omg.org/CORBA/NO_RESPONSE:1.0"; }
+};
 
 class OBJECT_ADAPTER : public SystemException {
     public:
@@ -123,7 +184,11 @@ class TIMEOUT : public SystemException {
         const char *_rep_id() const noexcept override { return "IDL:omg.org/CORBA/TIMEOUT:1.0"; }
 };
 
-// TRANSACTION_ROLLEDBACK
+class TRANSACTION_ROLLEDBACK : public SystemException {
+    public:
+        TRANSACTION_ROLLEDBACK(uint32_t minor, CompletionStatus completed) : SystemException(minor, completed) {}
+        const char *_rep_id() const noexcept override { return "IDL:omg.org/CORBA/TRANSACTION_ROLLEDBACK:1.0"; }
+};
 
 /**
  * Transient failure: Reissue request.
@@ -140,9 +205,13 @@ class TRANSIENT : public SystemException {
         const char *_rep_id() const noexcept override { return "IDL:omg.org/CORBA/TRANSIENT:1.0"; }
 };
 
-// UNKNOWN
+class UNKNOWN : public SystemException {
+    public:
+        UNKNOWN(uint32_t minor, CompletionStatus completed) : SystemException(minor, completed) {}
+        const char *_rep_id() const noexcept override { return "IDL:omg.org/CORBA/UNKNOWN:1.0"; }
+};
 
-// THE FOLLOWING ARE NOT IN CORBA 3.3
+// THE FOLLOWING ARE NOT IN CORBA 3.3 ANYMORE
 
 /**
  * No permission for attempted operation.

@@ -191,7 +191,7 @@ async<GIOPDecoder *> ORB::_twowayCall(Stub *stub, const char *operation, std::fu
     if (stub->connection == nullptr) {
         throw runtime_error("ORB::_twowayCall(): the stub has no connection");
     }
-    auto requestId = stub->connection->requestId.fetch_add(2);
+    auto requestId = stub->connection->requestId.fetch_add(2);  // TODO: only increment by 2 during BiDir???
     // printf("CONNECTION %p %s:%u -> %s:%u requestId=%u\n", static_cast<void *>(stub->connection), stub->connection->localAddress().c_str(),
     //        stub->connection->localPort(), stub->connection->remoteAddress().c_str(), stub->connection->remotePort(), stub->connection->requestId);
 
@@ -216,7 +216,9 @@ async<GIOPDecoder *> ORB::_twowayCall(Stub *stub, const char *operation, std::fu
     if (debug) {
         Logger::debug("ORB::_twowayCall(stub, \"{}\", ...) SUSPEND FOR REPLY", operation);
     }
+
     auto ret = co_await stub->connection->interlock.suspend(requestId);
+
     if (std::holds_alternative<std::exception_ptr>(ret)) {
         std::rethrow_exception(std::get<std::exception_ptr>(ret));
     }
@@ -237,28 +239,63 @@ async<GIOPDecoder *> ORB::_twowayCall(Stub *stub, const char *operation, std::fu
             auto exceptionId = decoder->readString();
             auto minorCodeValue = decoder->readUlong();
             auto completionStatus = static_cast<CompletionStatus>(decoder->readUlong());
-            if (exceptionId == "IDL:omg.org/CORBA/MARSHAL:1.0") {
-                throw MARSHAL(minorCodeValue, completionStatus);
-            } else if (exceptionId == "IDL:omg.org/CORBA/NO_PERMISSION:1.0") {
-                throw NO_PERMISSION(minorCodeValue, completionStatus);
-            } else if (exceptionId == "IDL:omg.org/CORBA/BAD_PARAM:1.0") {
-                throw BAD_PARAM(minorCodeValue, completionStatus);
+
+            if (exceptionId == "IDL:omg.org/CORBA/BAD_INV_ORDER:1.0") {
+                throw BAD_INV_ORDER(minorCodeValue, completionStatus);
+            } else if (exceptionId == "IDL:omg.org/CORBA/ACTIVITY_COMPLETED:1.0") {
+                throw ACTIVITY_COMPLETED(minorCodeValue, completionStatus);
+            } else if (exceptionId == "IDL:omg.org/CORBA/ACTIVITY_REQUIRED:1.0") {
+                throw ACTIVITY_REQUIRED(minorCodeValue, completionStatus);
+            } else if (exceptionId == "IDL:omg.org/CORBA/BAD_CONTEXT:1.0") {
+                throw BAD_CONTEXT(minorCodeValue, completionStatus);
             } else if (exceptionId == "IDL:omg.org/CORBA/BAD_OPERATION:1.0") {
                 throw BAD_OPERATION(minorCodeValue, completionStatus);
-            } else if (exceptionId == "IDL:omg.org/CORBA/OBJECT_NOT_EXIST:1.0") {
-                throw OBJECT_NOT_EXIST(minorCodeValue, completionStatus);
-            } else if (exceptionId == "IDL:omg.org/CORBA/TRANSIENT:1.0") {
-                throw TRANSIENT(minorCodeValue, completionStatus);
-            } else if (exceptionId == "IDL:omg.org/CORBA/OBJECT_ADAPTER:1.0") {
-                throw OBJECT_ADAPTER(minorCodeValue, completionStatus);
-            } else if (exceptionId == "IDL:omg.org/CORBA/REBIND:1.0") {
-                throw REBIND(minorCodeValue, completionStatus);
-            } else if (exceptionId == "IDL:omg.org/CORBA/NO_IMPLEMENT:1.0") {
-                throw NO_IMPLEMENT(minorCodeValue, completionStatus);
-            } else if (exceptionId == "IDL:omg.org/CORBA/COMM_FAILURE:1.0") {
-                throw COMM_FAILURE(minorCodeValue, completionStatus);
+            } else if (exceptionId == "IDL:omg.org/CORBA/BAD_PARAM:1.0") {
+                throw BAD_PARAM(minorCodeValue, completionStatus);
+            } else if (exceptionId == "IDL:omg.org/CORBA/BAD_TYPECODE:1.0") {
+                throw BAD_TYPECODE(minorCodeValue, completionStatus);
+            } else if (exceptionId == "IDL:omg.org/CORBA/CODESET_INCOMPATIBLE:1.0") {
+                throw CODESET_INCOMPATIBLE(minorCodeValue, completionStatus);
+            } else if (exceptionId == "IDL:omg.org/CORBA/DATA_CONVERSION:1.0") {
+                throw DATA_CONVERSION(minorCodeValue, completionStatus);
+            } else if (exceptionId == "IDL:omg.org/CORBA/IMP_LIMIT:1.0") {
+                throw IMP_LIMIT(minorCodeValue, completionStatus);
             } else if (exceptionId == "IDL:omg.org/CORBA/INITIALIZE:1.0") {
                 throw INITIALIZE(minorCodeValue, completionStatus);
+            } else if (exceptionId == "IDL:omg.org/CORBA/INTERNAL:1.0") {
+                throw INTERNAL(minorCodeValue, completionStatus);
+            } else if (exceptionId == "IDL:omg.org/CORBA/INTF_REPOS:1.0") {
+                throw INTF_REPOS(minorCodeValue, completionStatus);
+            } else if (exceptionId == "IDL:omg.org/CORBA/INVALID_ACTIVITY:1.0") {
+                throw INVALID_ACTIVITY(minorCodeValue, completionStatus);
+            } else if (exceptionId == "IDL:omg.org/CORBA/INV_OBJREF:1.0") {
+                throw INV_OBJREF(minorCodeValue, completionStatus);
+            } else if (exceptionId == "IDL:omg.org/CORBA/INV_POLICY:1.0") {
+                throw INV_POLICY(minorCodeValue, completionStatus);
+            } else if (exceptionId == "IDL:omg.org/CORBA/MARSHAL:1.0") {
+                throw MARSHAL(minorCodeValue, completionStatus);
+            } else if (exceptionId == "IDL:omg.org/CORBA/NO_IMPLEMENT:1.0") {
+                throw NO_IMPLEMENT(minorCodeValue, completionStatus);
+            } else if (exceptionId == "IDL:omg.org/CORBA/NO_RESPONSE:1.0") {
+                throw NO_RESPONSE(minorCodeValue, completionStatus);
+            } else if (exceptionId == "IDL:omg.org/CORBA/OBJECT_ADAPTER:1.0") {
+                throw OBJECT_ADAPTER(minorCodeValue, completionStatus);
+            } else if (exceptionId == "IDL:omg.org/CORBA/OBJECT_NOT_EXIST:1.0") {
+                throw OBJECT_NOT_EXIST(minorCodeValue, completionStatus);
+            } else if (exceptionId == "IDL:omg.org/CORBA/TIMEOUT:1.0") {
+                throw TIMEOUT(minorCodeValue, completionStatus);
+            } else if (exceptionId == "IDL:omg.org/CORBA/TRANSACTION_ROLLEDBACK:1.0") {
+                throw TRANSACTION_ROLLEDBACK(minorCodeValue, completionStatus);
+            } else if (exceptionId == "IDL:omg.org/CORBA/TRANSIENT:1.0") {
+                throw TRANSIENT(minorCodeValue, completionStatus);
+            } else if (exceptionId == "IDL:omg.org/CORBA/UNKNOWN:1.0") {
+                throw UNKNOWN(minorCodeValue, completionStatus);
+            } else if (exceptionId == "IDL:omg.org/CORBA/NO_PERMISSION:1.0") {
+                throw NO_PERMISSION(minorCodeValue, completionStatus);
+            } else if (exceptionId == "IDL:omg.org/CORBA/REBIND:1.0") {
+                throw REBIND(minorCodeValue, completionStatus);
+            } else if (exceptionId == "IDL:omg.org/CORBA/COMM_FAILURE:1.0") {
+                throw COMM_FAILURE(minorCodeValue, completionStatus);
             } else if (exceptionId == "IDL:mark13.org/CORBA/GENERIC:1.0") {
                 throw runtime_error(format("Remote CORBA exception from {}: {}", stub->connection->str(), decoder->readString()));
             } else {
@@ -296,27 +333,6 @@ void ORB::onewayCall(Stub *stub, const char *operation, std::function<void(GIOPE
             // TODO: the callback might drop the object's reference, which in turn should delete it from 'exceptionHandler'
         }
     }
-}
-
-void ORB::activate_object(std::shared_ptr<Skeleton> servant) { activate_object_with_id(format("OID:{:x}", ++servantIdCounter), servant); }
-
-void ORB::activate_object_with_id(const std::string &objectKey, std::shared_ptr<Skeleton> servant) {
-    servant->orb = shared_from_this();
-    auto pos = servants.emplace(std::make_pair(blob(objectKey), servant));
-    servant->objectKey = std::get<0>(pos)->first;
-}
-
-void ORB::bind(const std::string &id, std::shared_ptr<CORBA::Skeleton> const obj) {
-    if (!obj->get_ORB()) {
-        activate_object(obj);
-    }
-    if (namingService == nullptr) {
-        // Logger::debug("ORB::bind(\"{}\"): CREATING NameService", id);
-        namingService = make_shared<NamingContextExtImpl>();
-        activate_object_with_id("NameService", namingService);
-        // servants["NameService"] = namingService;
-    }
-    namingService->bind(id, obj);
 }
 
 void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t size) {
@@ -408,8 +424,8 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
                                 // std::rethrow_exception(ex);
                                 std::rethrow_exception(eptr);
                             } catch (CORBA::UserException &ex) {
-                                Logger::debug("CORBA::UserException while calling local servant {}::{}(...): {}", servant->second->repository_id(),
-                                        request->operation, ex.what());
+                                Logger::error("CORBA::UserException while calling local servant {}::{}(...): {}", servant->second->repository_id(),
+                                              request->operation, ex.what());
                                 if (responseExpected) {
                                     auto length = encoder->buffer.offset;
                                     encoder->setGIOPHeader(MessageType::REPLY);
@@ -429,8 +445,8 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
                                     connection->send(move(encoder->buffer._data));
                                 }
                             } catch (std::exception &ex) {
-                                Logger::debug("std::exception while calling local servant {}::{}(...): {}", servant->second->repository_id(), request->operation,
-                                        ex.what());
+                                Logger::error("std::exception while calling local servant {}::{}(...): {}", servant->second->repository_id(),
+                                              request->operation, ex.what());
                                 if (responseExpected) {
                                     encoder->writeString("IDL:mark13.org/CORBA/GENERIC:1.0");
                                     encoder->writeUlong(0);
@@ -489,6 +505,27 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
             Logger::error("ORB::socketRcvd(): GOT YET UNIMPLEMENTED REQUEST OF TYPE {}", static_cast<unsigned>(type));
             break;
     }
+}
+
+void ORB::activate_object(std::shared_ptr<Skeleton> servant) { activate_object_with_id(format("OID:{:x}", ++servantIdCounter), servant); }
+
+void ORB::activate_object_with_id(const std::string &objectKey, std::shared_ptr<Skeleton> servant) {
+    servant->orb = shared_from_this();
+    auto pos = servants.emplace(std::make_pair(blob(objectKey), servant));
+    servant->objectKey = std::get<0>(pos)->first;
+}
+
+void ORB::bind(const std::string &id, std::shared_ptr<CORBA::Skeleton> const obj) {
+    if (!obj->get_ORB()) {
+        activate_object(obj);
+    }
+    if (namingService == nullptr) {
+        // Logger::debug("ORB::bind(\"{}\"): CREATING NameService", id);
+        namingService = make_shared<NamingContextExtImpl>();
+        activate_object_with_id("NameService", namingService);
+        // servants["NameService"] = namingService;
+    }
+    namingService->bind(id, obj);
 }
 
 }  // namespace CORBA
