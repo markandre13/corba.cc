@@ -1,6 +1,7 @@
 #include "connection.hh"
 #include "protocol.hh"
 #include "../stub.hh"
+#include "../util/logger.hh"
 
 namespace CORBA {
 
@@ -40,12 +41,12 @@ std::string Connection::str() const {
 
 std::shared_ptr<Connection> ConnectionPool::find(const char *host, uint16_t port) const {
     for (auto &c : connections) {
-        std::println("ConnectionPool::find(): {}:{} == {}:{} ?", host, port, c->remote.host, c->remote.port);
+        // std::println("ConnectionPool::find(): {}:{} == {}:{} ?", host, port, c->remote.host, c->remote.port);
         if (c->remote.host == host && c->remote.port == port) {
             return c;
         }
     }
-    std::println("ConnectionPool::find(): {}:{} == empty", host, port);
+    Logger::warn("ConnectionPool::find({}, {}): found no connection", host, port);
     return std::shared_ptr<Connection>();
 }
 

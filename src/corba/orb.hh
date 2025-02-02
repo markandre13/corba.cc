@@ -76,6 +76,14 @@ class ORB : public std::enable_shared_from_this<ORB> {
         void activate_object(std::shared_ptr<Skeleton> servant);
         void activate_object_with_id(const std::string &objectKey, std::shared_ptr<Skeleton> servant);
 
+        /**
+         * call the peer and wait for a response
+         * 
+         * \param stub stub which invoked the operation
+         * \param operation name of the operation (aka. function/method name)
+         * \param encode callback encoding the outgoing arguments
+         * \param decode callback decoding the incoming arguments
+         */
         template <typename T>
         async<T> twowayCall(
             Stub *stub,
@@ -87,7 +95,6 @@ class ORB : public std::enable_shared_from_this<ORB> {
             co_return decode(*decoder);
         }
 
-        // template <typename T>
         async<void> twowayCall(
             Stub *stub,
             const char *operation,
@@ -97,6 +104,9 @@ class ORB : public std::enable_shared_from_this<ORB> {
             co_return;
         }
 
+        /**
+         * call the peer without waiting for a response (oneway)
+         */
         void onewayCall(
             Stub *stub,
             const char *operation,
@@ -105,6 +115,13 @@ class ORB : public std::enable_shared_from_this<ORB> {
         //
         // NameService
         //
+
+        /**
+         * register obj as id in the internat nameserver
+         * 
+         * \param id
+         * \param obj
+         */
         void bind(const std::string &id, std::shared_ptr<CORBA::Skeleton> const obj);
 
     protected:

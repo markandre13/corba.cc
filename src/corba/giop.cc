@@ -340,15 +340,18 @@ void GIOPDecoder::readServiceContext() {
                     // std::cout << "ServiceContext CodeSets" << std::endl;
                     break;
                 case ServiceId::BI_DIR_IIOP: {  
-                    cout << "ServiceContext BI_DIR_IIOP" << endl;
+                    // cout << "ServiceContext BI_DIR_IIOP" << endl;
                     auto count = readUlong();
                     for(auto i = 0; i<count; ++i) {
                         auto host = readStringView();
                         auto port = readUshort();
-                        cout << "    switch remote from " << connection->remote.str();
-                        connection->remote.host = host;
-                        connection->remote.port = port;
-                        cout << "  to " << connection->remote.str() << endl;
+                        if (host != connection->remote.host && port != connection->remote.port) {
+                            // is there a map???
+                            cout << "    switch remote from " << connection->remote.str();
+                            connection->remote.host = host;
+                            connection->remote.port = port;
+                            cout << "  to " << connection->remote.str() << endl;
+                        }
                     }
                 } break;
                 case ServiceId::SecurityAttributeService:

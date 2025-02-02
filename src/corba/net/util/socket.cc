@@ -41,10 +41,10 @@ std::vector<int> create_listen_socket(const char *hostname, uint16_t port) {
         return result;
     }
 
-    for (struct addrinfo *rp = addrinfo; rp; rp = rp->ai_next) {
-        auto x = addr2HostAndPort((const struct sockaddr_storage *)rp->ai_addr);
-        std::println("  LISTEN {} {}", x.host.c_str(), x.port);
-    }
+    // for (struct addrinfo *rp = addrinfo; rp; rp = rp->ai_next) {
+    //     auto x = addr2HostAndPort((const struct sockaddr_storage *)rp->ai_addr);
+    //     std::println("  LISTEN {} {}", x.host.c_str(), x.port);
+    // }
 
     for (struct addrinfo *rp = addrinfo; rp; rp = rp->ai_next) {
         // std::cerr << "CREATE SOCKET" << std::endl;
@@ -75,8 +75,8 @@ std::vector<int> create_listen_socket(const char *hostname, uint16_t port) {
 
     if (result.size() == 0) {
         std::cerr << "FAILED TO CREATE ANY SOCKET" << std::endl;
-    } else {
-        std::cout << "LISTENING ON " << result.size() << " SOCKETS" << std::endl;
+    // } else {
+    //     std::cout << "LISTENING ON " << result.size() << " SOCKETS" << std::endl;
     }
 
     return result;
