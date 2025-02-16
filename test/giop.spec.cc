@@ -124,5 +124,56 @@ kaffeeklatsch_spec([] {
             expect(reply->requestId).to.equal(4);
             expect(reply->replyStatus).to.equal(CORBA::ReplyStatus::NO_EXCEPTION);
         });
+        describe("decode/encode null object reference", [] {
+            it("OmniORB: decode sequence<VideoCamera> of [undefined, object]", [] {
+                auto data = parseOmniDump(R"(
+                    4749 4f50 0102 0101 a800 0000 0400 0000 GIOP............
+                    0000 0000 0000 0000 0200 0000 0100 0000 ................
+                    0000 0000 0000 0000 1400 0000 4944 4c3a ............IDL:
+                    5669 6465 6f43 616d 6572 613a 312e 3000 VideoCamera:1.0.
+                    0100 0000 0000 0000 6800 0000 0101 0200 ........h.......
+                    1000 0000 3139 322e 3136 382e 3137 382e ....192.168.178.
+                    3130 3500 2823 0000 0e00 0000 fed7 fda8 105.(#..........
+                    6700 0026 bd00 0000 0001 0000 0200 0000 g..&............
+                    0000 0000 0800 0000 0100 0000 0054 5441 .............TTA
+                    0100 0000 1c00 0000 0100 0000 0100 0100 ................
+                    0100 0000 0100 0105 0901 0100 0100 0000 ................
+                    0901 0100                               ....)");
+                CORBA::CDRDecoder dataview((char *)data.data(), data.size());
+                CORBA::GIOPDecoder decoder(dataview);
+                decoder.scanGIOPHeader();
+                decoder.scanReplyHeader();
+
+                auto sequenceLength = decoder.readUlong();
+                expect(sequenceLength).to.equal(2);
+
+                auto oid = decoder.readString();
+                expect(oid).to.equal("");
+
+                auto profileCount = decoder.readUlong();
+                expect(profileCount).to.equal(0);
+            });
+            it("encode undefined", [] {
+                CORBA::GIOPEncoder encoder;
+                encoder.majorVersion = 1;
+                encoder.minorVersion = 2;
+
+                encoder.encodeRequest(CORBA::blob("\x01\x02\x03\x04"), "myMethod", 4, true);
+                encoder.writeObject(nullptr);
+                encoder.setGIOPHeader(CORBA::MessageType::REQUEST);
+                auto length = encoder.buffer.offset;
+
+                CORBA::CDRDecoder cdr(encoder.buffer.data(), length);
+                CORBA::GIOPDecoder decoder(cdr);
+                decoder.scanGIOPHeader();
+                decoder.scanRequestHeader();
+
+                auto oid = decoder.readString();
+                expect(oid).to.equal("");
+
+                auto profileCount = decoder.readUlong();
+                expect(profileCount).to.equal(0);
+            });
+        });
     });
 });

@@ -24,10 +24,14 @@ void sendChordata(void *, unsigned long) {}
 // into the call() function and then it's lifetime get's intertwined with the
 // coroutine.
 void parallel(std::exception_ptr &eptr, std::function<CORBA::async<>()> closure) {
-    closure().thenOrCatch([] {},
-                          [&eptr](std::exception_ptr _eptr) {
-                              eptr = _eptr;
-                          });
+    closure().thenOrCatch(
+        [] {
+            std::println("PARALLEL FINISHED: OK");
+        },
+        [&eptr](std::exception_ptr _eptr) {
+            std::println("PARALLEL FINISHED: EXCEPTION");
+            eptr = _eptr;
+        });
 }
 void parallel(std::exception_ptr &eptr, struct ev_loop *loop, std::function<CORBA::async<>()> closure) {
     closure().thenOrCatch(
@@ -97,5 +101,5 @@ string_view trim(string_view data) {
             break;
         }
     }
-    return data.substr(bol, eol+1);
+    return data.substr(bol, eol + 1);
 }

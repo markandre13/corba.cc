@@ -96,6 +96,9 @@
         "semaphore": "cpp",
         "stop_token": "cpp",
         "text_encoding": "cpp",
-        "expected": "cpp"
+        "expected": "cpp",
+        "codecvt": "cpp",
+        "csignal": "cpp",
+        "cinttypes": "cpp"
     }
 }

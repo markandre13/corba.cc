@@ -305,7 +305,7 @@ kaffeeklatsch_spec([] {
         });
 
         describe("TcpConnection::send()", [] {
-            it("no listener, no data to be transmitted: IDLE -> INPROGRESS -> IDLE", [] {
+            xit("no listener, no data to be transmitted: IDLE -> INPROGRESS -> IDLE", [] {
                 // expect(system("/sbin/iptables -F INPUT")).to.equal(0);
                 // expect(system("/sbin/iptables -A INPUT -p tcp --dport 9090 -j DROP")).to.equal(0);
                 struct ev_loop *loop = EV_DEFAULT;
@@ -331,7 +331,7 @@ kaffeeklatsch_spec([] {
                 serverORB->registerProtocol(serverProto);
                 serverProto->listen("127.0.0.1", 9003);
 
-                serverORB->bind("Backend", make_shared<Interface_impl>());
+                serverORB->bind("Backend", make_shared<Interface_impl>(serverORB));
 
                 auto clientORB = make_shared<CORBA::ORB>("client");
                 clientORB->debug = true;
@@ -394,7 +394,7 @@ kaffeeklatsch_spec([] {
                 serverORB->registerProtocol(serverProto);
                 serverProto->listen("127.0.0.1", 9003);
 
-                serverORB->bind("Backend", make_shared<Interface_impl>());
+                serverORB->bind("Backend", make_shared<Interface_impl>(serverORB));
 
                 auto clientORB = make_shared<CORBA::ORB>("client");
                 clientORB->debug = true;

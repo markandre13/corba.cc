@@ -213,19 +213,18 @@ async<GIOPDecoder *> ORB::_twowayCall(Stub *stub, const char *operation, std::fu
             // TODO: the callback might drop the object's reference, which in turn should delete it from 'exceptionHandler'
         }
     }
-    if (debug) {
-        Logger::debug("ORB::_twowayCall(stub, \"{}\", ...) SUSPEND FOR REPLY", operation);
-    }
 
+    Logger::debug("ORB::_twowayCall(stub, \"{}\", ...) SUSPEND", operation);
     auto ret = co_await stub->connection->interlock.suspend(requestId);
+    Logger::debug("ORB::_twowayCall(stub, \"{}\", ...) RESUME", operation);
 
     if (std::holds_alternative<std::exception_ptr>(ret)) {
+        Logger::debug("ORB::_twowayCall(stub, \"{}\", ...) GOT EXCEPTION", operation);
         std::rethrow_exception(std::get<std::exception_ptr>(ret));
     }
+
     GIOPDecoder *decoder = std::get<GIOPDecoder *>(ret);
-    if (debug) {
-        Logger::debug("ORB::_twowayCall(stub, \"{}\", ...) RESUME WITH REPLY", operation);
-    }
+
     // move parts of this into a separate function so that it can be unit tested
     switch (decoder->replyStatus) {
         case ReplyStatus::NO_EXCEPTION:

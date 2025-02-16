@@ -14,11 +14,14 @@ struct FakePaket {
 };
 
 struct FakeTcpProtocol : public CORBA::detail::Protocol {
-        FakeTcpProtocol(CORBA::ORB *orb, const std::string &localAddress, uint16_t localPort) : Protocol(nullptr), m_orb(orb), m_localAddress(localAddress), m_localPort(localPort) {}
+        FakeTcpProtocol(CORBA::ORB *orb, const std::string &localAddress, uint16_t localPort) : Protocol(nullptr), m_orb(orb) {
+            this->local.host = localAddress;
+            this->local.port = localPort;
+        }
 
         CORBA::ORB *m_orb;
-        std::string m_localAddress;
-        uint16_t m_localPort;
+        // std::string m_localAddress;
+        // uint16_t m_localPort;
 
         std::vector<FakePaket> packets;
         std::vector<std::shared_ptr<TcpFakeConnection>> connections;

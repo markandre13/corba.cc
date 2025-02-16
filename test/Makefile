@@ -223,6 +223,7 @@ interface/interface.spec.o: ../src/corba/net/util/socket.hh util.hh
 interface/interface.spec.o: ../src/corba/util/hexdump.hh ../src/corba/blob.hh
 interface/interface.spec.o: ../src/corba/coroutine.hh
 interface/interface.spec.o: ../upstream/async.cc/src/async.hh
+interface/interface.spec.o: ../src/corba/util/logger.hh
 interface/interface.spec.o: interface/interface_impl.hh
 interface/interface.spec.o: interface/interface_skel.hh ../src/corba/corba.hh
 interface/interface.spec.o: ../src/corba/orb.hh ../src/corba/coroutine.hh
@@ -329,6 +330,7 @@ util.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
 ../src/corba/net/connection.o: ../src/corba/net/util/socket.hh
 ../src/corba/net/connection.o: ../src/corba/stub.hh ../src/corba/object.hh
 ../src/corba/net/connection.o: ../src/corba/blob.hh
+../src/corba/net/connection.o: ../src/corba/util/logger.hh
 ../src/corba/net/stream2packet.o: ../src/corba/net/stream2packet.hh
 ../src/corba/net/stream2packet.o: ../src/corba/giop.hh ../src/corba/cdr.hh
 ../src/corba/net/stream2packet.o: ../src/corba/blob.hh

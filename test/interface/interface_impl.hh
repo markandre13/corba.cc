@@ -21,10 +21,16 @@ class Interface_impl : public Interface_skel {
         std::vector<std::shared_ptr<RemoteObject>> remoteObjects;
 
     public:
-        Interface_impl() : _rwattr("hello") {
-            remoteObjects.push_back(std::make_shared<RemoteObject_impl>("1", "alpha"));
-            remoteObjects.push_back(std::make_shared<RemoteObject_impl>("2", "bravo"));
-            remoteObjects.push_back(std::make_shared<RemoteObject_impl>("3", "charly"));
+        Interface_impl(std::shared_ptr<CORBA::ORB> orb) : _rwattr("hello") {
+            auto o0 = std::make_shared<RemoteObject_impl>("1", "alpha");
+            orb->activate_object(o0);
+            remoteObjects.push_back(o0);
+            auto o1 = std::make_shared<RemoteObject_impl>("2", "bravo");
+            orb->activate_object(o1);
+            remoteObjects.push_back(o1);
+            auto o2 = std::make_shared<RemoteObject_impl>("3", "charly");
+            orb->activate_object(o2);
+            remoteObjects.push_back(o2);
         }
 
         virtual CORBA::async<std::string> roAttribute() override { co_return std::string("static"); }
@@ -78,7 +84,9 @@ class Interface_impl : public Interface_skel {
             this->peer = aPeer;
             co_return;
         }
-        CORBA::async<std::vector<std::shared_ptr<RemoteObject>>> getRemoteObjects() override { co_return std::vector<std::shared_ptr<RemoteObject>>(); }
+        CORBA::async<std::vector<std::shared_ptr<RemoteObject>>> getRemoteObjects() override { 
+            co_return remoteObjects;
+        }
         CORBA::async<std::string> callPeer(const std::string_view &value) override {
             auto s = co_await peer->callString(std::string(value) + " to the");
             co_return s + ".";

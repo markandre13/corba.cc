@@ -50,7 +50,7 @@ kaffeeklatsch_spec([] {
                 serverORB->registerProtocol(serverProto);
                 serverProto->listen("127.0.0.1", 9003);
 
-                auto backend = make_shared<Interface_impl>();
+                auto backend = make_shared<Interface_impl>(serverORB);
                 serverORB->bind("Backend", backend);
 
                 std::exception_ptr eptr;

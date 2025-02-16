@@ -19,6 +19,10 @@ namespace CORBA {
 void GIOPEncoder::writeObject(const CORBA::Object* object) {
     // cerr << "GIOPEncoder::object(...)" << endl;
     if (object == nullptr) {
+        // OID = ""
+        buffer.writeUlong(1);
+        buffer.writeOctet(0);
+        // profileCount := 0
         buffer.writeUlong(0);
         return;
     }
@@ -406,6 +410,7 @@ void GIOPDecoder::readEncapsulation(std::function<void(ServiceId type)> closure)
 
 std::shared_ptr<Object> GIOPDecoder::readObject(std::shared_ptr<CORBA::ORB> orb) {  // const string typeInfo, bool isValue = false) {
     auto code = readUlong();
+    // println("GIOPDecoder::readObject(): code={}", code);
     // auto objectOffset = buffer.m_offset - 4;
 
     if (code == 0) {

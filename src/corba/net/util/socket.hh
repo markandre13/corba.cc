@@ -8,6 +8,8 @@
 struct HostAndPort {
         std::string host;
         uint16_t port = 0;
+        HostAndPort() {}
+        HostAndPort(std::string host, uint16_t port): host(host), port(port) {}
         inline std::string str() const { return std::format("[{}]:{}", host, port); }
 };
 
