@@ -29,6 +29,9 @@ kaffeeklatsch_spec([] {
         logger = make_shared<MemoryLogger>();
         Logger::setDestination(logger);
     });
+    afterAll([]{
+        Logger::setDestination(nullptr);
+    });
     beforeEach([&] {
         logger->clear();
     });

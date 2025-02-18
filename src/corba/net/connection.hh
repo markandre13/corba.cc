@@ -68,7 +68,7 @@ class Connection {
         ConnectionState state = ConnectionState::IDLE;
 
         // stubs remove themselves from this list
-        std::map<blob, Stub *> stubsById;
+        std::map<blob, std::shared_ptr<Stub>> stubsById;
 
         std::mutex send_mutex;
         // bi-directional service context needs only to be send once

@@ -45,9 +45,9 @@ std::shared_ptr<Connection> ConnectionPool::findByLocal(const char *host, uint16
             return c;
         }
     }
-    Logger::warn("ConnectionPool::findByLocal({}, {}): found no connection", host, port);
+    Logger::debug("ConnectionPool::findByLocal({}, {}): found no connection", host, port);
     for (auto &c : connections) {
-        Logger::warn("ConnectionPool::findByLocal(): HAVE {}:{} == {}:{} ?", host, port, c->remote.host, c->remote.port);
+        Logger::debug("ConnectionPool::findByLocal(): HAVE {}:{} == {}:{} ?", host, port, c->remote.host, c->remote.port);
     }
     return std::shared_ptr<Connection>();
 }
@@ -59,9 +59,9 @@ std::shared_ptr<Connection> ConnectionPool::findByRemote(const char *host, uint1
             return c;
         }
     }
-    Logger::warn("ConnectionPool::findByRemote({}, {}): found no connection", host, port);
+    Logger::debug("ConnectionPool::findByRemote({}, {}): found no connection", host, port);
     for (auto &c : connections) {
-        Logger::warn("ConnectionPool::findByRemote(): HAVE {}:{} == {}:{} ?", host, port, c->remote.host, c->remote.port);
+        Logger::debug("ConnectionPool::findByRemote(): HAVE {}:{} == {}:{} ?", host, port, c->remote.host, c->remote.port);
     }
     return std::shared_ptr<Connection>();
 }

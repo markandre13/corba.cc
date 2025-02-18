@@ -12,9 +12,9 @@ bool operator==(const RGBA& lhs, const RGBA& rhs) { return lhs.r == rhs.r && lhs
 
 kaffeeklatsch_spec([] {
     describe("interface", [] {
-        fit("send'n receive", [] {
-            Logger::setDestination(nullptr);
-            Logger::setLevel(LOG_DEBUG);
+        it("send'n receive", [] {
+            // Logger::setDestination(nullptr);
+            // Logger::setLevel(LOG_DEBUG);
 
             // SERVER
             auto serverORB = make_shared<ORB>();
@@ -96,32 +96,31 @@ kaffeeklatsch_spec([] {
                 co_await serverStub->setPeer(frontend);
                 expect(serverImpl->peer.get()).to.not_().equal(nullptr);
 
-                println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+                // resolve servant
                 auto frontendReturned = co_await serverStub->getPeer();
-                println("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
-                println("{}:{}", __FILE__, __LINE__);
                 expect(frontendReturned).is.equal(frontend);
-                println("{}:{}", __FILE__, __LINE__);
 
+                // call servant
                 expect(co_await serverStub->callPeer("hello")).to.equal("hello to the world.");
-                println("{}:{}", __FILE__, __LINE__);
+
+                // stubs are cached
+                auto stub0 = serverImpl->peer.get();
+                co_await serverStub->setPeer(frontend);
+                auto stub1 = serverImpl->peer.get();
+                expect(stub0).to.equal(stub1);
 
                 co_await serverStub->setPeer(nullptr);
-                println("{}:{}", __FILE__, __LINE__);
                 expect(serverImpl->peer.get()).to.equal(nullptr);
-                println("{}:{}", __FILE__, __LINE__);
 
                 done = true;
-                println("{}:{}", __FILE__, __LINE__);
             });
 
             vector<FakeTcpProtocol*> protocols = {serverProtocol, clientProtocol};
             while (transmit(protocols));
-            expect(done).to.equal(true);
-
             if (eptr) {
                 std::rethrow_exception(eptr);
             }
+            expect(done).to.equal(true);
         });
 
         it("iiop", [] {
