@@ -245,7 +245,9 @@ interface/interface.o: ../src/corba/coroutine.hh
 interface/interface.o: ../src/corba/net/util/socket.hh
 interface/interface.o: ../src/corba/skeleton.hh ../src/corba/object.hh
 interface/interface.o: ../src/corba/stub.hh ../src/corba/ior.hh
-interface/interface.o: ../src/corba/exception.hh ../src/corba/orb.hh
+interface/interface.o: ../src/corba/exception.hh ../src/corba/net/protocol.hh
+interface/interface.o: connection.hh ../src/corba/net/tcp/protocol.hh
+interface/interface.o: ../src/corba/net/protocol.hh ../src/corba/orb.hh
 interface/interface.o: ../src/corba/giop.hh ../src/corba/coroutine.hh
 interface/interface.o: interface/interface.hh interface/interface_skel.hh
 interface/interface.o: interface/interface_stub.hh
@@ -292,14 +294,15 @@ util.o: ../src/corba/coroutine.hh ../upstream/async.cc/src/async.hh
 ../src/corba/stub.o: ../src/corba/net/tcp/protocol.hh
 ../src/corba/stub.o: ../src/corba/net/protocol.hh
 ../src/corba/giop.o: ../src/corba/giop.hh ../src/corba/cdr.hh
-../src/corba/giop.o: ../src/corba/blob.hh ../src/corba/corba.hh
-../src/corba/giop.o: ../src/corba/orb.hh ../src/corba/coroutine.hh
+../src/corba/giop.o: ../src/corba/blob.hh ../src/corba/orb.hh
+../src/corba/giop.o: ../src/corba/coroutine.hh
 ../src/corba/giop.o: ../upstream/async.cc/src/async.hh
 ../src/corba/giop.o: ../src/corba/net/connection.hh ../src/corba/blob.hh
 ../src/corba/giop.o: ../src/corba/coroutine.hh
-../src/corba/giop.o: ../src/corba/net/util/socket.hh ../src/corba/skeleton.hh
-../src/corba/giop.o: ../src/corba/object.hh ../src/corba/stub.hh
-../src/corba/giop.o: ../src/corba/ior.hh ../src/corba/exception.hh
+../src/corba/giop.o: ../src/corba/net/util/socket.hh ../src/corba/corba.hh
+../src/corba/giop.o: ../src/corba/skeleton.hh ../src/corba/object.hh
+../src/corba/giop.o: ../src/corba/stub.hh ../src/corba/ior.hh
+../src/corba/giop.o: ../src/corba/exception.hh ../src/corba/util/logger.hh
 ../src/corba/giop.o: ../src/corba/util/hexdump.hh
 ../src/corba/giop.o: ../src/corba/net/protocol.hh connection.hh
 ../src/corba/giop.o: ../src/corba/net/tcp/protocol.hh

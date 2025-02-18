@@ -32,20 +32,10 @@ using namespace std;
 namespace CORBA {
 
 string prefix(ORB *orb) {
-    string result;
-
-    std::time_t t = std::time(nullptr);
-    char mbstr[100];
-
-    std::time_t time = std::time({});
-    char timeString[std::size("yyyy-mm-ddThh:mm:ssZ")];
-    std::strftime(std::data(timeString), std::size(timeString), "%FT%TZ", std::gmtime(&time));
-    result += timeString;
-
     if (orb->logname) {
-        result += format(" ORB({}): ", orb->logname);
+        return format(" ORB({}): ", orb->logname);
     }
-    return result;
+    return "";
 }
 
 std::map<CORBA::Object *, std::function<void()>> exceptionHandler;
@@ -81,7 +71,7 @@ void ORB::dump() {
 }
 
 async<shared_ptr<Object>> ORB::stringToObject(const std::string &iorString) {
-    // std::println("ORB::stringToObject(\"{}\"): enter", iorString);
+    Logger::debug("ORB::stringToObject(\"{}\"): enter", iorString);
     auto uri = decodeURI(iorString);
     if (std::holds_alternative<IOR>(uri)) {
         auto ior = std::get<IOR>(uri);
@@ -133,14 +123,16 @@ void ORB::registerProtocol(detail::Protocol *protocol) {
 }
 
 std::shared_ptr<detail::Connection> ORB::getConnection(string host, uint16_t port) {
+    Logger::debug("{}ORB::getConnection(\"{}\", {})", prefix(this), host, port);
     // if (host == "::1" || host == "127.0.0.1") {
     //     host = "localhost";
     // }
-    auto conn = connections.find(host.c_str(), port);
+    auto conn = connections.findByRemote(host.c_str(), port);
     if (conn) {
         Logger::debug("{}ORB::getConnection(\"{}\", {}) found {}", prefix(this), host, port, conn->str());
         return conn;
     }
+
     // for (auto &conn : connections) {
     //     if (conn->remote.host == host && conn->remote.port == port) {
     //         if (debug) {
@@ -527,4 +519,16 @@ void ORB::bind(const std::string &id, std::shared_ptr<CORBA::Skeleton> const obj
     namingService->bind(id, obj);
 }
 
+std::shared_ptr<CORBA::Skeleton> ORB::_narrow_servant(CORBA::IOR *ref) {
+    auto conn0 = connections.findByLocal(ref->host.c_str(), ref->port);
+    if (conn0) {
+        auto keyImpl = conn0->protocol->orb->servants.find(ref->objectKey);
+        if (keyImpl != conn0->protocol->orb->servants.end()) {
+            return keyImpl->second;
+
+        }
+    }
+    return {};
+}
+    
 }  // namespace CORBA

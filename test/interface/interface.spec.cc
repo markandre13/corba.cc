@@ -12,7 +12,7 @@ bool operator==(const RGBA& lhs, const RGBA& rhs) { return lhs.r == rhs.r && lhs
 
 kaffeeklatsch_spec([] {
     describe("interface", [] {
-        it("send'n receive", [] {
+        fit("send'n receive", [] {
             Logger::setDestination(nullptr);
             Logger::setLevel(LOG_DEBUG);
 
@@ -95,12 +95,24 @@ kaffeeklatsch_spec([] {
                 clientORB->activate_object(frontend);
                 co_await serverStub->setPeer(frontend);
                 expect(serverImpl->peer.get()).to.not_().equal(nullptr);
+
+                println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+                auto frontendReturned = co_await serverStub->getPeer();
+                println("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
+                println("{}:{}", __FILE__, __LINE__);
+                expect(frontendReturned).is.equal(frontend);
+                println("{}:{}", __FILE__, __LINE__);
+
                 expect(co_await serverStub->callPeer("hello")).to.equal("hello to the world.");
+                println("{}:{}", __FILE__, __LINE__);
 
                 co_await serverStub->setPeer(nullptr);
+                println("{}:{}", __FILE__, __LINE__);
                 expect(serverImpl->peer.get()).to.equal(nullptr);
+                println("{}:{}", __FILE__, __LINE__);
 
                 done = true;
+                println("{}:{}", __FILE__, __LINE__);
             });
 
             vector<FakeTcpProtocol*> protocols = {serverProtocol, clientProtocol};

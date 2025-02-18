@@ -1,16 +1,17 @@
 #include "giop.hh"
 
+#include "orb.hh"
+#include "blob.hh"
+#include "corba.hh"
+#include "util/logger.hh"
+#include "util/hexdump.hh"
+#include "net/protocol.hh"
+
 #include <array>
 #include <format>
 #include <iostream>
 #include <stdexcept>
 #include <utility>
-
-#include "blob.hh"
-#include "corba.hh"
-#include "util/hexdump.hh"
-#include "orb.hh"
-#include "net/protocol.hh"
 
 using namespace std;
 
@@ -28,7 +29,9 @@ void GIOPEncoder::writeObject(const CORBA::Object* object) {
     }
     auto stub = dynamic_cast<const Stub*>(object);
     if (stub != nullptr) {
-        throw runtime_error("Can not serialize stub yet.");
+        // throw runtime_error("Can not serialize stub yet.");
+        writeReference(object, true);
+        return;
     }
     auto skeleton = dynamic_cast<const Skeleton*>(object);
     if (skeleton != nullptr) {
@@ -45,7 +48,7 @@ void GIOPEncoder::writeObject(const CORBA::Object* object) {
 }
 
 // Interoperable Object Reference (IOR)
-void GIOPEncoder::writeReference(const Object* object) {
+void GIOPEncoder::writeReference(const Object* object, bool objectIsAStub) {
     // cerr << "GIOPEncoder::reference(...) ENTER" << endl;
     // const className = (object.constructor as any)._idlClassName()
     auto className = object->repository_id();
@@ -72,8 +75,14 @@ void GIOPEncoder::writeReference(const Object* object) {
         cerr << "GIOPEncoder::reference(...) [2]" << endl;
         throw runtime_error("GIOPEncoder::reference(...): the encoder has no connection and can not be reached over the network");
     }
-    writeString(connection->protocol->local.host);
-    writeUshort(connection->protocol->local.port);
+
+    if (objectIsAStub) {
+        writeString(connection->remote.host);
+        writeUshort(connection->remote.port);
+    } else {
+        writeString(connection->protocol->local.host);
+        writeUshort(connection->protocol->local.port);
+    }
     writeBlob(object->get_object_key());
 
     // IIOP >= 1.1: components
@@ -410,7 +419,7 @@ void GIOPDecoder::readEncapsulation(std::function<void(ServiceId type)> closure)
 
 std::shared_ptr<Object> GIOPDecoder::readObject(std::shared_ptr<CORBA::ORB> orb) {  // const string typeInfo, bool isValue = false) {
     auto code = readUlong();
-    // println("GIOPDecoder::readObject(): code={}", code);
+    Logger::debug("GIOPDecoder::readObject(...): code={}", code);
     // auto objectOffset = buffer.m_offset - 4;
 
     if (code == 0) {
@@ -480,6 +489,8 @@ static array<ORBTypeName, 35> orbTypeNames{{{0x48500000, 0x4850000f, "Hewlett Pa
 
 shared_ptr<IOR> GIOPDecoder::readReference(size_t length) {
     auto oid = readString(length);
+    Logger::debug("GIOPDecoder::readReference(): oid='{}'", oid);
+
     std::string host;
     uint16_t port;
     CORBA::blob objectKey;
@@ -500,6 +511,7 @@ shared_ptr<IOR> GIOPDecoder::readReference(size_t length) {
                     host = readString();
                     port = readUshort();
                     objectKey = readBlob();
+                    Logger::debug("GIOPDecoder::readReference(): host='{}', port={}", host, port);
                     // FIXME: use utility function to compare version!!! better use hex: version >= 0x0101
                     // if (iiopMajorVersion == 1 && iiopMinorVersion != 0) {
                     //     readEncapsulation([&](ComponentId componentId) {

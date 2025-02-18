@@ -78,15 +78,19 @@ class Interface_impl : public Interface_skel {
         //     }
         //     co_return result;
         // }
+        CORBA::async<std::vector<std::shared_ptr<RemoteObject>>> getRemoteObjects() override { 
+            co_return remoteObjects;
+        }
 
         std::shared_ptr<Peer> peer;
         CORBA::async<void> setPeer(std::shared_ptr<Peer> aPeer) override {
             this->peer = aPeer;
             co_return;
         }
-        CORBA::async<std::vector<std::shared_ptr<RemoteObject>>> getRemoteObjects() override { 
-            co_return remoteObjects;
+        CORBA::async<std::shared_ptr<Peer>> getPeer() override {
+            co_return this->peer;
         }
+
         CORBA::async<std::string> callPeer(const std::string_view &value) override {
             auto s = co_await peer->callString(std::string(value) + " to the");
             co_return s + ".";

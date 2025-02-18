@@ -209,7 +209,7 @@ class GIOPEncoder : public GIOPBase {
         inline void fillInSize() { buffer.fillInSize(); }
 
         void writeObject(const Object *object);
-        void writeReference(const Object *object);
+        void writeReference(const Object *object, bool objectIsAStub = false);
         void writeEncapsulation(ComponentId type, std::function<void()> closure);
         void writeEncapsulation(ProfileId type, std::function<void()> closure);
         void writeEncapsulation(ServiceId type, std::function<void()> closure);

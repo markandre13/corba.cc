@@ -93,7 +93,8 @@ class ConnectionPool {
         inline void erase(std::shared_ptr<Connection> conn) { connections.erase(conn); }
         inline void clear() { connections.clear(); }
         inline size_t size() const { return connections.size(); }
-        std::shared_ptr<Connection> find(const char *host, uint16_t port) const;
+        std::shared_ptr<Connection> findByLocal(const char *host, uint16_t port) const;
+        std::shared_ptr<Connection> findByRemote(const char *host, uint16_t port) const;
         void print() const;
 };
 

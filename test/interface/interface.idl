@@ -64,6 +64,7 @@ interface Interface {
     sequence<RemoteObject> getRemoteObjects();
 
     void setPeer(in Peer peer);
+    Peer getPeer();
     string callPeer(in string value);
 };
 

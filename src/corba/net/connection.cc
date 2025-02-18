@@ -39,14 +39,30 @@ std::string Connection::str() const {
 //     return false;
 // };
 
-std::shared_ptr<Connection> ConnectionPool::find(const char *host, uint16_t port) const {
+std::shared_ptr<Connection> ConnectionPool::findByLocal(const char *host, uint16_t port) const {
+    for (auto &c : connections) {
+        if (c->protocol->local.host == host && c->protocol->local.port == port) {
+            return c;
+        }
+    }
+    Logger::warn("ConnectionPool::findByLocal({}, {}): found no connection", host, port);
+    for (auto &c : connections) {
+        Logger::warn("ConnectionPool::findByLocal(): HAVE {}:{} == {}:{} ?", host, port, c->remote.host, c->remote.port);
+    }
+    return std::shared_ptr<Connection>();
+}
+
+std::shared_ptr<Connection> ConnectionPool::findByRemote(const char *host, uint16_t port) const {
     for (auto &c : connections) {
         // std::println("ConnectionPool::find(): {}:{} == {}:{} ?", host, port, c->remote.host, c->remote.port);
         if (c->remote.host == host && c->remote.port == port) {
             return c;
         }
     }
-    Logger::warn("ConnectionPool::find({}, {}): found no connection", host, port);
+    Logger::warn("ConnectionPool::findByRemote({}, {}): found no connection", host, port);
+    for (auto &c : connections) {
+        Logger::warn("ConnectionPool::findByRemote(): HAVE {}:{} == {}:{} ?", host, port, c->remote.host, c->remote.port);
+    }
     return std::shared_ptr<Connection>();
 }
 

@@ -122,19 +122,19 @@ kaffeeklatsch_spec([] {
                 pool->insert(b81);
                 pool->insert(c80);
 
-                expect(pool->find("a", 80).get()).to.equal(a80.get());
-                expect(pool->find("b", 79).get()).to.equal(b79.get());
-                expect(pool->find("b", 80).get()).to.equal(b80.get());
-                expect(pool->find("b", 81).get()).to.equal(b81.get());
-                expect(pool->find("c", 80).get()).to.equal(c80.get());
+                expect(pool->findByRemote("a", 80).get()).to.equal(a80.get());
+                expect(pool->findByRemote("b", 79).get()).to.equal(b79.get());
+                expect(pool->findByRemote("b", 80).get()).to.equal(b80.get());
+                expect(pool->findByRemote("b", 81).get()).to.equal(b81.get());
+                expect(pool->findByRemote("c", 80).get()).to.equal(c80.get());
 
                 pool->erase(b80);
 
-                expect(pool->find("a", 80).get()).to.equal(a80.get());
-                expect(pool->find("b", 79).get()).to.equal(b79.get());
-                expect(pool->find("b", 80).get()).to.equal(nullptr);
-                expect(pool->find("b", 81).get()).to.equal(b81.get());
-                expect(pool->find("c", 80).get()).to.equal(c80.get());
+                expect(pool->findByRemote("a", 80).get()).to.equal(a80.get());
+                expect(pool->findByRemote("b", 79).get()).to.equal(b79.get());
+                expect(pool->findByRemote("b", 80).get()).to.equal(nullptr);
+                expect(pool->findByRemote("b", 81).get()).to.equal(b81.get());
+                expect(pool->findByRemote("c", 80).get()).to.equal(c80.get());
 
                 pool->erase(a80);
                 pool->erase(b79);
