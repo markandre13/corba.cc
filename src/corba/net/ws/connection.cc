@@ -7,8 +7,8 @@
 
 #include "../../exception.hh"
 #include "../../orb.hh"
-#include "../util/createAcceptKey.hh"
 #include "../../util/logger.hh"
+#include "../util/createAcceptKey.hh"
 
 using namespace std;
 
@@ -22,14 +22,6 @@ static int genmask_callback(wslay_event_context_ptr ctx, uint8_t *buf, size_t le
 
 static string prefix(WsConnection *conn) {
     string result;
-
-    std::time_t t = std::time(nullptr);
-    char mbstr[100];
-
-    std::time_t time = std::time({});
-    char timeString[std::size("yyyy-mm-ddThh:mm:ssZ")];
-    std::strftime(std::data(timeString), std::size(timeString), "%FT%TZ", std::gmtime(&time));
-    result += timeString;
 
     if (conn->protocol && conn->protocol->orb && conn->protocol->orb->logname) {
         result += format(" ORB({}): TCP({}): ", conn->protocol->orb->logname, conn->str());
@@ -53,9 +45,10 @@ WsConnection::~WsConnection() {
 }
 
 void WsConnection::send(unique_ptr<vector<char>> &&buffer) {
-    Logger::debug("{}WsConnection::send(): {} bytes", prefix(this), buffer->size());
     auto size = buffer->size();
     sendBuffer.push_back(move(buffer));
+    Logger::debug("{}WsConnection::send(): {} bytes, {} packets buffered", prefix(this), sendBuffer.back()->size(), sendBuffer.size());
+
     switch (state) {
         case ConnectionState::IDLE:
             Logger::debug("{}WsConnection::send(): IDLE, {} bytes", prefix(this), size);
@@ -260,9 +253,22 @@ void WsConnection::flushSendBuffer() {
     for (auto &buffer : sendBuffer) {
         struct wslay_event_msg msgarg = {WSLAY_BINARY_FRAME, (const uint8_t *)buffer->data(), buffer->size()};
         int r0 = wslay_event_queue_msg(ctx, &msgarg);
+        if (r0 != 0) {
+            Logger::error("WsConnection::flushSendBuffer(): wslay_event_queue_msg() returned {}", r0);
+        } else {
+            Logger::debug("WsConnection::flushSendBuffer(): wslay_event_queue_msg() queued {} bytes", buffer->size());
+        }
     }
     sendBuffer.clear();
-    startWriteHandler();
+    // startWriteHandler();
+    // canWrite();
+    int r = wslay_event_send(ctx);
+    if (r < 0) {
+        Logger::error("{}WsConnection::flushSendBuffer(): wslay_event_send() error {}", prefix(this), r);
+    }
+    if (r != 0) {
+        startWriteHandler();
+    }
 }
 
 void WsConnection::canWrite() {
@@ -279,14 +285,16 @@ void WsConnection::canWrite() {
         case WsConnectionState::HTTP_SERVER:
             Logger::debug("{}WsConnection::canWrite(): HTTP_SERVER", prefix(this));
             break;
-        case WsConnectionState::WS:
+        case WsConnectionState::WS: {
             Logger::debug("{}WsConnection::canWrite(): WS", prefix(this));
-            stopWriteHandler();
-            wslay_event_send(ctx);
-            if (wslay_event_want_write(ctx)) {
-                startWriteHandler();
+            int r = wslay_event_send(ctx);
+            if (r < 0) {
+                Logger::error("{}WsConnection::canWrite(): wslay_event_send() error {}", prefix(this), r);
             }
-            break;
+            if (r == 0) {
+                stopWriteHandler();
+            }
+        } break;
     }
 
     // println("{}WsConnection::canWrite(): sendbuffer size = {}, fd = {}", prefix(this), sendBuffer.size(), fd);
@@ -375,49 +383,10 @@ void WsConnection::canRead() {
             httpClientRcvd();
             break;
         case WsConnectionState::WS:
-            Logger::debug("{}WsConnection::canRead(): WS", prefix(this));
+            // Logger::debug("{}WsConnection::canRead(): WS", prefix(this));
             wslay_event_recv(ctx);
             break;
     }
-
-    // ssize_t nbytes = ::recv(fd, stream2packet.buffer(), stream2packet.length(), 0);
-    // if (nbytes < 0) {
-    //     if (errno == EAGAIN) {
-    //         println("{}WsConnection::canRead(): {} (EGAIN)", prefix(this), strerror(errno));
-    //         return;
-    //     }
-    //     if (errno == EBADF) {
-    //         println("{}WsConnection::canRead(): failed to connect to peer", prefix(this));
-    //     } else {
-    //         println("{}WsConnection::canRead(): {} ({})", prefix(this), strerror(errno), errno);
-    //     }
-    //     stopReadHandler();
-    //     ::close(fd);
-    //     fd = -1;
-    //     // TODO: if there packets to be send, switch to pending
-    //     // TODO: have one method to switch the state and perform the needed actions (e.g. handle timers)?
-    //     state = ConnectionState::IDLE;
-    //     while(!interlock.empty()) {
-    //         interlock.resume(interlock.begin()->first, make_exception_ptr(TRANSIENT(0, CORBA::CompletionStatus::NO)));
-    //     }
-    //     return;
-    // }
-    // println("{}WsConnection::canRead(): state = {}", prefix(this), std::to_underlying(state));
-    // if (state == ConnectionState::INPROGRESS) {
-    //     state = ConnectionState::ESTABLISHED;
-    //     stopTimer();
-    // }
-    // println("{}recv'd {} bytes", prefix(this), nbytes);
-    // if (nbytes > 0) {
-    //     stream2packet.received(nbytes);
-    //     while(true) {
-    //         auto msg = stream2packet.message();
-    //         if (msg.empty()) {
-    //             break;
-    //         }
-    //         recv(msg.data(), msg.size());
-    //     }
-    // }
 }
 
 void WsConnection::up() {
@@ -472,6 +441,14 @@ void WsConnection::stopReadHandler() {
     ev_io_stop(protocol->loop, &read_watcher);
 }
 
+void WsConnection::startWriteHandler() {
+    if (ev_is_active(&write_watcher)) {
+        return;
+    }
+    Logger::debug("{}WsConnection::startWriteHandler()", prefix(this));
+    ev_io_start(protocol->loop, &write_watcher);
+}
+
 void WsConnection::stopWriteHandler() {
     if (!ev_is_active(&write_watcher)) {
         return;
@@ -486,14 +463,6 @@ void WsConnection::startReadHandler() {
     }
     Logger::debug("{}WsConnection::startReadHandler()", prefix(this));
     ev_io_start(protocol->loop, &read_watcher);
-}
-
-void WsConnection::startWriteHandler() {
-    if (ev_is_active(&write_watcher)) {
-        return;
-    }
-    Logger::debug("{}WsConnection::startWriteHandler()", prefix(this));
-    ev_io_start(protocol->loop, &write_watcher);
 }
 
 void WsConnection::startTimer() {
@@ -549,6 +518,8 @@ ssize_t wslay_send_callback(wslay_event_context_ptr ctx, const uint8_t *data, si
     while ((r = send(handler->fd, (void *)data, len, sflags)) == -1 && errno == EINTR);
     if (handler->protocol->orb->logname) {
         Logger::debug("wslay_send_callback {}: send {} bytes", handler->protocol->orb->logname, len);
+    } else {
+        Logger::debug("wslay_send_callback(): send {} bytes", len);
     }
     if (r == -1) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
@@ -570,7 +541,9 @@ ssize_t wslay_recv_callback(wslay_event_context_ptr ctx, uint8_t *data, size_t l
     if (nbytes < 0) {
         if (errno != EAGAIN) {
             // println("errno = {}", errno);
-            Logger::error("wslay_recv_callback(): {}", strerror(errno));
+            Logger::error("wslay_recv_callback(): recv() error: {}", strerror(errno));
+        } else {
+            Logger::error("wslay_recv_callback(): recv() EAGAIN");  // THIS WHERE IT STOPS
         }
     }
     if (nbytes == 0) {
