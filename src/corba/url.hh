@@ -38,7 +38,7 @@ struct CorbaLocation {
 struct CorbaName : CorbaLocation {
         CorbaName() { objectKey = "NameService"; }
         std::string name;
-        virtual std::string str() const;
+        virtual std::string str() const override;
 };
 
 class IOR;

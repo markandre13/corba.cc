@@ -37,9 +37,13 @@ endif
 
 CFLAGS=-std=c++23 $(MEM) -O0 -g \
 	$(OS_CFLAGS) \
-	-Wall -Wextra -Wno-deprecated-anon-enum-enum-conversion \
-	-Werror=return-type -Werror=shadow \
-	-Wno-unused-parameter -Wno-module-import-in-extern-c \
+	-Wall -Wextra \
+	-Wno-deprecated-anon-enum-enum-conversion \
+	-Werror=return-type \
+	-Werror=shadow \
+	-Werror=suggest-override \
+	-Wno-unused-parameter \
+	-Wno-module-import-in-extern-c \
 	-I../upstream/kaffeeklatsch/src \
 	-I../src
 # -D_COROUTINE_DEBUG=1
