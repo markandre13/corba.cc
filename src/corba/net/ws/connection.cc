@@ -542,8 +542,8 @@ ssize_t wslay_recv_callback(wslay_event_context_ptr ctx, uint8_t *data, size_t l
         if (errno != EAGAIN) {
             // println("errno = {}", errno);
             Logger::error("wslay_recv_callback(): recv() error: {}", strerror(errno));
-        } else {
-            Logger::error("wslay_recv_callback(): recv() EAGAIN");  // THIS WHERE IT STOPS
+        // } else {
+        //     Logger::error("wslay_recv_callback(): recv() EAGAIN");  // THIS WHERE IT STOPS
         }
     }
     if (nbytes == 0) {
