@@ -195,7 +195,6 @@ async<GIOPDecoder *> ORB::_twowayCall(Stub *stub, const char *operation, std::fu
     Logger::debug("ORB::_twowayCall(stub, \"{}\", ...) SEND REQUEST objectKey=\"{}\", operation=\"{}\", requestId={}", operation, stub->objectKey, operation,
                   requestId);
     try {
-        lock_guard guard(stub->connection->send_mutex);
         stub->connection->send(move(encoder.buffer._data));
     } catch (COMM_FAILURE &ex) {
         auto h = exceptionHandler.find(stub);
@@ -314,7 +313,6 @@ void ORB::onewayCall(Stub *stub, const char *operation, std::function<void(GIOPE
     encoder.setGIOPHeader(MessageType::REQUEST);
 
     try {
-        lock_guard guard(stub->connection->send_mutex);
         stub->connection->send(move(encoder.buffer._data));
     } catch (COMM_FAILURE &ex) {
         auto h = exceptionHandler.find(stub);
@@ -380,7 +378,6 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
                 encoder.setReplyHeader(request->requestId, ReplyStatus::NO_EXCEPTION);
 
                 // hexdump(encoder.buffer.data(), length);
-
                 connection->send(move(encoder.buffer._data));
 
                 return;

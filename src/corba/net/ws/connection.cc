@@ -41,10 +41,13 @@ WsConnection::~WsConnection() {
         stopWriteHandler();
         stopReadHandler();
         ::close(fd);
+    } else {
+        Logger::debug("WsConnection::~WsConnection()");
     }
 }
 
 void WsConnection::send(unique_ptr<vector<char>> &&buffer) {
+    lock_guard guard(send_mutex);
     auto size = buffer->size();
     sendBuffer.push_back(move(buffer));
     Logger::debug("{}WsConnection::send(): {} bytes, {} packets buffered", prefix(this), sendBuffer.back()->size(), sendBuffer.size());
@@ -246,25 +249,54 @@ void WsConnection::startWSMode() {
     flushSendBuffer();
 }
 
+string wslay_error_to_string(int errorcode) {
+    switch(errorcode) {
+        case WSLAY_ERR_WANT_READ:
+            return "WSLAY_ERR_WANT_READ";
+        case WSLAY_ERR_WANT_WRITE:
+            return "WSLAY_ERR_WANT_WRITE";
+        case WSLAY_ERR_PROTO:
+            return "WSLAY_ERR_PROTO";
+        case WSLAY_ERR_INVALID_ARGUMENT:
+            return "WSLAY_ERR_INVALID_ARGUMENT";
+        case WSLAY_ERR_INVALID_CALLBACK:
+            return "WSLAY_ERR_INVALID_CALLBACK";
+        case WSLAY_ERR_NO_MORE_MSG:
+            return "WSLAY_ERR_NO_MORE_MSG";
+        case WSLAY_ERR_CALLBACK_FAILURE:
+            return "WSLAY_ERR_CALLBACK_FAILURE";
+        case WSLAY_ERR_WOULDBLOCK:
+            return "WSLAY_ERR_WOULDBLOCK";
+        case WSLAY_ERR_NOMEM:
+            return "WSLAY_ERR_NOMEM";
+    }
+    return format("unknown wslay error code {}", errorcode);
+};
+
 void WsConnection::flushSendBuffer() {
     if (sendBuffer.empty()) {
         return;
     }
     for (auto &buffer : sendBuffer) {
         struct wslay_event_msg msgarg = {WSLAY_BINARY_FRAME, (const uint8_t *)buffer->data(), buffer->size()};
+        // note that wslay_event_queue_msg makes a copy
         int r0 = wslay_event_queue_msg(ctx, &msgarg);
-        if (r0 != 0) {
-            Logger::error("WsConnection::flushSendBuffer(): wslay_event_queue_msg() returned {}", r0);
-        } else {
-            Logger::debug("WsConnection::flushSendBuffer(): wslay_event_queue_msg() queued {} bytes", buffer->size());
+        switch(r0) {
+            case 0:
+                Logger::debug("WsConnection::flushSendBuffer(): wslay_event_queue_msg() queued {} bytes", buffer->size());
+                break;
+            case WSLAY_ERR_NO_MORE_MSG:
+                Logger::error("WsConnection::flushSendBuffer(): could not queue message. is the connection still open?");
+                // FIXME: something should tell us that the connection is closed and we should close it
+                break;
+            default:
+                Logger::error("WsConnection::flushSendBuffer(): wslay_event_queue_msg() returned {}", wslay_error_to_string(r0));
         }
     }
-    sendBuffer.clear();
-    // startWriteHandler();
-    // canWrite();
     int r = wslay_event_send(ctx);
+    sendBuffer.clear(); // FIXME: this might be premature???
     if (r < 0) {
-        Logger::error("{}WsConnection::flushSendBuffer(): wslay_event_send() error {}", prefix(this), r);
+        Logger::error("{}WsConnection::flushSendBuffer(): wslay_event_send() error {}", prefix(this), wslay_error_to_string(r));
     }
     if (r != 0) {
         startWriteHandler();
