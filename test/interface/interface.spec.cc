@@ -31,18 +31,18 @@ kaffeeklatsch_spec([] {
             clientORB->registerProtocol(clientProtocol);
 
             std::exception_ptr eptr;
-            bool done = false;
+            // FIXME: without 'static' we get a memory violation
+            static bool done = false;
 
             parallel(eptr, [&] -> async<> {
-                shared_ptr<CORBA::Object> object;
-                object = co_await clientORB->stringToObject("corbaname::backend.local:2809#Backend");
+                auto object = co_await clientORB->stringToObject("corbaname::backend.local:2809#Backend");
                 expect(object.get()).to.not_().equal(nullptr);
 
                 auto serverStub = Interface::_narrow(object);
                 expect(serverStub.get()).to.not_().equal(nullptr);
 
                 co_await serverStub->roAttribute();
-                // expect(co_await serverStub->roAttribute()).to.equal("static");
+                expect(co_await serverStub->roAttribute()).to.equal("static");
 
                 expect(co_await serverStub->rwAttribute()).to.equal("hello");
                 co_await serverStub->rwAttribute("world");
@@ -90,7 +90,7 @@ kaffeeklatsch_spec([] {
                 expect(co_await remoteObjects[1]->name()).to.equal("extra! extra!");
 
                 expect(serverImpl->peer.get()).to.equal(nullptr);
-
+  
                 auto frontend = make_shared<Peer_impl>();
                 clientORB->activate_object(frontend);
                 co_await serverStub->setPeer(frontend);
@@ -164,6 +164,10 @@ kaffeeklatsch_spec([] {
             if (eptr) {
                 std::rethrow_exception(eptr);
             }
+        });
+
+        xit("inheritance", [] {
+            // static bool done;
         });
     });
 });

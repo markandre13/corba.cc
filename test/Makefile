@@ -20,11 +20,12 @@ CXX=$(LLVM_DIR)/bin/clang++
 OS_CFLAGS=\
 	-I$(LLVM_DIR)/include/c++ \
 	-I$(HOMEBREW_DIR)/include \
+	-I/opt/homebrew/include \
 	-I/usr/local/include
 OS_LFLAGS=\
 	-L$(LLVM_DIR)/lib/c++ \
 	-Wl,-rpath,$(LLVM_DIR)/lib/c++ \
-	-L$(HOMEBREW_DIR)/lib/ \
+	-L/opt/homebrew/lib \
 	-L/usr/local/lib
 endif
 
@@ -35,7 +36,7 @@ OS_CFLAGS=
 OS_LFLAGS=-luuid
 endif
 
-CFLAGS=-std=c++23 $(MEM) -O0 -g \
+CFLAGS=-std=c++26 $(MEM) -O0 -g \
 	$(OS_CFLAGS) \
 	-Wall -Wextra \
 	-Wno-deprecated-anon-enum-enum-conversion \

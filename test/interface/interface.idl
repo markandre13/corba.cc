@@ -2,6 +2,10 @@ interface Peer {
     string callString(in string value);
 };
 
+interface PeerSub: Peer {
+    attribute string name;
+};
+
 // use RemoteObject and test it with sequence to get the copy routines right...
 interface RemoteObject {
     readonly attribute string id;

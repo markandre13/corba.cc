@@ -5,22 +5,22 @@
             "includePath": [
                 "${default}",
                 "/usr/include",
-                "/usr/local/opt/llvm/include/c++",
-                "/usr/local/include",
+                "/opt/homebrew/opt/llvm/include/c++",
+                "/opt/homebrew/include",
                 "${workspaceFolder}/src",
                 "${workspaceFolder}/upstream/kaffeeklatsch/src"
             ],
             "defines": [],
             "macFrameworkPath": [
-                "/Library/Developer/CommandLineTools/SDKs/MacOSX12.sdk/System/Library/Frameworks"
+                "/Library/Developer/CommandLineTools/SDKs/MacOSX26.sdk/System/Library/Frameworks"
             ],
             "cStandard": "c17",
             "intelliSenseMode": "macos-clang-x64",
-            "compilerPath": "/usr/local/opt/llvm/bin/clang++",
+            "compilerPath": "/opt/homebrew/opt/llvm/bin/clang++",
             "compilerArgs": [
-                "-std=c++23"
+                "-std=c++26"
             ],
-            "cppStandard": "c++23"
+            "cppStandard": "c++26"
         }
     ],
     "version": 4
