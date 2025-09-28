@@ -11,7 +11,6 @@ using CORBA::async, CORBA::ORB, CORBA::blob, CORBA::blob_view;
 bool operator==(const RGBA& lhs, const RGBA& rhs) { return lhs.r == rhs.r && lhs.g == rhs.g && lhs.b == rhs.b && lhs.a == rhs.a; }
 
 // for inheritance of interfaces, build everything from the ground up
-class Object {};
 
 // https://www.omg.org/spec/CPP/1.3/PDF, p. 126:
 //   class A : public virtual Object { ... }
@@ -28,48 +27,84 @@ class Object {};
 //   on the server it would return an implementation, on the client a stub?
 
 // interface definition
-class A {
-    public:
-        virtual void sayA() = 0;
-};
-class B : public virtual A {
-    public:
-        virtual void sayB() = 0;
-};
-class C : public virtual A {
-    public:
-        virtual void sayC() = 0;
-};
-class D : public virtual B, public virtual C {
-    public:
-        virtual void sayD() = 0;
-};
+// CORBA 3.4, Part 1, 8.3 Object Reference Operations, p.104
+// class Object {
+//         friend class ORB;
+//         std::shared_ptr<CORBA::ORB> orb;
+//         blob objectKey;
+//     public:
+//         virtual string_view respository_id() const = 0;
+//         std::shared_ptr<CORBA::ORB> get_ORB() { return orb; }
+// };
 
-class Skeleton {
-    virtual CORBA::async<> _call(const std::string_view &operation, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) = 0;
-};
-class A_skel : public virtual A, virtual Skeleton {
-    CORBA::async<> _call(const std::string_view &operation, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) override { co_return; }
-};
-class B_skel : public virtual B, public virtual A_skel {
-    CORBA::async<> _call(const std::string_view &operation, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) override { co_return; }
-};
-class C_skel : public virtual C, public virtual A_skel {
-    CORBA::async<> _call(const std::string_view &operation, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) override { co_return; }
-};
-class D_skel : public virtual D, public virtual B_skel, public virtual C_skel {
-    CORBA::async<> _call(const std::string_view &operation, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) override { co_return; }
-};
+// class A: public virtual Object {
+//     public:
+//         virtual void sayA() = 0;
+//         string_view respository_id() const override;
+//         static std::shared_ptr<A> _narrow(std::shared_ptr<CORBA::Object> object);
+// };
+// class B : public virtual A {
+//     public:
+//         virtual void sayB() = 0;
+//         string_view respository_id() const override;
+//         static std::shared_ptr<B> _narrow(std::shared_ptr<CORBA::Object> object);
+// };
+// class C : public virtual A {
+//     public:
+//         virtual void sayC() = 0;
+//         string_view respository_id() const override;
+//         static std::shared_ptr<C> _narrow(std::shared_ptr<CORBA::Object> object);
 
-class Stub {};
-class A_stub : public virtual A, virtual Stub {
-};
-class B_stub : public virtual B, public virtual A_stub {
-};
-class C_stub : public virtual C, public virtual A_stub {
-};
-class D_stub : public virtual D, public virtual B_stub, public virtual C_stub {
-};
+// };
+// class D : public virtual B, public virtual C {
+//     public:
+//         virtual void sayD() = 0;
+//         string_view respository_id() const override;
+//         static std::shared_ptr<A> _narrow(std::shared_ptr<CORBA::Object> object);
+// };
+
+// string_view A::respository_id() const {
+//     static string_view rid("IDL:A:1.0");
+//     return rid;
+// }
+// string_view B::respository_id() const {
+//     static string_view rid("IDL:A:1.0");
+//     return rid;
+// }
+// string_view C::respository_id() const {
+//     static string_view rid("IDL:A:1.0");
+//     return rid;
+// }
+// string_view D::respository_id() const {
+//     static string_view rid("IDL:A:1.0");
+//     return rid;
+// }
+
+// class Skeleton {
+//     virtual CORBA::async<> _call(const std::string_view &operation, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) = 0;
+// };
+// class A_skel : public virtual A, virtual Skeleton {
+//     CORBA::async<> _call(const std::string_view &operation, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) override { co_return; }
+// };
+// class B_skel : public virtual B, public virtual A_skel {
+//     CORBA::async<> _call(const std::string_view &operation, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) override { co_return; }
+// };
+// class C_skel : public virtual C, public virtual A_skel {
+//     CORBA::async<> _call(const std::string_view &operation, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) override { co_return; }
+// };
+// class D_skel : public virtual D, public virtual B_skel, public virtual C_skel {
+//     CORBA::async<> _call(const std::string_view &operation, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) override { co_return; }
+// };
+
+// class Stub {};
+// class A_stub : public virtual A, virtual Stub {
+// };
+// class B_stub : public virtual B, public virtual A_stub {
+// };
+// class C_stub : public virtual C, public virtual A_stub {
+// };
+// class D_stub : public virtual D, public virtual B_stub, public virtual C_stub {
+// };
 
 unsigned id = 0;
 
@@ -79,20 +114,20 @@ class A_impl : public virtual A_skel {
 
     public:
         A_impl() : _id(++id) {}
-        void sayA() override { println("sayA {}", _id); }
+        CORBA::async<void> sayA() override { println("sayA {}", _id); co_return; }
 };
 class B_impl : public virtual B_skel, public virtual A_impl {
     public:
-        void sayB() override { println("sayB {}", _id); }
+        CORBA::async<void> sayB() override { println("sayB {}", _id); co_return; }
 };
 class C_impl : public virtual C_skel, public virtual A_impl {
     public:
-        void sayC() override { println("sayC {}", _id); }
+        CORBA::async<void> sayC() override { println("sayC {}", _id); co_return; }
 };
-class D_impl : public virtual D_skel, public virtual B_impl, public virtual C_impl {
-    public:
-        void sayD() override { println("sayD {}", _id); }
-};
+// class D_impl : public virtual D_skel, public virtual B_impl, public virtual C_impl {
+//     public:
+//         void sayD() override { println("sayD {}", _id); }
+// };
 
 kaffeeklatsch_spec([] {
     
@@ -101,21 +136,21 @@ kaffeeklatsch_spec([] {
         fit("inheritance", [] {
             println("--- A_impl");
             auto a = new A_impl();
-            a->sayA();
+            a->sayA().no_wait();
             println("--- B_impl");
             auto b = new B_impl();
-            b->sayA();
-            b->sayB();
+            b->sayA().no_wait();
+            b->sayB().no_wait();
             println("--- C_impl");
             auto c = new C_impl();
-            c->sayA();
-            c->sayC();
-            println("--- D_impl");
-            auto d = new D_impl();
-            d->sayA();
-            d->sayB();
-            d->sayC();
-            d->sayD();
+            c->sayA().no_wait();
+            c->sayC().no_wait();
+            // println("--- D_impl");
+            // auto d = new D_impl();
+            // d->sayA();
+            // d->sayB();
+            // d->sayC();
+            // d->sayD();
         });
 
         it("send'n receive", [] {
@@ -199,6 +234,7 @@ kaffeeklatsch_spec([] {
 
                 auto frontend = make_shared<Peer_impl>();
                 clientORB->activate_object(frontend);
+                // co_await serverStub->setPeer(frontend);
                 co_await serverStub->setPeer(frontend);
                 expect(serverImpl->peer.get()).to.not_().equal(nullptr);
 

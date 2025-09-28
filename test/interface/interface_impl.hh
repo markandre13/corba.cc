@@ -2,7 +2,7 @@
 
 #include "interface_skel.hh"
 
-class RemoteObject_impl : public RemoteObject_skel {
+class RemoteObject_impl : public virtual RemoteObject_skel {
         std::string _id;
         std::string _name;
 
@@ -16,7 +16,7 @@ class RemoteObject_impl : public RemoteObject_skel {
         }
 };
 
-class Interface_impl : public Interface_skel {
+class Interface_impl : public virtual Interface_skel {
         std::string _rwattr;
         std::vector<std::shared_ptr<RemoteObject>> remoteObjects;
 

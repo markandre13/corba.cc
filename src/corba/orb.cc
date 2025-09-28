@@ -106,7 +106,8 @@ async<shared_ptr<Object>> ORB::stringToObject(const std::string &iorString) {
             // // get object from remote NameServiceExt
             // // std::println("ORB::stringToObject(\"{}\"): calling resolve_str(\"{}\") on remote end", iorString, name.name);
             // TODO: cache naming context
-            auto rootNamingContext = make_shared<NamingContextExtStub>(this->shared_from_this(), name.objectKey, nameConnection);
+            auto rootNamingContext = make_shared<NamingContextExtStub>();
+            rootNamingContext->initStub(this->shared_from_this(), name.objectKey, nameConnection);
             auto reference = co_await rootNamingContext->resolve_str(name.name);
             rootNamingContext = nullptr;  // THIS ONE CRASHES IT...
             // std::println("ORB::stringToObject(\"{}\"): got reference", iorString);

@@ -25,8 +25,11 @@ class Stub : public virtual Object {
         std::shared_ptr<detail::Connection> connection; 
 
     public:
-        Stub(std::shared_ptr<CORBA::ORB> orb, const CORBA::blob_view &objectKey, std::shared_ptr<detail::Connection> connection)
-            : orb(orb), objectKey(objectKey), connection(connection) {}
+        void initStub(std::shared_ptr<CORBA::ORB> anOrb, const CORBA::blob_view &anObjectKey, std::shared_ptr<detail::Connection> aConnection) {
+            this->orb = anOrb;
+            this->objectKey = anObjectKey;
+            this->connection = aConnection;
+        }
         virtual ~Stub() override;
         virtual blob_view get_object_key() const override { return objectKey; }
         std::shared_ptr<CORBA::ORB> get_ORB() const override { return orb; }

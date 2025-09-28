@@ -53,7 +53,8 @@ LFLAGS=$(OS_LFLAGS) $(MEM)
 
 LIB=-lev -lwslay -lnettle
 
-APP_SRC=cdr_decoder.spec.cc \
+APP_SRC=\
+	cdr_decoder.spec.cc \
 	cdr_encoder.spec.cc \
 	giop.spec.cc \
 	memory.spec.cc \

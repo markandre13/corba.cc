@@ -1,3 +1,15 @@
+interface A {
+    void sayA();
+};
+
+interface B: A {
+    void sayB();
+};
+
+interface C: A {
+    void sayC();
+};
+
 interface Peer {
     string callString(in string value);
 };
