@@ -1,6 +1,6 @@
 #include "../fake.hh"
-#include "../util.hh"
 #include "../src/corba/util/logger.hh"
+#include "../util.hh"
 #include "interface_impl.hh"
 #include "kaffeeklatsch.hh"
 
@@ -10,8 +10,114 @@ using CORBA::async, CORBA::ORB, CORBA::blob, CORBA::blob_view;
 
 bool operator==(const RGBA& lhs, const RGBA& rhs) { return lhs.r == rhs.r && lhs.g == rhs.g && lhs.b == rhs.b && lhs.a == rhs.a; }
 
+// for inheritance of interfaces, build everything from the ground up
+class Object {};
+
+// https://www.omg.org/spec/CPP/1.3/PDF, p. 126:
+//   class A : public virtual Object { ... }
+// Some ORB implementations might not use public virtual inheritance from CORBA::Object, and might not make the
+// operations pure virtual, but the signatures of the operations will be the same.
+
+// * C++ Language Mapping v1.3, 5.40.3 Inheritance-Based Interface Implementation
+// * https://www.omg.org/spec/CPP11 (July 2025)
+// * https://www.omg.org/spec/IDL4-CPP (March 2025)
+// => the skeleton does not inherit from the interface
+//    (then who is inheriting from the interface??? is it for stubs?)
+
+// what if an object is returned by a method?
+//   on the server it would return an implementation, on the client a stub?
+
+// interface definition
+class A {
+    public:
+        virtual void sayA() = 0;
+};
+class B : public virtual A {
+    public:
+        virtual void sayB() = 0;
+};
+class C : public virtual A {
+    public:
+        virtual void sayC() = 0;
+};
+class D : public virtual B, public virtual C {
+    public:
+        virtual void sayD() = 0;
+};
+
+class Skeleton {
+    virtual CORBA::async<> _call(const std::string_view &operation, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) = 0;
+};
+class A_skel : public virtual A, virtual Skeleton {
+    CORBA::async<> _call(const std::string_view &operation, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) override { co_return; }
+};
+class B_skel : public virtual B, public virtual A_skel {
+    CORBA::async<> _call(const std::string_view &operation, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) override { co_return; }
+};
+class C_skel : public virtual C, public virtual A_skel {
+    CORBA::async<> _call(const std::string_view &operation, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) override { co_return; }
+};
+class D_skel : public virtual D, public virtual B_skel, public virtual C_skel {
+    CORBA::async<> _call(const std::string_view &operation, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) override { co_return; }
+};
+
+class Stub {};
+class A_stub : public virtual A, virtual Stub {
+};
+class B_stub : public virtual B, public virtual A_stub {
+};
+class C_stub : public virtual C, public virtual A_stub {
+};
+class D_stub : public virtual D, public virtual B_stub, public virtual C_stub {
+};
+
+unsigned id = 0;
+
+class A_impl : public virtual A_skel {
+    protected:
+        unsigned _id;
+
+    public:
+        A_impl() : _id(++id) {}
+        void sayA() override { println("sayA {}", _id); }
+};
+class B_impl : public virtual B_skel, public virtual A_impl {
+    public:
+        void sayB() override { println("sayB {}", _id); }
+};
+class C_impl : public virtual C_skel, public virtual A_impl {
+    public:
+        void sayC() override { println("sayC {}", _id); }
+};
+class D_impl : public virtual D_skel, public virtual B_impl, public virtual C_impl {
+    public:
+        void sayD() override { println("sayD {}", _id); }
+};
+
 kaffeeklatsch_spec([] {
+    
     describe("interface", [] {
+
+        fit("inheritance", [] {
+            println("--- A_impl");
+            auto a = new A_impl();
+            a->sayA();
+            println("--- B_impl");
+            auto b = new B_impl();
+            b->sayA();
+            b->sayB();
+            println("--- C_impl");
+            auto c = new C_impl();
+            c->sayA();
+            c->sayC();
+            println("--- D_impl");
+            auto d = new D_impl();
+            d->sayA();
+            d->sayB();
+            d->sayC();
+            d->sayD();
+        });
+
         it("send'n receive", [] {
             // Logger::setDestination(nullptr);
             // Logger::setLevel(LOG_DEBUG);
@@ -90,7 +196,7 @@ kaffeeklatsch_spec([] {
                 expect(co_await remoteObjects[1]->name()).to.equal("extra! extra!");
 
                 expect(serverImpl->peer.get()).to.equal(nullptr);
-  
+
                 auto frontend = make_shared<Peer_impl>();
                 clientORB->activate_object(frontend);
                 co_await serverStub->setPeer(frontend);
@@ -164,10 +270,6 @@ kaffeeklatsch_spec([] {
             if (eptr) {
                 std::rethrow_exception(eptr);
             }
-        });
-
-        xit("inheritance", [] {
-            // static bool done;
         });
     });
 });

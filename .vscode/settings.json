@@ -99,6 +99,8 @@
         "expected": "cpp",
         "codecvt": "cpp",
         "csignal": "cpp",
-        "cinttypes": "cpp"
+        "cinttypes": "cpp",
+        "__verbose_trap": "cpp",
+        "__log_hardening_failure": "cpp"
     }
 }
