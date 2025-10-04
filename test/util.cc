@@ -31,6 +31,7 @@ void parallel(std::exception_ptr &eptr, std::function<CORBA::async<>()> closure)
         [&eptr](std::exception_ptr _eptr) {
             std::println("PARALLEL FINISHED: EXCEPTION");
             eptr = _eptr;
+            rethrow_exception(eptr);
         });
 }
 void parallel(std::exception_ptr &eptr, struct ev_loop *loop, std::function<CORBA::async<>()> closure) {

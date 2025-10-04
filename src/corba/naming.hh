@@ -27,7 +27,7 @@ class NamingContextExtImpl : public Skeleton {
     protected:
         void _orb_resolve(GIOPDecoder &decoder, GIOPEncoder &encoder);
         void _orb_resolve_str(GIOPDecoder &decoder, GIOPEncoder &encoder);
-        CORBA::async<> _call(const std::string_view &operation, GIOPDecoder &decoder, GIOPEncoder &encoder) override;
+        CORBA::async<> _dispatch(const std::string_view &operation, GIOPDecoder &decoder, GIOPEncoder &encoder) override;
 };
 
 class NamingContextExtStub : public Stub {

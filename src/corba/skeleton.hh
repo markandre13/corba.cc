@@ -24,7 +24,7 @@ class Skeleton : public virtual Object, public std::enable_shared_from_this<Skel
         virtual ~Skeleton() override;
         virtual blob_view get_object_key() const override { return objectKey; }
         std::shared_ptr<CORBA::ORB> get_ORB() const override { return orb; }
-        virtual CORBA::async<> _call(const std::string_view &operation, GIOPDecoder &decoder, GIOPEncoder &encoder) = 0;
+        virtual CORBA::async<> _dispatch(const std::string_view &operation, GIOPDecoder &decoder, GIOPEncoder &encoder) = 0;
 };
 
 }  // namespace CORBA

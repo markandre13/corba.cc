@@ -11,7 +11,7 @@ namespace CORBA {
 // IT IS TIME TO START WRITING A FREAKING BUNCH OF UNIT TESTS!!!
 
 Stub::~Stub() {
-    println("Stub::~Stub()");
+    // println("Stub::~Stub()");
     // orb->dump();
 
     // remove stub from it's connection

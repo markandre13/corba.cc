@@ -1,4 +1,5 @@
 interface A {
+    void speakA();
     void sayA();
 };
 
@@ -10,12 +11,16 @@ interface C: A {
     void sayC();
 };
 
+interface D: B /*, C */ {
+    void sayD();
+};
+
 interface Peer {
     string callString(in string value);
 };
 
 interface PeerSub: Peer {
-    attribute string name;
+    readonly attribute string name;
 };
 
 // use RemoteObject and test it with sequence to get the copy routines right...

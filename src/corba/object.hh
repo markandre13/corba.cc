@@ -13,9 +13,10 @@ class ORB;
 class Object {
     public:
         virtual ~Object();
-        virtual std::string_view repository_id() const = 0;
+        virtual std::string_view repository_id() const;
         virtual blob_view get_object_key() const = 0;
         virtual std::shared_ptr<CORBA::ORB> get_ORB() const = 0;
+        virtual bool _is_a(const std::string_view &repository_id) const;
 };
 
 }  // namespace CORBA

@@ -84,7 +84,8 @@ class Interface_impl : public virtual Interface_skel {
 
         std::shared_ptr<Peer> peer;
         CORBA::async<void> setPeer(std::shared_ptr<Peer> aPeer) override {
-            this->peer = aPeer;
+            // std::println("Interface_impl::setPeer({}): peer={}", aPeer ? "*" : "null", peer ? "*" : "null");
+            peer = aPeer;
             co_return;
         }
         CORBA::async<std::shared_ptr<Peer>> getPeer() override {
@@ -97,9 +98,14 @@ class Interface_impl : public virtual Interface_skel {
         }
 };
 
-class Peer_impl : public Peer_skel {
+class Peer_impl : public virtual Peer_skel {
     public:
         CORBA::async<std::string> callString(const std::string_view &value) override { co_return std::string(value) + " world"; }
+};
+
+class PeerSub_impl : public virtual PeerSub_skel, public virtual Peer_impl {
+    public:
+        CORBA::async<std::string> name() override { co_return "hello"; }
 };
 
 class Client_impl : public Client_skel {

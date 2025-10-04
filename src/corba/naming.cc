@@ -19,7 +19,7 @@ void NamingContextExtImpl::bind(const std::string &name, std::shared_ptr<Object>
 }
 
 std::shared_ptr<Object> NamingContextExtImpl::resolve(const std::string &name) {
-    println("NamingContextImpl.resolve(\"{}\")", name);
+    // println("NamingContextImpl.resolve(\"{}\")", name);
     auto servant = name2Object.find(name);
     if (servant == name2Object.end()) {
         println("NamingContextExtImpl::resolve(\"{}\"): name is not bound to an object", name);
@@ -46,7 +46,7 @@ void NamingContextExtImpl::_orb_resolve_str(GIOPDecoder &decoder, GIOPEncoder &e
     encoder.writeObject(result.get());
 }
 
-async<> NamingContextExtImpl::_call(const std::string_view &operation, GIOPDecoder &decoder, GIOPEncoder &encoder) {
+async<> NamingContextExtImpl::_dispatch(const std::string_view &operation, GIOPDecoder &decoder, GIOPEncoder &encoder) {
     // cerr << "NamingContextExtImpl::_call(" << operation << ", ...)"
     // << endl;
     if (operation == "resolve") {

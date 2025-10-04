@@ -48,6 +48,17 @@ Object::~Object() {
     }
 }
 
+std::string_view Object::repository_id() const {
+    const string_view rid("IDL:omg.org/CORBA/Object:1.0");
+    return rid;
+}
+
+bool Object::_is_a(const std::string_view &logical_type_id) const {
+    const string_view rid("IDL:omg.org/CORBA/Object:1.0");
+    println("Object::is_a('{}') '{}' -> {}", logical_type_id, rid, logical_type_id == rid);
+    return logical_type_id == rid;
+};
+
 ORB::~ORB() {
     Logger::debug("{}ORB::~ORB()", prefix(this));
     shutdown();
@@ -362,6 +373,7 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
             }
             // NOTE: i can kill the server, client keeps running (will propably reconnect on demand)
 
+            // TODO: this is now a member function
             if (request->operation == "_is_a") {
                 Logger::debug("OPERATION _is_a()");
                 auto repositoryId = decoder.readStringView();
@@ -394,7 +406,7 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
 
                 // move parts of this into a separate function so that it can be unit tested
                 // std::cerr << "CALL SERVANT" << std::endl;
-                servant->second->_call(request->operation, decoder, *encoder)
+                servant->second->_dispatch(request->operation, decoder, *encoder)
                     .thenOrCatch(
                         [this, encoder, connection, responseExpected, requestId] {  // FIXME: the references objects won't be available
                             // Logger::debug("SERVANT RETURNED");
@@ -410,7 +422,6 @@ void ORB::socketRcvd(detail::Connection *connection, const void *buffer, size_t 
                         },
                         [&](std::exception_ptr eptr) {  // FIXME: the references objects won't be available
                             try {
-                                // std::rethrow_exception(ex);
                                 std::rethrow_exception(eptr);
                             } catch (CORBA::UserException &ex) {
                                 Logger::error("CORBA::UserException while calling local servant {}::{}(...): {}", servant->second->repository_id(),
